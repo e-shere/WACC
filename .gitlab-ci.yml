@@ -29,6 +29,10 @@ before_script:
   # Log the sbt version
   - sbt sbtVersion
 
+lint:
+  script:
+    - sbt scalastyle
+
 test:
   script:
     # Execute your project's tests
