@@ -7,3 +7,9 @@ src/antlr
 
 #ignore other junk files
 *~
+
+#ignore created target directories
+target/
+.idea/
+project/
+
