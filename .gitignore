@@ -13,6 +13,9 @@ target/
 .idea/
 project/project/
 project/target/
+.vscode/
+.bsp/
+null/
 
 .metals/
 .bloop/

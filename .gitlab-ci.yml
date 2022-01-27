@@ -31,7 +31,7 @@ before_script:
 
 lint:
   script:
-    - sbt scalastyle
+    - sbt scalafmt --test
 
 test:
   script:
