@@ -1,24 +1,17 @@
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 val projectName = "WACC_16"
-
-lazy val sbtAssemblySettings = baseAssemblySettings ++ Seq(
-  assembly / assemblyOutputPath := baseDirectory.value / s"$projectName.jar",
-  assembly / assemblyMergeStrategy := {
-    case PathList("META-INF", xs @ _*) => MergeStrategy.discard
-    case _                             => MergeStrategy.first
-  }
-)
+val PARSLEY_VER = "3.3.2"
+val SCALA_VER = "2.13.8"
 
 lazy val root = (project in file("."))
     .settings(
         name := projectName,
         organization := "uk.ac.imperial.doc",
-        scalaVersion := "2.13.7",
-
-        sbtAssemblySettings,
+        scalaVersion := SCALA_VER,
 
         libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.10" % Test,
+        libraryDependencies += "com.github.j-mie6" %% "parsley" % PARSLEY_VER,
 
         scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
    )
