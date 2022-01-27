@@ -11,5 +11,9 @@ src/antlr
 #ignore created target directories
 target/
 .idea/
-project/
+project/project/
+project/target/
 
+.metals/
+.bloop/
+project/metals.sbt
