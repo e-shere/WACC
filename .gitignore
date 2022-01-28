@@ -11,8 +11,7 @@ src/antlr
 #ignore created target directories
 target/
 .idea/
-project/project/
-project/target/
+project/
 .vscode/
 .bsp/
 null/
