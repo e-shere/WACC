@@ -1,0 +1,30 @@
+# This file is a template, and might need editing before it works on your project.
+# To contribute improvements to CI/CD templates, please follow the Development guide at:
+# https://docs.gitlab.com/ee/development/cicd/templates.html
+# This specific template is located at:
+# https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Scala.gitlab-ci.yml
+
+# Official OpenJDK Java image. Look for the different tagged releases at
+# https://hub.docker.com/_/openjdk/ . A Java image is not required
+# but an image with a JVM speeds up the build a bit.
+image: hseeberger/scala-sbt:8u222_1.3.5_2.13.1
+
+stages:
+    - lint
+    - build
+    - test
+
+lint-job:
+  stage: lint
+  script:
+    - sbt scalafmtCheck
+
+build-job:
+  stage: build
+  script:
+    - sbt compile
+
+test-job:
+  stage: test
+  script:
+    - sbt clean coverage test coverageReport
