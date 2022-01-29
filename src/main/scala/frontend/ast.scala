@@ -59,37 +59,37 @@ object ast {
   // Binary operators
 
   // Precedence 6
-  case class Or(x: Expr1, y: Expr) extends Expr
+  case class Or(x: Expr5, y: Expr) extends Expr
 
   // Precedence 5
-  sealed trait Expr1 extends Expr
-  case class And(x: Expr2, y: Expr1) extends Expr1
+  sealed trait Expr5 extends Expr
+  case class And(x: Expr4, y: Expr5) extends Expr5
 
   // Precedence 4
-  sealed trait Expr2 extends Expr1
-  case class Eq(x: Expr3, y: Expr2) extends Expr2
-  case class Neq(x: Expr3, y: Expr2) extends Expr2
+  sealed trait Expr4 extends Expr5
+  case class Eq(x: Expr3, y: Expr4) extends Expr4
+  case class Neq(x: Expr3, y: Expr4) extends Expr4
 
   // Precedence 3
-  sealed trait Expr3 extends Expr2
-  case class Leq(x: Expr4, y: Expr3) extends Expr3
-  case class Lt(x: Expr4, y: Expr3) extends Expr3
-  case class Geq(x: Expr4, y: Expr3) extends Expr3
-  case class Gt(x: Expr4, y: Expr3) extends Expr3
+  sealed trait Expr3 extends Expr4
+  case class Leq(x: Expr2, y: Expr3) extends Expr3
+  case class Lt(x: Expr2, y: Expr3) extends Expr3
+  case class Geq(x: Expr2, y: Expr3) extends Expr3
+  case class Gt(x: Expr2, y: Expr3) extends Expr3
 
   // Precedence 2
-  sealed trait Expr4 extends Expr3
-  case class Add(x: Expr5, y: Expr4) extends Expr4
-  case class Sub(x: Expr5, y: Expr4) extends Expr4
+  sealed trait Expr2 extends Expr3
+  case class Add(x: Expr1, y: Expr2) extends Expr2
+  case class Sub(x: Expr1, y: Expr2) extends Expr2
 
   // Precedence 1
-  sealed trait Expr5 extends Expr3
-  case class Mul(x: Expr6, y: Expr5) extends Expr5
-  case class Div(x: Expr6, y: Expr5) extends Expr5
-  case class Mod(x: Expr6, y: Expr5) extends Expr5
+  sealed trait Expr1 extends Expr2
+  case class Mul(x: Expr0, y: Expr1) extends Expr1
+  case class Div(x: Expr0, y: Expr1) extends Expr1
+  case class Mod(x: Expr0, y: Expr1) extends Expr1
 
   // Other expression types
-  sealed trait Expr6 extends Expr5
+  sealed trait Expr0 extends Expr1
 
   // Literals
 
