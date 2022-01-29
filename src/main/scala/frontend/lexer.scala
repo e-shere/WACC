@@ -4,6 +4,7 @@ import parsley.character.isWhitespace
 import parsley.token.{LanguageDef, Lexer, Predicate}
 
 object lexer {
+  //noinspection ScalaStyle
   private val wacc = LanguageDef.plain.copy(
     commentLine = "#",
     keywords = Set("begin", "end", "skip", "read", "free", "return", "exit", "print", "println",
@@ -16,5 +17,5 @@ object lexer {
     space = Predicate(isWhitespace)
   )
 
-  private val lexer = new Lexer(wacc)
+  new Lexer(wacc)
 }
