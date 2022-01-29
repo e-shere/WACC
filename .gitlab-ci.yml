@@ -10,14 +10,14 @@
 image: hseeberger/scala-sbt:8u222_1.3.5_2.13.1
 
 stages:
-    - lint
+#    - lint
     - build
     - test
 
-lint-job:
-  stage: lint
-  script:
-    - sbt scalafmtCheck
+#lint-job:
+#  stage: lint
+#  script:
+#    - sbt scalafmtCheck
 
 build-job:
   stage: build
