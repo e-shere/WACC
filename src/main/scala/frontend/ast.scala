@@ -65,34 +65,35 @@ object ast {
   // Binary operators
 
   // Precedence 6
-  case class Or(x: Expr5, y: Expr)(val pos: (Int, Int)) extends Expr
+  sealed trait Expr6 extends Expr
+  case class Or(x: Expr6, y: Expr5)(val pos: (Int, Int)) extends Expr6
 
   // Precedence 5
-  sealed trait Expr5 extends Expr
-  case class And(x: Expr4, y: Expr5)(val pos: (Int, Int)) extends Expr5
+  sealed trait Expr5 extends Expr6
+  case class And(x: Expr5, y: Expr4)(val pos: (Int, Int)) extends Expr5
 
   // Precedence 4
   sealed trait Expr4 extends Expr5
-  case class Eq(x: Expr3, y: Expr4)(val pos: (Int, Int)) extends Expr4
-  case class Neq(x: Expr3, y: Expr4)(val pos: (Int, Int)) extends Expr4
+  case class Eq(x: Expr4, y: Expr3)(val pos: (Int, Int)) extends Expr4
+  case class Neq(x: Expr4, y: Expr3)(val pos: (Int, Int)) extends Expr4
 
   // Precedence 3
   sealed trait Expr3 extends Expr4
-  case class Leq(x: Expr2, y: Expr3)(val pos: (Int, Int)) extends Expr3
-  case class Lt(x: Expr2, y: Expr3)(val pos: (Int, Int)) extends Expr3
-  case class Geq(x: Expr2, y: Expr3)(val pos: (Int, Int)) extends Expr3
-  case class Gt(x: Expr2, y: Expr3)(val pos: (Int, Int)) extends Expr3
+  case class Leq(x: Expr3, y: Expr2)(val pos: (Int, Int)) extends Expr3
+  case class Lt(x: Expr3, y: Expr2)(val pos: (Int, Int)) extends Expr3
+  case class Geq(x: Expr3, y: Expr2)(val pos: (Int, Int)) extends Expr3
+  case class Gt(x: Expr3, y: Expr2)(val pos: (Int, Int)) extends Expr3
 
   // Precedence 2
   sealed trait Expr2 extends Expr3
-  case class Add(x: Expr1, y: Expr2)(val pos: (Int, Int)) extends Expr2
-  case class Sub(x: Expr1, y: Expr2)(val pos: (Int, Int)) extends Expr2
+  case class Add(x: Expr2, y: Expr1)(val pos: (Int, Int)) extends Expr2
+  case class Sub(x: Expr2, y: Expr1)(val pos: (Int, Int)) extends Expr2
 
   // Precedence 1
   sealed trait Expr1 extends Expr2
-  case class Mul(x: Expr0, y: Expr1)(val pos: (Int, Int)) extends Expr1
-  case class Div(x: Expr0, y: Expr1)(val pos: (Int, Int)) extends Expr1
-  case class Mod(x: Expr0, y: Expr1)(val pos: (Int, Int)) extends Expr1
+  case class Mul(x: Expr1, y: Expr0)(val pos: (Int, Int)) extends Expr1
+  case class Div(x: Expr1, y: Expr0)(val pos: (Int, Int)) extends Expr1
+  case class Mod(x: Expr1, y: Expr0)(val pos: (Int, Int)) extends Expr1
 
   // Other expression types
   sealed trait Expr0 extends Expr1
@@ -132,7 +133,37 @@ object ast {
     final def <#(p: Parsley[_]): Parsley[T] = parser <* p
   }
 
-  object IntType extends ParserBuilder[IntType] {
-    val parser = pos.map(IntType)
+  trait ParserBuilderPos1[T1, R] extends ParserBuilder[T1 => R] {
+        def apply(x: T1)(pos: (Int, Int)): R
+        val parser = pos.map(p => apply(_)(p))
   }
+  
+  trait ParserBuilderPos2[T1, T2, R] extends ParserBuilder[(T1, T2) => R] {
+        def apply(x: T1, y: T2)(pos: (Int, Int)): R
+        val parser = pos.map(p => apply(_, _)(p))
+  }
+
+  object Or extends ParserBuilderPos2[Expr6, Expr5, Expr6]
+  
+  object And extends ParserBuilderPos2[Expr5, Expr4, Expr5]
+
+  object Eq extends ParserBuilderPos2[Expr4, Expr3, Expr4]
+  object Neq extends ParserBuilderPos2[Expr4, Expr3, Expr4]
+
+  object Leq extends ParserBuilderPos2[Expr3, Expr2, Expr3]
+  object Lt extends ParserBuilderPos2[Expr3, Expr2, Expr3]
+  object Geq extends ParserBuilderPos2[Expr3, Expr2, Expr3]
+  object Gt extends ParserBuilderPos2[Expr3, Expr2, Expr3]
+
+  object Add extends ParserBuilderPos2[Expr2, Expr1, Expr2]
+  object Sub extends ParserBuilderPos2[Expr2, Expr1, Expr2]
+  
+  object Mul extends ParserBuilderPos2[Expr1, Expr0, Expr1]
+  object Div extends ParserBuilderPos2[Expr1, Expr0, Expr1]
+  object Mod extends ParserBuilderPos2[Expr1, Expr0, Expr1]
+
+
+  // object IntType extends ParserBuilder[IntType] {
+  //   val parser = pos.map(IntType)
+  // }
 }
