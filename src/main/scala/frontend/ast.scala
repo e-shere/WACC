@@ -12,12 +12,12 @@ object ast {
   case class WaccProgram(funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends NodeWithPosition
   // todo: represent program arguments as something optional
   case class Func(t: Type, id: Ident, args: List[Param], body: List[Stat])(val pos: (Int, Int)) extends NodeWithPosition
-  case class Param(t: Type,id: Ident) extends NodeWithPosition
+  case class Param(t: Type,id: Ident)(val pos: (Int, Int)) extends NodeWithPosition
 
 
   // Statements
   sealed trait Stat extends NodeWithPosition
-  case class Skip(val pos: (Int, Int)) extends Stat
+  case class Skip()(val pos: (Int, Int)) extends Stat
   case class Declare(t: Type, id: Ident, rhs: AssignRhs)(val pos: (Int, Int)) extends Stat
   case class Assign(lhs: AssignLhs, rhs: AssignRhs)(val pos: (Int, Int)) extends Stat
   case class Read(lhs: AssignLhs)(val pos: (Int, Int)) extends Stat
@@ -47,17 +47,17 @@ object ast {
   sealed trait Type extends NodeWithPosition
 
   sealed trait BaseType extends Type with PairElemType
-  case class IntType(val pos: (Int, Int)) extends BaseType
-  case class BoolType(val pos: (Int, Int)) extends BaseType
-  case class CharType(val pos: (Int, Int)) extends BaseType
-  case class StringType(val pos: (Int, Int)) extends BaseType
+  case class IntType(x: Int)(val pos: (Int, Int)) extends BaseType
+  case class BoolType(b: Boolean)(val pos: (Int, Int)) extends BaseType
+  case class CharType(c: Char)(val pos: (Int, Int)) extends BaseType
+  case class StringType(s: String)(val pos: (Int, Int)) extends BaseType
 
   case class ArrayType(ty: Type)(val pos: (Int, Int)) extends Type with PairElemType
 
   case class PairType(ty1: PairElemType, ty2: PairElemType)(val pos: (Int, Int)) extends Type
 
   sealed trait PairElemType extends NodeWithPosition
-  case class NestedPairType(val pos: (Int, Int)) extends PairElemType
+  case class NestedPairType()(val pos: (Int, Int)) extends PairElemType
 
   // Exprs
   sealed trait Expr extends NodeWithPosition
@@ -108,13 +108,13 @@ object ast {
 
   // Pairs
   sealed trait PairLiter extends Expr0
-  case class Null(val pos: (Int, Int)) extends PairLiter
+  case class Null()(val pos: (Int, Int)) extends PairLiter
 
   // Identifiers
   case class Ident(id: String)(val pos: (Int, Int)) extends AssignLhs with Expr0
 
   // Array accesses
-  case class ArrayElem(id: Ident, indexes: List[Expr])(val pos: (Int, Int))
+  case class ArrayElem(id: Ident, indexes: List[Expr])(val pos: (Int, Int)) extends AssignLhs
 
   // Unary operators
   case class Not(x: Expr0)(val pos: (Int, Int)) extends Expr0
@@ -131,6 +131,11 @@ object ast {
   trait ParserBuilder[T] {
     val parser: Parsley[T]
     final def <#(p: Parsley[_]): Parsley[T] = parser <* p
+  }
+
+  trait ParserBuilderPos0[R] extends ParserBuilder[R] {
+    def apply()(pos: (Int, Int)): R
+    val parser = pos.map(p => apply()(p))
   }
 
   trait ParserBuilderPos1[T1, R] extends ParserBuilder[T1 => R] {
@@ -176,21 +181,13 @@ object ast {
   object Chr extends ParserBuilderPos1[Expr0, Expr0]
   
   // Parser builder for types
-  object IntType extends ParserBuilder[IntType] {
-    val parser = pos.map(IntType(_))
-  }
+  object IntType extends ParserBuilderPos0[IntType]
 
-  object BoolType extends ParserBuilder[BoolType] {
-    val parser = pos.map(BoolType(_))
-  }
+  object BoolType extends ParserBuilderPos0[BoolType]
 
-  object CharType extends ParserBuilder[CharType] {
-    val parser = pos.map(CharType(_))
-  }
+  object CharType extends ParserBuilderPos0[CharType]
 
-  object StringType extends ParserBuilder[StringType] {
-    val parser = pos.map(StringType(_))
-  }
+  object StringType extends ParserBuilderPos0[StringType]
 
   // Parser builder for assignments
   object NewPair {
