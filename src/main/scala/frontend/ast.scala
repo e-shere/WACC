@@ -2,6 +2,9 @@ package frontend
 
 import parsley.Parsley, Parsley._
 import parsley.implicits.zipped.Zipped2
+import parsley.implicits.zipped.Zipped3
+import parsley.implicits.zipped.Zipped4
+
 
 object ast {
 
@@ -12,14 +15,14 @@ object ast {
   // Top level
   case class WaccProgram(funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends NodeWithPosition
   // todo: represent program arguments as something optional
-  case class Func(t: Type, id: Ident, args: List[Param], body: List[Stat])(val pos: (Int, Int)) extends NodeWithPosition
-  case class Param(t: Type,id: Ident)(val pos: (Int, Int)) extends NodeWithPosition
+  case class Func(ty: Type, id: Ident, args: List[Param], body: List[Stat])(val pos: (Int, Int)) extends NodeWithPosition
+  case class Param(ty: Type, id: Ident)(val pos: (Int, Int)) extends NodeWithPosition
 
 
   // Statements
   sealed trait Stat extends NodeWithPosition
-  case class Skip()(val pos: (Int, Int)) extends Stat
-  case class Declare(t: Type, id: Ident, rhs: AssignRhs)(val pos: (Int, Int)) extends Stat
+  case class Skip(val pos: (Int, Int)) extends Stat
+  case class Declare(ty: Type, id: Ident, rhs: AssignRhs)(val pos: (Int, Int)) extends Stat
   case class Assign(lhs: AssignLhs, rhs: AssignRhs)(val pos: (Int, Int)) extends Stat
   case class Read(lhs: AssignLhs)(val pos: (Int, Int)) extends Stat
   case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat
@@ -48,17 +51,17 @@ object ast {
   sealed trait Type extends NodeWithPosition
 
   sealed trait BaseType extends Type with PairElemType
-  case class IntType()(val pos: (Int, Int)) extends BaseType
-  case class BoolType()(val pos: (Int, Int)) extends BaseType
-  case class CharType()(val pos: (Int, Int)) extends BaseType
-  case class StringType()(val pos: (Int, Int)) extends BaseType
+  case class IntType(val pos: (Int, Int)) extends BaseType
+  case class BoolType(val pos: (Int, Int)) extends BaseType
+  case class CharType(val pos: (Int, Int)) extends BaseType
+  case class StringType(val pos: (Int, Int)) extends BaseType
 
   case class ArrayType(ty: Type)(val pos: (Int, Int)) extends Type with PairElemType
 
   case class PairType(ty1: PairElemType, ty2: PairElemType)(val pos: (Int, Int)) extends Type
 
   sealed trait PairElemType extends NodeWithPosition // extend Type??
-  case class NestedPairType()(val pos: (Int, Int)) extends PairElemType
+  case class NestedPairType(val pos: (Int, Int)) extends PairElemType
 
   // Exprs
   sealed trait Expr extends NodeWithPosition // extend assignRhs??
@@ -109,7 +112,7 @@ object ast {
 
   // Pairs
   sealed trait PairLiter extends Expr0
-  case class Null()(val pos: (Int, Int)) extends PairLiter
+  case class Null(val pos: (Int, Int)) extends PairLiter
 
   // Identifiers
   case class Ident(id: String)(val pos: (Int, Int)) extends AssignLhs with Expr0
@@ -125,9 +128,11 @@ object ast {
   case class Chr(x: Expr0)(val pos: (Int, Int)) extends Expr0
 
   // Parentheses
-  case class Paren(expr: Expr0)(val pos: (Int, Int)) extends Expr
+  case class Paren(expr: Expr)(val pos: (Int, Int)) extends Expr0
 
   //todo: use regex??
+
+  // Begin builders/companion objects
 
   trait ParserBuilder[T] {
     val parser: Parsley[T]
@@ -135,8 +140,8 @@ object ast {
   }
 
   trait ParserBuilderPos0[R] extends ParserBuilder[R] {
-    def apply()(pos: (Int, Int)): R
-    val parser: Parsley[R] = pos.map(p => apply()(p))
+    def apply(pos: (Int, Int)): R
+    val parser: Parsley[R] = pos.map(p => apply(p))
   }
 
   trait ParserBuilderPos1[T1, R] extends ParserBuilder[T1 => R] {
@@ -148,6 +153,98 @@ object ast {
     def apply(x: T1, y: T2)(pos: (Int, Int)): R
     val parser: Parsley[(T1, T2) => R] = pos.map(p => apply(_, _)(p))
   }
+
+  object Func {
+    def apply(ty: Parsley[Type], id: Parsley[Ident], args: Parsley[List[Param]], body: Parsley[List[Stat]]): Parsley[Func] = 
+      pos <**> (ty, id, args, body).zipped(Func(_, _, _, _) _)
+  }
+
+  object Param {
+    def apply(ty: Parsley[Type], id: Parsley[Ident]): Parsley[Param] = pos <**> (ty, id).zipped(Param(_,_) _)
+  }
+
+  object Skip extends ParserBuilderPos0[Skip]
+
+  object Declare {
+    def apply(ty: Parsley[Type], id: Parsley[Ident], rhs: Parsley[AssignRhs]): Parsley[Declare] =
+      pos <**> (ty, id, rhs).zipped(Declare(_, _, _) _)
+  }
+
+  object Assign {
+    def apply(lhs: Parsley[AssignLhs], rhs: Parsley[AssignRhs]): Parsley[Assign] = pos <**> (lhs, rhs).zipped(Assign(_, _) _)
+  }
+
+  object Read {
+    def apply(lhs: Parsley[AssignLhs]): Parsley[Read] = pos <**> lhs.map(Read(_) _)
+  }
+  
+  object Free {
+    def apply(expr: Parsley[Expr]): Parsley[Free] = pos <**> expr.map(Free(_) _)
+  }
+
+  object Return {
+    def apply(expr: Parsley[Expr]): Parsley[Return] = pos <**> expr.map(Return(_) _)
+  }
+
+  object Exit {
+    def apply(expr: Parsley[Expr]): Parsley[Exit] = pos <**> expr.map(Exit(_) _)
+  }
+
+  object Print {
+    def apply(expr: Parsley[Expr]): Parsley[Print] = pos <**> expr.map(Print(_) _)
+  }
+
+  object Println {
+    def apply(expr: Parsley[Expr]): Parsley[Println] = pos <**> expr.map(Println(_) _)
+  }
+
+  object If {
+    def apply(expr: Parsley[Expr], thenStats: Parsley[List[Stat]], elseStats: Parsley[List[Stat]]): Parsley[If] =
+      pos <**> (expr, thenStats, elseStats).zipped(If(_, _, _) _)
+  }
+
+  object While {
+    def apply(expr: Parsley[Expr], doStats: Parsley[List[Stat]]): Parsley[While] =
+      pos <**> (expr, doStats).zipped(While(_, _) _)
+  }
+
+  object Scope {
+    def apply(stats: Parsley[List[Stat]]): Parsley[Scope] =
+      pos <**> (stats).map(Scope(_) _)
+  }
+
+  // Parser builder for assignments
+  object NewPair {
+    def apply(fst: Parsley[Expr], snd: Parsley[Expr]): Parsley[NewPair] = pos <**> (fst, snd).zipped(NewPair(_,_) _)
+  }
+
+  object Call {
+    def apply(id: Parsley[Ident], args: Parsley[List[Expr]]): Parsley[Call] = pos <**> (id, args).zipped(Call(_,_) _)
+  }
+
+  object Fst {
+    def apply(expr: Parsley[Expr]): Parsley[Fst] = pos <**> expr.map(Fst(_) _)
+  }
+
+  object Snd {
+    def apply(expr: Parsley[Expr]): Parsley[Snd] = pos <**> expr.map(Snd(_) _)
+  }
+
+  // Parser builder for types
+  object IntType extends ParserBuilderPos0[IntType]
+  object BoolType extends ParserBuilderPos0[BoolType]
+  object CharType extends ParserBuilderPos0[CharType]
+  object StringType extends ParserBuilderPos0[StringType]
+
+  object ArrayType {
+    def apply(ty: Parsley[Type]): Parsley[ArrayType] = pos <**> ty.map(ArrayType(_))
+  }
+
+  object PairType {
+    def apply(ty1: Parsley[PairElemType], ty2: Parsley[PairElemType]): Parsley[PairType] = pos <**> (ty1, ty2).zipped(PairType(_,_) _)
+  }
+
+  object NestedPairType extends ParserBuilderPos0[NestedPairType]
 
   // Expressions with precedence 6
   object Or extends ParserBuilderPos2[Expr6, Expr5, Expr6]
@@ -173,44 +270,42 @@ object ast {
   object Mul extends ParserBuilderPos2[Expr1, Expr0, Expr1]
   object Div extends ParserBuilderPos2[Expr1, Expr0, Expr1]
   object Mod extends ParserBuilderPos2[Expr1, Expr0, Expr1]
+  
+  object IntLiter {
+    def apply(x: Parsley[Int]): Parsley[IntLiter] = pos <**> x.map(IntLiter(_) _)
+  }
 
+  object BoolLiter {
+    def apply(b: Parsley[Boolean]): Parsley[BoolLiter] = pos <**> b.map(BoolLiter(_) _)
+  }
+
+  object CharLiter {
+    def apply(c: Parsley[Char]): Parsley[CharLiter] = pos <**> c.map(CharLiter(_) _)
+  }
+
+  object StrLiter {
+    def apply(s: Parsley[String]): Parsley[StrLiter] = pos <**> s.map(StrLiter(_) _)
+  }
+
+  object Null extends ParserBuilderPos0[Null]
+
+  object Ident {
+    def apply(id: Parsley[String]): Parsley[Ident] = pos <**> id.map(Ident(_) _)
+  }
+
+  object ArrayElem {
+    def apply(id: Parsley[Ident], indexes: Parsley[List[Expr]]): Parsley[ArrayElem] = pos <**> (id, indexes).zipped(ArrayElem(_, _) _)
+  }
+  
   // Unary operators
   object Not extends ParserBuilderPos1[Expr0, Expr0]
   object Neg extends ParserBuilderPos1[Expr0, Expr0]
   object Len extends ParserBuilderPos1[Expr0, Expr0]
   object Ord extends ParserBuilderPos1[Expr0, Expr0]
   object Chr extends ParserBuilderPos1[Expr0, Expr0]
-  
-  // Parser builder for types
-  object IntType extends ParserBuilderPos0[IntType]
-  object BoolType extends ParserBuilderPos0[BoolType]
-  object CharType extends ParserBuilderPos0[CharType]
-  object StringType extends ParserBuilderPos0[StringType]
 
-  // Parser builder for assignments
-  object NewPair {
-    def apply (fst: Parsley[Expr], snd: Parsley[Expr]): Parsley[NewPair] =
-      pos <**> (fst, snd).zipped(NewPair(_,_))
+  object Paren {
+    def apply(expr: Parsley[Expr]): Parsley[Paren] = pos <**> expr.map(Paren(_) _)
   }
-
-  object Call {
-    def apply (id: Parsley[Ident], args: Parsley[List[Expr]]): Parsley[Call] =
-      pos <**> (id, args).zipped(Call(_,_))
-  }
-
-  object Fst {
-    def apply (expr: Parsley[Expr]): Parsley[Fst] =
-      pos <**> expr.map(Fst(_))
-  }
-
-  object Snd {
-    def apply (expr: Parsley[Expr]): Parsley[Snd] =
-      pos <**> expr.map(Snd(_))
-  }
-
-  object IntLiter {
-    def apply(x: => Parsley[Int]): Parsley[IntLiter] =
-      pos <**> x.map(IntLiter(_))
-   }
 
 }
