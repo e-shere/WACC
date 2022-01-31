@@ -134,34 +134,52 @@ object ast {
   }
 
   trait ParserBuilderPos1[T1, R] extends ParserBuilder[T1 => R] {
-        def apply(x: T1)(pos: (Int, Int)): R
-        val parser = pos.map(p => apply(_)(p))
+    def apply(x: T1)(pos: (Int, Int)): R
+    val parser = pos.map(p => apply(_)(p))
   }
   
   trait ParserBuilderPos2[T1, T2, R] extends ParserBuilder[(T1, T2) => R] {
-        def apply(x: T1, y: T2)(pos: (Int, Int)): R
-        val parser = pos.map(p => apply(_, _)(p))
+    def apply(x: T1, y: T2)(pos: (Int, Int)): R
+    val parser = pos.map(p => apply(_, _)(p))
   }
 
+  // Expressions with precedence 6
   object Or extends ParserBuilderPos2[Expr6, Expr5, Expr6]
   
+  // Expressions with precedence 5
   object And extends ParserBuilderPos2[Expr5, Expr4, Expr5]
 
+  // Expressions with precedence 4
   object Eq extends ParserBuilderPos2[Expr4, Expr3, Expr4]
   object Neq extends ParserBuilderPos2[Expr4, Expr3, Expr4]
 
+  // Expressions with precedence 3
   object Leq extends ParserBuilderPos2[Expr3, Expr2, Expr3]
   object Lt extends ParserBuilderPos2[Expr3, Expr2, Expr3]
   object Geq extends ParserBuilderPos2[Expr3, Expr2, Expr3]
   object Gt extends ParserBuilderPos2[Expr3, Expr2, Expr3]
 
+  // Expressions with precedence 2
   object Add extends ParserBuilderPos2[Expr2, Expr1, Expr2]
   object Sub extends ParserBuilderPos2[Expr2, Expr1, Expr2]
-  
+
+  // Expressions with precedence 1
   object Mul extends ParserBuilderPos2[Expr1, Expr0, Expr1]
   object Div extends ParserBuilderPos2[Expr1, Expr0, Expr1]
   object Mod extends ParserBuilderPos2[Expr1, Expr0, Expr1]
 
+  // Unary operators
+  object Not extends ParserBuilderPos1[Expr0, Expr0]
+  object Neg extends ParserBuilderPos1[Expr0, Expr0]
+  object Len extends ParserBuilderPos1[Expr0, Expr0]
+  object Ord extends ParserBuilderPos1[Expr0, Expr0]
+  object Chr extends ParserBuilderPos1[Expr0, Expr0]
+
+
+  // object IntLiter extends ParserBuilder[IntLiter => IntLiter] {
+  //   def apply(x: T1)(pos: (Int, Int)): R
+  //   val parser = pos.map(p => IntLiter(p))
+  // }
 
   // object IntType extends ParserBuilder[IntType] {
   //   val parser = pos.map(IntType)
