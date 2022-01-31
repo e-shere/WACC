@@ -1,6 +1,7 @@
 package frontend
 
 import parsley.Parsley, Parsley._
+import parsley.implicits.zipped.Zipped2
 
 object ast {
 
@@ -47,20 +48,20 @@ object ast {
   sealed trait Type extends NodeWithPosition
 
   sealed trait BaseType extends Type with PairElemType
-  case class IntType(x: Int)(val pos: (Int, Int)) extends BaseType
-  case class BoolType(b: Boolean)(val pos: (Int, Int)) extends BaseType
-  case class CharType(c: Char)(val pos: (Int, Int)) extends BaseType
-  case class StringType(s: String)(val pos: (Int, Int)) extends BaseType
+  case class IntType()(val pos: (Int, Int)) extends BaseType
+  case class BoolType()(val pos: (Int, Int)) extends BaseType
+  case class CharType()(val pos: (Int, Int)) extends BaseType
+  case class StringType()(val pos: (Int, Int)) extends BaseType
 
   case class ArrayType(ty: Type)(val pos: (Int, Int)) extends Type with PairElemType
 
   case class PairType(ty1: PairElemType, ty2: PairElemType)(val pos: (Int, Int)) extends Type
 
-  sealed trait PairElemType extends NodeWithPosition
+  sealed trait PairElemType extends NodeWithPosition // extend Type??
   case class NestedPairType()(val pos: (Int, Int)) extends PairElemType
 
   // Exprs
-  sealed trait Expr extends NodeWithPosition
+  sealed trait Expr extends NodeWithPosition // extend assignRhs??
 
   // Binary operators
 
@@ -130,22 +131,22 @@ object ast {
 
   trait ParserBuilder[T] {
     val parser: Parsley[T]
-    final def <#(p: Parsley[_]): Parsley[T] = parser <* p
+    final def <#(p: Parsley[_]): Parsley[T] = parser <~ p
   }
 
   trait ParserBuilderPos0[R] extends ParserBuilder[R] {
     def apply()(pos: (Int, Int)): R
-    val parser = pos.map(p => apply()(p))
+    val parser: Parsley[R] = pos.map(p => apply()(p))
   }
 
   trait ParserBuilderPos1[T1, R] extends ParserBuilder[T1 => R] {
     def apply(x: T1)(pos: (Int, Int)): R
-    val parser = pos.map(p => apply(_)(p))
+    val parser: Parsley[T1 => R] = pos.map(p => apply(_)(p))
   }
   
   trait ParserBuilderPos2[T1, T2, R] extends ParserBuilder[(T1, T2) => R] {
     def apply(x: T1, y: T2)(pos: (Int, Int)): R
-    val parser = pos.map(p => apply(_, _)(p))
+    val parser: Parsley[(T1, T2) => R] = pos.map(p => apply(_, _)(p))
   }
 
   // Expressions with precedence 6
@@ -182,34 +183,34 @@ object ast {
   
   // Parser builder for types
   object IntType extends ParserBuilderPos0[IntType]
-
   object BoolType extends ParserBuilderPos0[BoolType]
-
   object CharType extends ParserBuilderPos0[CharType]
-
   object StringType extends ParserBuilderPos0[StringType]
 
   // Parser builder for assignments
   object NewPair {
-    def apply (fst: Parsley[Expr], snd: Parsley[Expr]): Parsley[NewPair] = pos <**> (fst, snd).zipped(NewPair(_,_) _)
+    def apply (fst: Parsley[Expr], snd: Parsley[Expr]): Parsley[NewPair] =
+      pos <**> (fst, snd).zipped(NewPair(_,_))
   }
 
   object Call {
-    def apply (id: Parsley[Ident], args: Parsley[List[Expr]]): Parsley[Call] = pos <**> (id, args).zipped(Call(_,_) z_)
+    def apply (id: Parsley[Ident], args: Parsley[List[Expr]]): Parsley[Call] =
+      pos <**> (id, args).zipped(Call(_,_))
   }
 
   object Fst {
-    def apply (expr: Parsley[Expr]): Parsley[Fst] = pos <**> expr.map(Fst(_) _)
+    def apply (expr: Parsley[Expr]): Parsley[Fst] =
+      pos <**> expr.map(Fst(_))
   }
 
   object Snd {
-    def apply (expr: Parsley[Expr]): Parsley[Snd] = pos <**> expr.map(Snd(_) _)
+    def apply (expr: Parsley[Expr]): Parsley[Snd] =
+      pos <**> expr.map(Snd(_))
   }
 
-
-  // object IntLiter extends ParserBuilder[IntLiter => IntLiter] {
-  //   def apply(x: T1)(pos: (Int, Int)): R
-  //   val parser = pos.map(p => IntLiter(p))
-  // }
+  object IntLiter {
+    def apply(x: => Parsley[Int]): Parsley[IntLiter] =
+      pos <**> x.map(IntLiter(_))
+   }
 
 }
