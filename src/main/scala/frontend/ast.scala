@@ -174,6 +174,40 @@ object ast {
   object Len extends ParserBuilderPos1[Expr0, Expr0]
   object Ord extends ParserBuilderPos1[Expr0, Expr0]
   object Chr extends ParserBuilderPos1[Expr0, Expr0]
+  
+  // Parser builder for types
+  object IntType extends ParserBuilder[IntType] {
+    val parser = pos.map(IntType(_))
+  }
+
+  object BoolType extends ParserBuilder[BoolType] {
+    val parser = pos.map(BoolType(_))
+  }
+
+  object CharType extends ParserBuilder[CharType] {
+    val parser = pos.map(CharType(_))
+  }
+
+  object StringType extends ParserBuilder[StringType] {
+    val parser = pos.map(StringType(_))
+  }
+
+  // Parser builder for assignments
+  object NewPair {
+    def apply (fst: Parsley[Expr], snd: Parsley[Expr]): Parsley[NewPair] = pos <**> (fst, snd).zipped(NewPair(_,_) _)
+  }
+
+  object Call {
+    def apply (id: Parsley[Ident], args: Parsley[List[Expr]]): Parsley[Call] = pos <**> (id, args).zipped(Call(_,_) z_)
+  }
+
+  object Fst {
+    def apply (expr: Parsley[Expr]): Parsley[Fst] = pos <**> expr.map(Fst(_) _)
+  }
+
+  object Snd {
+    def apply (expr: Parsley[Expr]): Parsley[Snd] = pos <**> expr.map(Snd(_) _)
+  }
 
 
   // object IntLiter extends ParserBuilder[IntLiter => IntLiter] {
@@ -181,7 +215,4 @@ object ast {
   //   val parser = pos.map(p => IntLiter(p))
   // }
 
-  // object IntType extends ParserBuilder[IntType] {
-  //   val parser = pos.map(IntType)
-  // }
 }
