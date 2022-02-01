@@ -2,25 +2,38 @@ package frontend
 
 import parsley.Parsley
 import parsley.Parsley._
-import parsley.character.{digit, isWhitespace}
-import parsley.combinator.eof
+import parsley.character.{digit, isWhitespace, noneOf, oneOf}
+import parsley.combinator.{eof, optional, many}
 import parsley.errors.combinator.ErrorMethods
-import parsley.implicits.character.stringLift
+import parsley.implicits.character.{charLift, stringLift}
 import parsley.token.{LanguageDef, Lexer, Predicate}
-
 import scala.language.implicitConversions
 
 object lexer {
   // Identifiers for variables and functions
-  val ID = lexer.identifier.filterOut {
-    case k if wacc.keywords(k) => s"keyword $k cannot be used as an identifier"
+  val ID = lexer.identifier
+  private def token[A](p: =>Parsley[A]): Parsley[A] = {
+    lexer.lexeme(attempt(p))
   }
-  val NAT = digit.foldLeft1[Int](0)((n, d) => n * 10 + d.asDigit)
-  // TODO: negative numbers - sequence an optional +/- before the digits
-  val INT = ???
-  val BOOL = "true" #> true <|> "false" #> false
-  val CHAR = lexer.charLiteral
-  val STRING = ???
+
+  // include negation token then negation legal only if it is NOT immediately followed by an integer
+  // ie needs to consume whitespace/bracket/smth not an integer
+  // same for plus
+  val NEG = ??? // all of type Parsley[Int] -> Parsley[Int]
+  private val MINUS = ???
+  private val PLUS = ???
+
+  private val NAT = digit.foldLeft1[Int](0)((n, d) => n * 10 + d.asDigit)
+  // make the sign be a a Parsley[Int] -> Parsley[Int] and ap it
+  val INT = token(optional(oneOf('+','-')) <*> NAT)
+  val BOOL = token("true" #> true <|> "false" #> false)
+
+  private val escapeChar = oneOf('0', 'b', 't', 'f', 'r', '\"', '\'', '\\')
+  // for things which can be in the string or escape characters
+  private val charletter = token(noneOf('\\', '\'', '\"') <|> ('\\' *> escapeChar)) 
+  val CHAR = token('\'' *> charletter <* '\'')
+  val STRING = token('\"' *> many(charletter).map(_.mkString) <* '\"')
+
   private val wacc = LanguageDef.plain.copy(
     commentLine = "#",
     // @formatter:off
