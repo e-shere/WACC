@@ -10,6 +10,23 @@ import parsley.token.{LanguageDef, Lexer, Predicate}
 import scala.language.implicitConversions
 
 object lexer {
+
+  
+  private val wacc = LanguageDef.plain.copy(
+    commentLine = "#",
+    // @formatter:off
+    keywords = Set("begin", "end", "skip", "read", "free", "return", "exit", "print", "println",
+                    "if", "then", "else", "fi", "while", "do", "done", "newpair", "call",
+                    "fst", "snd", "int", "bool", "char", "string", "pair", "true", "false", "null"),
+    operators = Set("!", "-", "len", "ord", "chr", "*", "/", "%", "+",
+                    ">", "<", ">=", "<=", "==", "!=", "&&", "||"),
+    // @formatter:on
+    identStart = Predicate(c => c.isLetter || c == '_'),
+    identLetter = Predicate(c => c.isLetterOrDigit || c == '_'),
+    space = Predicate(isWhitespace)
+  )
+  private val lexer = new Lexer(wacc)
+  
   // Identifiers for variables and functions
   val ID = lexer.identifier
   private def token[A](p: =>Parsley[A]): Parsley[A] = {
@@ -25,7 +42,7 @@ object lexer {
 
   private val NAT = digit.foldLeft1[Int](0)((n, d) => n * 10 + d.asDigit)
   // make the sign be a a Parsley[Int] -> Parsley[Int] and ap it
-  val INT = token(optional(oneOf('+','-')) <*> NAT)
+  val INT = ??? // token(optional(oneOf('+','-')) <*> NAT)
   val BOOL = token("true" #> true <|> "false" #> false)
 
   private val escapeChar = oneOf('0', 'b', 't', 'f', 'r', '\"', '\'', '\\')
@@ -33,21 +50,6 @@ object lexer {
   private val charletter = token(noneOf('\\', '\'', '\"') <|> ('\\' *> escapeChar)) 
   val CHAR = token('\'' *> charletter <* '\'')
   val STRING = token('\"' *> many(charletter).map(_.mkString) <* '\"')
-
-  private val wacc = LanguageDef.plain.copy(
-    commentLine = "#",
-    // @formatter:off
-    keywords = Set("begin", "end", "skip", "read", "free", "return", "exit", "print", "println",
-                    "if", "then", "else", "fi", "while", "do", "done", "newpair", "call",
-                    "fst", "snd", "int", "bool", "char", "string", "pair", "true", "false", "null"),
-    operators = Set("!", "-", "len", "ord", "chr", "*", "/", "%", "+",
-                    ">", "<", ">=", "<=", "==", "!=", "&&", "||"),
-    // @formatter:on
-    identStart = Predicate(c => c.isLetter || c == '_'),
-    identLetter = Predicate(c => c.isLetterOrDigit || c == '_'),
-    space = Predicate(isWhitespace)
-  )
-  private val lexer = new Lexer(wacc)
 
   def fully[A](p: Parsley[A]): Parsley[A] = lexer.whiteSpace ~> p <~ eof
 
