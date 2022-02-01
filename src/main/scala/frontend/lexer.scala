@@ -3,10 +3,10 @@ package frontend
 import parsley.Parsley
 import parsley.Parsley._
 import parsley.character.{digit, isWhitespace, noneOf, oneOf}
-import parsley.combinator.{eof, optional, many}
-import parsley.errors.combinator.ErrorMethods
+import parsley.combinator.{choice, eof, many, optionally}
 import parsley.implicits.character.{charLift, stringLift}
 import parsley.token.{LanguageDef, Lexer, Predicate}
+
 import scala.language.implicitConversions
 
 object lexer {
@@ -36,19 +36,21 @@ object lexer {
   // include negation token then negation legal only if it is NOT immediately followed by an integer
   // ie needs to consume whitespace/bracket/smth not an integer
   // same for plus
-  val NEG = ??? // all of type Parsley[Int] -> Parsley[Int]
-  private val MINUS = ???
-  private val PLUS = ???
+  val NEG = token('-' *> notFollowedBy(digit))
 
-  private val NAT = digit.foldLeft1[Int](0)((n, d) => n * 10 + d.asDigit)
-  // make the sign be a a Parsley[Int] -> Parsley[Int] and ap it
-  val INT = ??? // token(optional(oneOf('+','-')) <*> NAT)
+  private val minus: Parsley[Int => Int] = '-' #> {x: Int => -x}
+  private val plus: Parsley[Int => Int] = optionally('+', identity)
+  private val nat = digit.foldLeft1[Int](0)((n, d) => n * 10 + d.asDigit)
+  // need to make sign optional
+  val INT = token((minus <|> plus) <*> nat)
+
   val BOOL = token("true" #> true <|> "false" #> false)
 
-  private val escapeChar = oneOf('0', 'b', 't', 'f', 'r', '\"', '\'', '\\')
-  // for things which can be in the string or escape characters
-  private val charletter = token(noneOf('\\', '\'', '\"') <|> ('\\' *> escapeChar)) 
+  private val escapeChar =
+    choice('0' #> '\0', 'b' #> '\b', 't' #> '\t', 'f' #> '\f', 'r' #> '\r', '\"', '\'', '\\')
+  private val charletter = noneOf('\\', '\'', '\"') <|> ('\\' *> escapeChar)
   val CHAR = token('\'' *> charletter <* '\'')
+
   val STRING = token('\"' *> many(charletter).map(_.mkString) <* '\"')
 
   def fully[A](p: Parsley[A]): Parsley[A] = lexer.whiteSpace ~> p <~ eof
@@ -57,7 +59,6 @@ object lexer {
     implicit def implicitToken(s: String): Parsley[Unit] = {
       if (wacc.keywords(s)) lexer.keyword(s)
       else if (wacc.operators(s)) lexer.maxOp(s)
-      // check why we need symbol_ not symbol
       else void(lexer.symbol_(s))
     }
   }
