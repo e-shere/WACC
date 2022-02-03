@@ -60,11 +60,11 @@ object ast {
 
   case class PairType(ty1: PairElemType, ty2: PairElemType)(val pos: (Int, Int)) extends Type
 
-  sealed trait PairElemType extends NodeWithPosition // extend Type??
+  sealed trait PairElemType extends NodeWithPosition
   case class NestedPairType(val pos: (Int, Int)) extends PairElemType
 
   // Exprs
-  sealed trait Expr extends NodeWithPosition // extend assignRhs??
+  sealed trait Expr extends AssignRhs
 
   // Binary operators
 
@@ -136,7 +136,7 @@ object ast {
 
   trait ParserBuilder[T] {
     val parser: Parsley[T]
-    final def <#(p: Parsley[_]): Parsley[T] = parser <~ p
+    final def <#(p: Parsley[_]): Parsley[T] = parser <* p
   }
 
   trait ParserBuilderPos0[R] extends ParserBuilder[R] {
@@ -231,10 +231,10 @@ object ast {
   }
 
   // Parser builder for types
-  object IntType extends ParserBuilderPos0[IntType]
-  object BoolType extends ParserBuilderPos0[BoolType]
-  object CharType extends ParserBuilderPos0[CharType]
-  object StringType extends ParserBuilderPos0[StringType]
+  object IntType extends ParserBuilder[IntType]
+  object BoolType extends ParserBuilder[BoolType]
+  object CharType extends ParserBuilder[CharType]
+  object StringType extends ParserBuilder[StringType]
 
   object ArrayType {
     def apply(ty: Parsley[Type]): Parsley[ArrayType] = pos <**> ty.map(ArrayType(_))
@@ -244,7 +244,7 @@ object ast {
     def apply(ty1: Parsley[PairElemType], ty2: Parsley[PairElemType]): Parsley[PairType] = pos <**> (ty1, ty2).zipped(PairType(_,_) _)
   }
 
-  object NestedPairType extends ParserBuilderPos0[NestedPairType]
+  object NestedPairType extends ParserBuilder[NestedPairType]
 
   // Expressions with precedence 6
   object Or extends ParserBuilderPos2[Expr6, Expr5, Expr6]
