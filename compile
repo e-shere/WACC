@@ -3,4 +3,6 @@
 # You are free to change the language used for this script,
 # but do *not* change its name.
 
-system("sbt run <{#ARGV[0]}")
+projectName = "waccCompiler"
+
+system("java -jar #{waccCompiler} #{ARGV[0]}")
