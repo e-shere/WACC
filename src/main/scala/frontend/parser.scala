@@ -5,7 +5,7 @@ import implicits.implicitToken
 import ast._
 import parsley.Parsley, parsley.Parsley._
 import parsley.expr.{InfixL, Prefix, SOps, precedence}
-import parsley.implicits.character.{charLift, stringLift}
+import parsley.implicits.character.{charLift}
 import scala.language.implicitConversions
 import parsley.expr.Atoms
 import parsley.combinator.{sepBy, sepBy1, many, some}
@@ -27,27 +27,27 @@ object parser {
                                 <|> Exit("exit" *> `<expr>`)
                                 <|> Print("print" *> `<expr>`)
                                 <|> Println("println" *> `<expr>`)
-                                <|> If("if" *> `<expr>`, "then" *> sepBy1(`<stat>`), "else" *> sepBy1(`<stat>`) <* "fi")
-                                <|> While("while" *> `<expr>`, "do" *> sepBy1(`<stat>`) <* "done")
-                                <|> Scope("begin" *> sepBy1(`<stat>`) <* "end")
+                                <|> If("if" *> `<expr>`, "then" *> sepBy1(`<stat>`, ';'), "else" *> sepBy1(`<stat>`,';') <* "fi")
+                                <|> While("while" *> `<expr>`, "do" *> sepBy1(`<stat>`, ';') <* "done")
+                                <|> Scope("begin" *> sepBy1(`<stat>`,';') <* "end")
 
     private lazy val `<assign-lhs>` = `<ident>` <|> `<array-elem>` <|> `<pair-elem>`
 
     private lazy val `<assign-rhs>` = `<expr>`
-                                        <|> ArrayElem(`<ident>`, some('[' *> `<expr>` <* ']'))
+                                        <|> ArrayElem(`<ident>`, '[' *> some(`<expr>`) <* ']')
                                         <|> NewPair("newpair" *> '(' *> `<expr>` <* ',', `<expr>` <* ')')
                                         <|> `<pair-elem>`
                                         <|> Call("call" *> `<ident>`, '(' *> sepBy(`<expr>`, ',') <* ')')
 
     private lazy val `<pair-elem>` = Fst("fst" *> `<expr>`) <|> Snd("snd" *> `<expr>`)
 
-    private lazy val `<type>` = IntType <# "int"
-                                <|> BoolType <# "bool"
-                                <|> CharType <# "char"
-                                <|> StringType <# "string"
-                                <|> ArrayType(`<type>` <* '[' <* ']')
-                                <|> PairType("pair" *> '(' *> `<PairElemType>` <* ',', `<PairElemType>` <* ')')
-                                <|> NestedPairType <# "pair"
+    private lazy val `<type>` = (IntType <# "int")
+                                <|> (BoolType <# "bool")
+                                <|> (CharType <# "char")
+                                <|> (StringType <# "string")
+                                <|> (ArrayType(`<type>` <* '[' <* ']'))
+                                <|> (PairType("pair" *> '(' *> `<PairElemType>` <* ',', `<PairElemType>` <* ')'))
+                                <|> (NestedPairType <# "pair")
 
     private lazy val `<expr>`: Parsley[Expr] =
         precedence(SOps(InfixL)(Or  <# "||" ) +:
