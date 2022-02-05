@@ -8,9 +8,12 @@ RM     := rm -rf
 all:
 	sbt assembly
 
+test:
+	sbt test
+	
 # clean up all of the compiled files
 clean:
 	$(RM) *.jar
 	sbt clean
 
-.PHONY: all clean
+.PHONY: all test clean
