@@ -5,10 +5,8 @@ import org.scalatest.matchers.should.Matchers._
 
 import java.io.File
 
-class AllValid extends AnyFlatSpec {
+class AllSyntacticallyValid extends AnyFlatSpec {
     import parser._
-    import ast._
-    import parsley.Result
     import scala.io.Source
     import parsley.{Success, Failure}
 

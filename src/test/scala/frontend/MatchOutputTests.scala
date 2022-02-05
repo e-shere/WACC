@@ -3,7 +3,7 @@ package frontend
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 
-class Basic extends AnyFlatSpec {
+class MatchOutputTests extends AnyFlatSpec {
     import parser._
     import ast._
     import parsley.Result
