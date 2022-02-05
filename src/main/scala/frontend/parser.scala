@@ -12,15 +12,15 @@ import parsley.combinator.{sepBy, sepBy1, many, some}
 
 object parser {
 
-    private lazy val `<program>` = "begin" *> WaccProgram(many(`<func>`), sepBy1(`<stat>`, ",")) <* "end"
+    private lazy val `<program>` = "begin" *> WaccProgram(many(`<func>`), sepBy1(`<stat>`, ',')) <* "end"
 
-    private lazy val `<func>` = Func(`<type>`, `<ident>`, sepBy(`<param>`, ","), sepBy1(`<stat>`, ","))
+    private lazy val `<func>` = Func(`<type>`, `<ident>`, sepBy(`<param>`, ','), sepBy1(`<stat>`, ','))
 
     private lazy val `<param>` = Param(`<type>`, `<ident>`)
 
     private lazy val `<stat>` = Skip <# "skip"
-                                <|> Declare(`<type>`, `<ident>`, "=" *> `<assign-rhs>`)
-                                <|> Assign(`<assign-lhs>`, "=" *> `<assign-rhs>`)
+                                <|> Declare(`<type>`, `<ident>`, '=' *> `<assign-rhs>`)
+                                <|> Assign(`<assign-lhs>`, '=' *> `<assign-rhs>`)
                                 <|> Read("read" *> `<assign-lhs>`)
                                 <|> Free("free" *> `<expr>`)
                                 <|> Return("return" *> `<expr>`)
@@ -34,10 +34,10 @@ object parser {
     private lazy val `<assign-lhs>` = `<ident>` <|> `<array-elem>` <|> `<pair-elem>`
 
     private lazy val `<assign-rhs>` = `<expr>`
-                                        <|> ArrayElem(`<ident>`, some("[" *> `<expr>` <* "]"))
-                                        <|> NewPair("newpair" *> "(" *> `<expr>` <* ",", `<expr>` <* ")")
+                                        <|> ArrayElem(`<ident>`, some('[' *> `<expr>` <* ']'))
+                                        <|> NewPair("newpair" *> '(' *> `<expr>` <* ',', `<expr>` <* ')')
                                         <|> `<pair-elem>`
-                                        <|> Call("call" *> `<ident>`, "(" *> sepBy(`<expr>`, ",") <* ")")
+                                        <|> Call("call" *> `<ident>`, '(' *> sepBy(`<expr>`, ',') <* ')')
 
     private lazy val `<pair-elem>` = Fst("fst" *> `<expr>`) <|> Snd("snd" *> `<expr>`)
 
@@ -45,8 +45,8 @@ object parser {
                                 <|> BoolType <# "bool"
                                 <|> CharType <# "char"
                                 <|> StringType <# "string"
-                                <|> ArrayType(`<type>` <* "[" <* "]")
-                                <|> PairType("pair" *> "(" *> `<PairElemType>` <* ",", `<PairElemType>` <* ")")
+                                <|> ArrayType(`<type>` <* '[' <* ']')
+                                <|> PairType("pair" *> '(' *> `<PairElemType>` <* ',', `<PairElemType>` <* ')')
                                 <|> NestedPairType <# "pair"
 
     private lazy val `<expr>`: Parsley[Expr] =
@@ -69,8 +69,8 @@ object parser {
         StrLiter(STRING),
         Null <# "null",
         `<ident>`,
-        ArrayElem(`<ident>`, some("[" *> `<expr>` <* "]")),
-        Paren("(" *> `<expr>` <* ")")
+        ArrayElem(`<ident>`, some('[' *> `<expr>` <* ']')),
+        Paren('(' *> `<expr>` <* ')')
     )
 
     private lazy val `<ident>` = Ident(ID)
