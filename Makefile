@@ -23,12 +23,12 @@ JFLAGS	:= -sourcepath $(SOURCE_DIR) -d $(OUTPUT_DIR) -cp lib/antlr-4.9.3-complet
 
 # run the antlr build script then attempts to compile all .java files within src/antlr
 all:
-	cd $(ANTLR_DIR) && ./$(ANTLR) 
-	$(MKDIR) $(OUTPUT_DIR)
-	$(JAVAC) $(JFLAGS) $(ANTLR_SOURCE_DIR)/*.java
+	sbt assembly
 
 # clean up all of the compiled files
 clean:
 	$(RM) $(OUTPUT_DIR) $(SOURCE_DIR)/antlr
+	$(RM) *.jar
+	sbt clean
 
 .PHONY: all clean
