@@ -3,6 +3,6 @@
 # You are free to change the language used for this script,
 # but do *not* change its name.
 
-projectName = "waccCompiler.jar"
+projectName = "waccCompiler"
 
-system("java -jar #{waccCompiler} #{ARGV[0]}")
+system("java -jar #{projectName}.jar #{ARGV[0]}")
