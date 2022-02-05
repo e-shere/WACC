@@ -16,9 +16,9 @@ object parser {
 
      private lazy val `<func>` = Func(`<type>`, `<ident>`, '(' *> sepBy(`<param>`, ',') <* ')', "is" *> sepBy1(`<stat>`, ';') <* "end")
 
-     private lazy val `<param>` = ??? //Param(`<type>`, `<ident>`)
+     private lazy val `<param>` = ??? // Param(`<type>`, `<ident>`)
 
-     private lazy val `<stat>` = ??? // Skip <# "skip"
+     private lazy val `<stat>` = ??? //Skip <# "skip"
 // //                                <|> Declare(`<type>`, `<ident>`, '=' *> `<assign-rhs>`)
 // //                                <|> Assign(`<assign-lhs>`, '=' *> `<assign-rhs>`)
 // //                                <|> Read("read" *> `<assign-lhs>`)
@@ -41,13 +41,13 @@ object parser {
 
      private lazy val `<pair-elem>` = Fst("fst" *> `<expr>`) <|> Snd("snd" *> `<expr>`)
 
-     private lazy val `<type>` = (IntType <# "int")
-//                                 <|> (BoolType <# "bool")
-//                                 <|> (CharType <# "char")
-//                                 <|> (StringType <# "string")
-//                                 <|> (ArrayType(`<type>` <* '[' <* ']'))
-//                                 <|> (PairType("pair" *> '(' *> `<PairElemType>` <* ',', `<PairElemType>` <* ')'))
-//                                 <|> (NestedPairType <# "pair")
+     private lazy val `<type>` =  (IntType <# "int") <|>
+                                  (BoolType <# "bool") <|>
+                                  (CharType <# "char") <|>
+                                  (StringType <# "string") //<|>
+//                                  (ArrayType(`<type>` <* '[' <* ']')) <|>
+//                                  (PairType("pair" *> '(' *> `<PairElemType>` <* ',', `<PairElemType>` <* ')')) <|>
+//                                  (NestedPairType <# "pair")
 
      private lazy val `<expr>`: Parsley[Expr] =
          precedence(SOps(InfixL)(Or  <# "||" ) +:
@@ -69,7 +69,7 @@ object parser {
          CharLiter(CHAR),
          StrLiter(STRING),
        // pair literal
-         Null <# "null", // ?? what is this
+//         Null <# "null", // ?? what is this
          `<ident>`,
          `<array-elem>`,
          Paren('(' *> `<expr>` <* ')')
@@ -77,7 +77,7 @@ object parser {
 
      private lazy val `<ident>` = Ident(ID)
 
-   private lazy val `<array-elem>` = ??? //`<ident>` <~> some('[' *> `<expr>` <* ']'
+   private lazy val `<array-elem>` = ??? //ArrayElem(`<ident>`, some('[' *> `<expr>` <* ']'))
 
    private lazy val `<PairElemType>` = ???
 
