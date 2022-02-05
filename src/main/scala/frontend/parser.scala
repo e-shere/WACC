@@ -16,38 +16,48 @@ object parser {
 
      private lazy val `<func>` = Func(`<type>`, `<ident>`, '(' *> sepBy(`<param>`, ',') <* ')', "is" *> sepBy1(`<stat>`, ';') <* "end")
 
-     private lazy val `<param>` = ??? // Param(`<type>`, `<ident>`)
+     private lazy val `<param>` = Param(`<type>`, `<ident>`)
 
-     private lazy val `<stat>` = ??? //Skip <# "skip"
-// //                                <|> Declare(`<type>`, `<ident>`, '=' *> `<assign-rhs>`)
-// //                                <|> Assign(`<assign-lhs>`, '=' *> `<assign-rhs>`)
-// //                                <|> Read("read" *> `<assign-lhs>`)
-// //                                <|> Free("free" *> `<expr>`)
-// //                                <|> Return("return" *> `<expr>`)
-// //                                <|> Exit("exit" *> `<expr>`)
-// //                                <|> Print("print" *> `<expr>`)
-// //                                <|> Println("println" *> `<expr>`)
-// //                                <|> If("if" *> `<expr>`, "then" *> sepBy1(`<stat>`, ';'), "else" *> sepBy1(`<stat>`,';') <* "fi")
-// //                                <|> While("while" *> `<expr>`, "do" *> sepBy1(`<stat>`, ';') <* "done")
-// //                                <|> Scope("begin" *> sepBy1(`<stat>`,';') <* "end")
+     private lazy val `<stat>` = Skip <# "skip"// <|>
+//                                 Declare(`<type>`, `<ident>`, '=' *> `<assign-rhs>`) //<|>
+//                                 Assign(`<assign-lhs>`, '=' *> `<assign-rhs>`) <|>
+  //                               Read("read" *> `<assign-lhs>`)
+ //                                <|> Free("free" *> `<expr>`)
+ //                                <|> Return("return" *> `<expr>`)
+ //                                <|> Exit("exit" *> `<expr>`)
+ //                                <|> Print("print" *> `<expr>`)
+ //                                <|> Println("println" *> `<expr>`)
+ //                                <|> If("if" *> `<expr>`, "then" *> sepBy1(`<stat>`, ';'), "else" *> sepBy1(`<stat>`,';') <* "fi")
+ //                                <|> While("while" *> `<expr>`, "do" *> sepBy1(`<stat>`, ';') <* "done")
+ //                                <|> Scope("begin" *> sepBy1(`<stat>`,';') <* "end")
 
-//     private lazy val `<assign-lhs>` = `<ident>` <|> `<array-elem>` <|> `<pair-elem>`
+     private lazy val `<assign-lhs>` = `<ident>` <|> `<array-elem>` <|> `<pair-elem>`
 
-//     private lazy val `<assign-rhs>` = `<expr>`
-//                                         <|> ArrayElem(`<ident>`, '[' *> some(`<expr>`) <* ']')
+     private lazy val `<assign-rhs>` = `<expr>` <|>
+                                        ArrayElem(`<ident>`, '[' *> some(`<expr>`) <* ']') <|>
 //                                         <|> NewPair("newpair" *> '(' *> `<expr>` <* ',', `<expr>` <* ')')
-//                                         <|> `<pair-elem>`
-//                                         <|> Call("call" *> `<ident>`, '(' *> sepBy(`<expr>`, ',') <* ')')
+                                        `<pair-elem>` <|>
+                                         Call("call" *> `<ident>`, '(' *> sepBy(`<expr>`, ',') <* ')')
 
      private lazy val `<pair-elem>` = Fst("fst" *> `<expr>`) <|> Snd("snd" *> `<expr>`)
 
-     private lazy val `<type>` =  (IntType <# "int") <|>
-                                  (BoolType <# "bool") <|>
-                                  (CharType <# "char") <|>
-                                  (StringType <# "string") //<|>
-//                                  (ArrayType(`<type>` <* '[' <* ']')) <|>
-//                                  (PairType("pair" *> '(' *> `<PairElemType>` <* ',', `<PairElemType>` <* ')')) <|>
+     private lazy val `<type>` =   `<base-type>` //<|>
+//                                    `<array-type>` // <|>
+//                                    `<pair-type>`
 //                                  (NestedPairType <# "pair")
+
+    private lazy val `<base-type>` = (IntType <# "int") <|>
+                                      (BoolType <# "bool") <|>
+                                      (CharType <# "char") <|>
+                                     (StringType <# "string")
+
+
+//  (ArrayType(`<type>` <* '[' <* ']')) <|>
+  //  (PairType("pair" *> '(' *> `<PairElemType>` <* ',', `<PairElemType>` <* ')')) <|>
+    private lazy val `<array-type>` = `<type>` <* '[' <* ']'
+
+    private lazy val `<pair-type>` = ???
+
 
      private lazy val `<expr>`: Parsley[Expr] =
          precedence(SOps(InfixL)(Or  <# "||" ) +:
@@ -68,14 +78,14 @@ object parser {
          BoolLiter(BOOL),
          CharLiter(CHAR),
          StrLiter(STRING),
-       // pair literal
-//         Null <# "null", // ?? what is this
+       // pair literal ?
+         Null <# "null", // ?? what is this
          `<ident>`,
          `<array-elem>`,
          Paren('(' *> `<expr>` <* ')')
      )
 
-     private lazy val `<ident>` = Ident(ID)
+  private lazy val `<ident>` = Ident(ID)
 
    private lazy val `<array-elem>` = ??? //ArrayElem(`<ident>`, some('[' *> `<expr>` <* ']'))
 
