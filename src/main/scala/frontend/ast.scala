@@ -118,7 +118,7 @@ object ast {
   case class Ident(id: String)(val pos: (Int, Int)) extends AssignLhs with Expr0
 
   // Array accesses
-  case class ArrayElem(id: Ident, indexes: List[Expr])(val pos: (Int, Int)) extends AssignLhs
+  case class ArrayElem(id: Ident, indexes: List[Expr])(val pos: (Int, Int)) extends AssignLhs with Expr0
 
   // Unary operators
   case class Not(x: Expr0)(val pos: (Int, Int)) extends Expr0
@@ -152,6 +152,11 @@ object ast {
   trait ParserBuilderPos2[T1, T2, R] extends ParserBuilder[(T1, T2) => R] {
     def apply(x: T1, y: T2)(pos: (Int, Int)): R
     val parser: Parsley[(T1, T2) => R] = pos.map(p => apply(_, _)(p))
+  }
+
+  object WaccProgram {
+    def apply(funcs: Parsley[List[Func]], stats: Parsley[List[Stat]]): Parsley[WaccProgram] = 
+      pos <**> (funcs, stats).zipped(WaccProgram(_, _) _)
   }
 
   object Func {
