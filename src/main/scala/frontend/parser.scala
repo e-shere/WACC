@@ -35,7 +35,7 @@ object parser {
 
      private lazy val `<assign-rhs>` = `<expr>` <|>
                                         ArrayElem(`<ident>`, '[' *> some(`<expr>`) <* ']') <|>
-//                                         <|> NewPair("newpair" *> '(' *> `<expr>` <* ',', `<expr>` <* ')')
+                                        NewPair("newpair" *> '(' *> `<expr>` <* ',', `<expr>` <* ')') <|>
                                         `<pair-elem>` <|>
                                          Call("call" *> `<ident>`, '(' *> sepBy(`<expr>`, ',') <* ')')
 
@@ -52,12 +52,9 @@ object parser {
                                      (StringType <# "string")
 
 
-//  (ArrayType(`<type>` <* '[' <* ']')) <|>
-  //  (PairType("pair" *> '(' *> `<PairElemType>` <* ',', `<PairElemType>` <* ')')) <|>
-    private lazy val `<array-type>` = `<type>` <* '[' <* ']'
+    private lazy val `<array-type>` = ArrayType(`<type>` <* '[' <* ']')
 
-    private lazy val `<pair-type>` = ???
-
+    private lazy val `<pair-type>` = PairType("pair" *> '(' *> `<PairElemType>` <* ',', `<PairElemType>` <* ')')
 
      private lazy val `<expr>`: Parsley[Expr] =
          precedence(SOps(InfixL)(Or  <# "||" ) +:
@@ -89,7 +86,9 @@ object parser {
 
    private lazy val `<array-elem>` = ??? //ArrayElem(`<ident>`, some('[' *> `<expr>` <* ']'))
 
-   private lazy val `<PairElemType>` = ???
+   private lazy val `<PairElemType>` = ??? //`<base-type>` <|>
+                                        `<array-type>` <|>
+//                                        NestedPairType <# "pair"
 
 
 }
