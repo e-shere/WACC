@@ -5,4 +5,4 @@
 
 projectName = "waccCompiler"
 
-system("java -jar #{waccCompiler} #{ARGV[0]}")
+system("java -jar #{projectName}.jar #{ARGV[0]}")
