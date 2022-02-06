@@ -46,7 +46,7 @@ object parser {
 
     private lazy val `<assign-rhs>` = 
            (`<expr>`
-        <|> ArrayElem(`<ident>`, "[" *> some(`<expr>`) <* "]")
+        <|> `<array-liter>`
         <|> NewPair("newpair" *> "(" *> `<expr>` <* ",", `<expr>` <* ")")
         <|> `<pair-elem>`
         <|> Call("call" *> `<ident>`, "(" *> sepBy(`<expr>`, ',') <* ")"))
@@ -87,6 +87,8 @@ object parser {
         `<array-elem>`,
         Paren("(" *> `<expr>` <* ")")
     )
+
+    private lazy val `<array-liter>` = ArrayLiter("[" *> sepBy1(`<expr>`, ",") <* "]")
 
     private lazy val `<ident>` = Ident(ID)
 
