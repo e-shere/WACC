@@ -49,7 +49,7 @@ object parser {
         <|> `<array-liter>`
         <|> NewPair("newpair" *> "(" *> `<expr>` <* ",", `<expr>` <* ")")
         <|> `<pair-elem>`
-        <|> Call("call" *> `<ident>`, "(" *> sepBy(`<expr>`, ',') <* ")"))
+        <|> Call("call" *> `<ident>`, "(" *> sepBy(`<expr>`, ",") <* ")"))
 
     private lazy val `<pair-elem>` = Fst("fst" *> `<expr>`) <|> Snd("snd" *> `<expr>`)
 
