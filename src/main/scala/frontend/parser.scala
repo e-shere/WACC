@@ -23,7 +23,7 @@ object parser {
 
     private lazy val `<program>` = fully(WaccProgram("begin" *> many(`<func>`), sepBy1(`<stat>`, ";") <* "end")).debug("WaccProgram")
 
-    private lazy val `<func>` = attempt(Func(`<type>`, `<ident>`, '(' *> sepBy(`<param>`, ',') <* ')', "is" *> sepBy1(`<stat>`, ';') <* "end").debug("Func"))
+    private lazy val `<func>` = attempt(Func(`<type>`, `<ident>`, "(" *> sepBy(`<param>`, ",") <* ")", "is" *> sepBy1(`<stat>`, ";") <* "end").debug("Func"))
 
     private lazy val `<param>` = Param(`<type>`, `<ident>`).debug("Param")
 
@@ -46,10 +46,10 @@ object parser {
 
     private lazy val `<assign-rhs>` = 
            (`<expr>`
-        <|> ArrayElem(`<ident>`, '[' *> some(`<expr>`) <* ']')
-        <|> NewPair("newpair" *> '(' *> `<expr>` <* ",", `<expr>` <* ')')
+        <|> ArrayElem(`<ident>`, "[" *> some(`<expr>`) <* "]")
+        <|> NewPair("newpair" *> "(" *> `<expr>` <* ",", `<expr>` <* ")")
         <|> `<pair-elem>`
-        <|> Call("call" *> `<ident>`, '(' *> sepBy(`<expr>`, ',') <* ')'))
+        <|> Call("call" *> `<ident>`, "(" *> sepBy(`<expr>`, ',') <* ")"))
 
     private lazy val `<pair-elem>` = Fst("fst" *> `<expr>`) <|> Snd("snd" *> `<expr>`)
 
@@ -61,9 +61,9 @@ object parser {
                                      (StringType <# "string")
 
 
-    private lazy val `<array-type>` = ArrayType(`<type>` <* '[' <* ']')
+    private lazy val `<array-type>` = ArrayType(`<type>` <* "[" <* "]")
 
-    private lazy val `<pair-type>` = PairType("pair" *> '(' *> `<pair-elem-type>` <* ',', `<pair-elem-type>` <* ')')
+    private lazy val `<pair-type>` = PairType("pair" *> "(" *> `<pair-elem-type>` <* ',', `<pair-elem-type>` <* ")")
 
     private lazy val `<expr>`: Parsley[Expr] =
         precedence(SOps(InfixL)(Or  <# "||") +:
@@ -85,12 +85,12 @@ object parser {
         Null <# "null",
         `<ident>`,
         `<array-elem>`,
-        Paren('(' *> `<expr>` <* ')')
+        Paren("(" *> `<expr>` <* ")")
     )
 
     private lazy val `<ident>` = Ident(ID)
 
-    private lazy val `<array-elem>` = ArrayElem(`<ident>`, some('[' *> `<expr>` <* ']'))
+    private lazy val `<array-elem>` = ArrayElem(`<ident>`, some("[" *> `<expr>` <* "]"))
 
     private lazy val `<pair-elem-type>` = `<base-type>` <|> `<array-type>` <|> (NestedPairType <# "pair")
 
