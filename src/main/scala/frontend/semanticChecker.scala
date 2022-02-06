@@ -91,12 +91,40 @@ object semanticChecker {
             case _ => {}
           }
         }
-        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-
+        case Print(expr) => {
+          errors ++= validateExpr(funcTable, localSymbols.toMap ++ parentSymbols, expr)._2
+        }
+        case Println(expr) => {
+          errors ++= validateExpr(funcTable, localSymbols.toMap ++ parentSymbols, expr)._2
+        }
+        case If(expr, thenStats, elseStats) => {
+          val (maybeExpr, exprErrors) = validateExpr(funcTable, localSymbols.toMap ++ parentSymbols, expr)
+          errors ++= exprErrors
+          maybeExpr match {
+            case Some(BoolType()) => {}
+            case Some(_) => {
+              errors += SemanticError("If condition must be a bool")
+            }
+            case _ => {}
+          }
+          errors ++= validateBlock(funcTable, localSymbols.toMap ++ parentSymbols, thenStats)
+          errors ++= validateBlock(funcTable, localSymbols.toMap ++ parentSymbols, elseStats)
+        }
+        case While(expr, doStats) => {
+          val (maybeExpr, exprErrors) = validateExpr(funcTable, localSymbols.toMap ++ parentSymbols, expr)
+          errors ++= exprErrors
+          maybeExpr match {
+            case Some(BoolType()) => {}
+            case Some(_) => {
+              errors += SemanticError("While condition must be a bool")
+            }
+            case _ => {}
+          }
+          errors ++= validateBlock(funcTable, localSymbols.toMap ++ parentSymbols, doStats)
+        }
+        case Scope(innerStats) => {
+          errors ++= validateBlock(funcTable, localSymbols.toMap ++ parentSymbols, innerStats)
+        }
       }
     }
     errors.toList
