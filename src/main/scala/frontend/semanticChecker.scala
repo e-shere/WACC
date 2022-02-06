@@ -2,6 +2,7 @@ package frontend
 
 import ast._
 
+import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 object semanticChecker {
@@ -20,31 +21,28 @@ object semanticChecker {
           val argsTable: Map[Ident, Type] = args.map {
             case Param(ty, id) => id->ty
           }.toMap
-          validateBlock(funcTable, argsTable, body)
+          validateBlock(funcTable, argsTable, Map.empty[Ident,Type], body)
 
         }
-        validateBlock(funcTable, Map.empty[Ident, Type], stats)
+        validateBlock(funcTable, Map.empty[Ident, Type], Map.empty[Ident,Type], stats)
       }
     }
   }
 
   def validateBlock(funcTable: Map[Ident, FuncType],
                     parentSymbols: Map[Ident, Type],
-                    stats: List[Stat]): Unit = {
-    val localSymbols: Map[Ident, Type] = Map.empty;
+                    localSymbols : Map[Ident, Type],
+                    stats: List[Stat]): List[SemanticError] = {
     stats match {
-      case Nil => {}
-      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
+      case Nil => { Nil }
+      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, localSymbols, tailStats)
       case Declare(ty, id, rhs)::tailStats => {
-        getTypeRhs(funcTable, localSymbols ++ parentSymbols, rhs) match {
-          case Success(ty) => {
-
-          }
-          case Success(_) => {}
-          case Failure(e) => {}
-        }
-
-        validateBlock(funcTable, parentSymbols, tailStats)
+        validateRhs(funcTable, localSymbols ++ parentSymbols, rhs, ty)++(
+        if (localSymbols.contains(id)) {
+          SemanticError("")::validateBlock(funcTable, parentSymbols, localSymbols, tailStats)
+        } else {
+          validateBlock(funcTable, parentSymbols, localSymbols+(id->ty), tailStats)
+        })
       }
 //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
 //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
@@ -62,11 +60,12 @@ object semanticChecker {
   }
 
   // get type of rhs and checking for semantic errors within rhs
-  def getTypeRhs(value: Map[Ident, FuncType],
-                  value1: Map[Ident, Type], rhs: AssignRhs): Try[Type] = {
-    Success(IntType()(0,0))
+  def validateRhs(value: Map[Ident, FuncType],
+                  value1: Map[Ident, Type], rhs: AssignRhs, idealType: Type): List[SemanticError] = {
+    Nil
   }
 
   case class FuncType(returnType: Type, paramTypes: List[Type])
+  case class SemanticError(msg: String)
 
 }
