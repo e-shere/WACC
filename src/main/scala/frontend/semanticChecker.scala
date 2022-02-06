@@ -17,7 +17,7 @@ object semanticChecker {
             id->FuncType(ty, args.map{case Param(ty, _) => ty})
           }
         }.toMap
-        for (Func(ty, id, args, body) <- funcs) {
+        for (Func(_, _, args, body) <- funcs) {
           val argsTable: Map[Ident, Type] = args.map {
             case Param(ty, id) => id->ty
           }.toMap
@@ -64,17 +64,33 @@ object semanticChecker {
             case _ => {}
           }
         }
-//          //        validateLhs(funcTable, localSymbols ++ parentSymbols, lhs)++
-//          //          validateRhs(funcTable, localSymbols ++ parentSymbols, rhs)
-//
-//
-//          //TODO: CHECK
-//          validateBlock(funcTable, parentSymbols, localSymbols, tailStats)
-//        }
-        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
+        case Read(lhs) => {
+          errors ++= validateLhs(funcTable, localSymbols.toMap ++ parentSymbols, lhs)._2
+        }
+        case Free(expr) => {
+          val (maybeExpr, exprErrors) = validateExpr(funcTable, localSymbols.toMap ++ parentSymbols, expr)
+          errors ++= exprErrors
+          maybeExpr match {
+            case Some(PairType(_, _)) => {}
+            case Some(ArrayType(_)) => {}
+            case Some(_) => errors += SemanticError("Only a pair or array can be freed")
+            case _ => {}
+          }
+        }
+        case Return(expr) => {
+          // todo
+        }
+        case Exit(expr) => {
+          val (maybeExpr, exprErrors) = validateExpr(funcTable, localSymbols.toMap ++ parentSymbols, expr)
+          errors ++= exprErrors
+          maybeExpr match {
+            case Some(IntType()) => {
+              // todo check on OS what range the number is
+            }
+            case Some(_) => errors += SemanticError("Exit status must be an integer")
+            case _ => {}
+          }
+        }
         //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
         //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
         //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
@@ -87,12 +103,19 @@ object semanticChecker {
 
   }
 
-  // get type of rhs and checking for semantic errors within rhs
+  def validateExpr(funcTable: Map[Ident, FuncType],
+                   symbolTable: Map[Ident, Type], expr: Expr): (Option[Type], List[SemanticError]) = {
+    (None, Nil)
+  }
+
+
+    // get type of rhs and checking for semantic errors within rhs
   def validateRhs(funcTable: Map[Ident, FuncType],
                   symbolTable: Map[Ident, Type], rhs: AssignRhs): (Option[Type], List[SemanticError]) = {
     (None, Nil)
   }
 
+  // check if is in local symbols
   def validateLhs(funcTable: Map[Ident, FuncType],
                   symbolTable: Map[Ident, Type], lhs: AssignLhs): (Option[Type], List[SemanticError]) = {
     (None, Nil)
