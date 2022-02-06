@@ -13,6 +13,6 @@ object Compiler {
     }
     val source = Source.fromFile(args(0)).mkString
     val ast = parse(new File(args(0)))
-    //println(ast)
+    println(ast)
   }
 }

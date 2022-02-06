@@ -252,9 +252,7 @@ object ast {
   object CharType extends ParserBuilderPos0[CharType]
   object StringType extends ParserBuilderPos0[StringType]
 
-  object ArrayType {
-    def apply(ty: Parsley[Type]): Parsley[ArrayType] = pos <**> ty.map(ArrayType(_))
-  }
+  object ArrayType extends ParserBuilderPos1[Type, ArrayType]
 
   object PairType {
     def apply(ty1: Parsley[PairElemType], ty2: Parsley[PairElemType]): Parsley[PairType] = pos <**> (ty1, ty2).zipped(PairType(_,_) _)
