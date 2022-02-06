@@ -28,10 +28,10 @@ build-job:
 syntactically-test-valid-job:
   stage: syntax-test-success
   script:
-    - sbt testOnly AllSyntacticallyValid
+    - sbt testOnly src/test/scala/frontend/AllSyntacticallyValid.scala
 #    - sbt clean coverage test coverageReport
 
 syntactically-test-invalid-job:
   stage: syntax-test-fail
   script:
-    - sbt testOnly AllSyntacticallyInvalid
+    - sbt testOnly src/test/scala/frontend/AllSyntacticallyInvalid.scala
