@@ -14,6 +14,8 @@ stages:
     - build
     - syntax-test-success
     - syntax-test-fail
+    - syntax-test-ast
+#    - syntax-test-error-codes
 
 #lint-job:
 #  stage: lint
@@ -35,3 +37,13 @@ syntactically-test-invalid-job:
   stage: syntax-test-fail
   script:
     - sbt testOnly AllSyntacticallyInvalid
+
+syntactically-test-contents-of-ast:
+  stage: syntax-test-ast
+  script:
+    - sbt testOnly MatchOutputTests
+
+#syntactically-test-error-codes:
+#        stage: syntax-test-error-codes
+#        script:
+#          - sbt
