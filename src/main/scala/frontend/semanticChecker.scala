@@ -92,9 +92,7 @@ object semanticChecker {
           val (maybeExpr, exprErrors) = validateExpr(funcTable, localSymbols.toMap ++ parentSymbols, expr)
           errors ++= exprErrors
           maybeExpr match {
-            case Some(IntType()) => {
-              // todo check on OS what range the number is
-            }
+            case Some(IntType()) => {}
             case Some(_) => errors += SemanticError("Exit status must be an integer")
             case _ => {}
           }
