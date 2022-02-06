@@ -1,6 +1,8 @@
 package frontend
 
 import parser._
+
+import java.io.File
 import scala.io.Source
 
 object Compiler {
@@ -10,7 +12,7 @@ object Compiler {
       System.exit(-1)
     }
     val source = Source.fromFile(args(0)).mkString
-    val ast = parse(source)
-    println(ast)
+    val ast = parse(new File(args(0)))
+    //println(ast)
   }
 }

@@ -27,7 +27,8 @@ class AllSyntacticallyValid extends AnyFlatSpec {
         val allValidProgramPaths = getListOfFilesRecursively(srcPath)
         for (path <- allValidProgramPaths) {
             val source = Source.fromFile(path).mkString
-            parse(source) should matchPattern { case Success(_) => }
+            //parse(source) should matchPattern { case Success(_) => }
+            parse(new File(path)) should matchPattern { case Success(_) => }
         }
     }
 
