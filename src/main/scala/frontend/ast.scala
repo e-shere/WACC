@@ -122,6 +122,9 @@ object ast {
   sealed trait PairLiter extends Expr0
   case class Null()(val pos: (Int, Int)) extends PairLiter
 
+  // Arrays
+  case class ArrayLiter(xs: List[Expr])(val pos: (Int, Int)) extends Expr0
+
   // Identifiers
   case class Ident(id: String)(val pos: (Int, Int)) extends AssignLhs with Expr0
 
@@ -249,9 +252,7 @@ object ast {
   object CharType extends ParserBuilderPos0[CharType]
   object StringType extends ParserBuilderPos0[StringType]
 
-  object ArrayType {
-    def apply(ty: Parsley[Type]): Parsley[ArrayType] = pos <**> ty.map(ArrayType(_))
-  }
+  object ArrayType extends ParserBuilderPos1[Type, ArrayType]
 
   object PairType {
     def apply(ty1: Parsley[PairElemType], ty2: Parsley[PairElemType]): Parsley[PairType] = pos <**> (ty1, ty2).zipped(PairType(_,_) _)
@@ -301,6 +302,10 @@ object ast {
   }
 
   object Null extends ParserBuilderPos0[Null]
+
+  object ArrayLiter {
+    def apply(xs: Parsley[List[Expr]]): Parsley[ArrayLiter] = pos <**> xs.map(ArrayLiter(_) _)
+  }
 
   object Ident {
     def apply(id: Parsley[String]): Parsley[Ident] = pos <**> id.map(Ident(_) _)
