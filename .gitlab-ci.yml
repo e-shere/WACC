@@ -12,7 +12,8 @@ image: hseeberger/scala-sbt:8u222_1.3.5_2.13.1
 stages:
 #    - lint
     - build
-    - test
+    - syntax-test-success
+    - syntax-test-fail
 
 #lint-job:
 #  stage: lint
@@ -25,12 +26,12 @@ build-job:
     - sbt compile
 
 syntactically-test-valid-job:
-  stage: test
+  stage: syntax-test-success
   script:
     - sbt testOnly AllSyntacticallyValid
 #    - sbt clean coverage test coverageReport
 
-#syntactically-test-invalid-job:
-#  stage: test
-#  script:
-#    - sbt testOnly AllSyntacticallyInvalid
+syntactically-test-invalid-job:
+  stage: syntax-test-fail
+  script:
+    - sbt testOnly AllSyntacticallyInvalid
