@@ -4,12 +4,20 @@ import parsley.Parsley, Parsley._
 import parsley.implicits.zipped.Zipped2
 import parsley.implicits.zipped.Zipped3
 import parsley.implicits.zipped.Zipped4
+import scala.runtime.ScalaRunTime
 
 
 object ast {
 
-  trait NodeWithPosition {
+  trait NodeWithPosition extends Product {
     val pos: (Int, Int)
+
+    // This causes all positions to be shown in the printed AST
+    // Otherwise, only the first argument set is shown
+    override def toString(): String = (
+      ScalaRunTime._toString(this) // The usual string representation of a case class
+      + pos.toString // Comment out this line to disable position printing
+    )
   }
 
   // Top level
@@ -21,7 +29,7 @@ object ast {
 
   // Statements
   sealed trait Stat extends NodeWithPosition
-  case class Skip(val pos: (Int, Int)) extends Stat
+  case class Skip()(val pos: (Int, Int)) extends Stat
   case class Declare(ty: Type, id: Ident, rhs: AssignRhs)(val pos: (Int, Int)) extends Stat
   case class Assign(lhs: AssignLhs, rhs: AssignRhs)(val pos: (Int, Int)) extends Stat
   case class Read(lhs: AssignLhs)(val pos: (Int, Int)) extends Stat
@@ -51,17 +59,17 @@ object ast {
   sealed trait Type extends NodeWithPosition
 
   sealed trait BaseType extends Type with PairElemType
-  case class IntType(val pos: (Int, Int)) extends BaseType
-  case class BoolType(val pos: (Int, Int)) extends BaseType
-  case class CharType(val pos: (Int, Int)) extends BaseType
-  case class StringType(val pos: (Int, Int)) extends BaseType
+  case class IntType()(val pos: (Int, Int)) extends BaseType
+  case class BoolType()(val pos: (Int, Int)) extends BaseType
+  case class CharType()(val pos: (Int, Int)) extends BaseType
+  case class StringType()(val pos: (Int, Int)) extends BaseType
 
   case class ArrayType(ty: Type)(val pos: (Int, Int)) extends Type with PairElemType
 
   case class PairType(ty1: PairElemType, ty2: PairElemType)(val pos: (Int, Int)) extends Type
 
   sealed trait PairElemType extends NodeWithPosition
-  case class NestedPairType(val pos: (Int, Int)) extends PairElemType
+  case class NestedPairType()(val pos: (Int, Int)) extends PairElemType
 
   // Exprs
   sealed trait Expr extends AssignRhs
@@ -112,7 +120,7 @@ object ast {
 
   // Pairs
   sealed trait PairLiter extends Expr0
-  case class Null(val pos: (Int, Int)) extends PairLiter
+  case class Null()(val pos: (Int, Int)) extends PairLiter
 
   // Identifiers
   case class Ident(id: String)(val pos: (Int, Int)) extends AssignLhs with Expr0
@@ -140,8 +148,8 @@ object ast {
   }
 
   trait ParserBuilderPos0[R] extends ParserBuilder[R] {
-    def apply(pos: (Int, Int)): R
-    val parser: Parsley[R] = pos.map(p => apply(p))
+    def apply()(pos: (Int, Int)): R
+    val parser: Parsley[R] = pos.map(p => apply()(p))
   }
 
   trait ParserBuilderPos1[T1, R] extends ParserBuilder[T1 => R] {
