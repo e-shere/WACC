@@ -23,129 +23,72 @@ class AllSyntacticallyValid extends AnyFlatSpec {
         }
     }
 
-    // TODO: ISSUE WITH PAIRS
-    "All valid advanced programs" should "return success" in {
-        val srcPath = "src/examples/valid/advanced"
+    def allSucceed(srcPath: String) = {
         val allValidProgramPaths = getListOfFilesRecursively(srcPath)
         for (path <- allValidProgramPaths) {
             val source = Source.fromFile(path).mkString
             parse(source) should matchPattern { case Success(_) => }
         }
+    }
+
+    // TODO: ISSUE WITH PAIRS
+    "All valid advanced programs" should "return success" in {
+        allSucceed("src/examples/valid/advanced")
     }
 
     // TODO: DOESN'T RECOGNISE []
     "All valid array programs" should "return success" in {
-        val srcPath = "src/examples/valid/array"
-        val allValidProgramPaths = getListOfFilesRecursively(srcPath)
-        for (path <- allValidProgramPaths) {
-            val source = Source.fromFile(path).mkString
-            parse(source) should matchPattern { case Success(_) => }
-        }
+        allSucceed("src/examples/valid/array")
     }
 
     "All valid basic programs" should "return success" in {
-        val srcPath = "src/examples/valid/basic"
-        val allValidProgramPaths = getListOfFilesRecursively(srcPath)
-        for (path <- allValidProgramPaths) {
-            val source = Source.fromFile(path).mkString
-            parse(source) should matchPattern { case Success(_) => }
-        }
+        allSucceed("src/examples/valid/basic")
     }
 
     "All valid expressions programs" should "return success" in {
-        val srcPath = "src/examples/valid/expressions"
-        val allValidProgramPaths = getListOfFilesRecursively(srcPath)
-        for (path <- allValidProgramPaths) {
-            val source = Source.fromFile(path).mkString
-            parse(source) should matchPattern { case Success(_) => }
-        }
+        allSucceed("src/examples/valid/expressions")
     }
 
     // TODO: DOESN'T RECOGNISE '('
-        "All valid function programs" should "return success" in {
-            val srcPath = "src/examples/valid/function"
-            val allValidProgramPaths = getListOfFilesRecursively(srcPath)
-            for (path <- allValidProgramPaths) {
-                val source = Source.fromFile(path).mkString
-                parse(source) should matchPattern { case Success(_) => }
-            }
-        }
+    "All valid function programs" should "return success" in {
+        allSucceed("src/examples/valid/function")
+    }
 
     "All valid if programs" should "return success" in {
-        val srcPath = "src/examples/valid/if"
-        val allValidProgramPaths = getListOfFilesRecursively(srcPath)
-        for (path <- allValidProgramPaths) {
-            val source = Source.fromFile(path).mkString
-            parse(source) should matchPattern { case Success(_) => }
-        }
+        allSucceed("src/examples/valid/if")
     }
 
     // TODO: DOESN'T RECOGNISE \n
     "All valid IO programs" should "return success" in {
-        val srcPath = "src/examples/valid/IO"
-        val allValidProgramPaths = getListOfFilesRecursively(srcPath)
-        for (path <- allValidProgramPaths) {
-            val source = Source.fromFile(path).mkString
-            parse(source) should matchPattern { case Success(_) => }
-        }
+        allSucceed("src/examples/valid/IO")
     }
 
     "All valid pairs programs" should "return success" in {
-        val srcPath = "src/examples/valid/pairs"
-        val allValidProgramPaths = getListOfFilesRecursively(srcPath)
-        for (path <- allValidProgramPaths) {
-            val source = Source.fromFile(path).mkString
-            parse(source) should matchPattern { case Success(_) => }
-        }
+        allSucceed("src/examples/valid/pairs")
     }
 
     // fails because doesn't recognise array []
     "All valid runtimeErr programs" should "return success" in {
-        val srcPath = "src/examples/valid/runtimeErr"
-        val allValidProgramPaths = getListOfFilesRecursively(srcPath)
-        for (path <- allValidProgramPaths) {
-            val source = Source.fromFile(path).mkString
-            parse(source) should matchPattern { case Success(_) => }
-        }
+        allSucceed("src/examples/valid/runtimeErr")
     }
 
     // fails because doesn't recognise array []
     "All valid scope programs" should "return success" in {
-        val srcPath = "src/examples/valid/scope"
-        val allValidProgramPaths = getListOfFilesRecursively(srcPath)
-        for (path <- allValidProgramPaths) {
-            val source = Source.fromFile(path).mkString
-            parse(source) should matchPattern { case Success(_) => }
-        }
+        allSucceed("src/examples/valid/scope")
     }
 
     // fails because of pairs
     "All valid sequence programs" should "return success" in {
-        val srcPath = "src/examples/valid/sequence"
-        val allValidProgramPaths = getListOfFilesRecursively(srcPath)
-        for (path <- allValidProgramPaths) {
-            val source = Source.fromFile(path).mkString
-            parse(source) should matchPattern { case Success(_) => }
-        }
+        allSucceed("src/examples/valid/sequence")
     }
 
     // fails because of pairs
     "All valid variables programs" should "return success" in {
-        val srcPath = "src/examples/valid/variables"
-        val allValidProgramPaths = getListOfFilesRecursively(srcPath)
-        for (path <- allValidProgramPaths) {
-            val source = Source.fromFile(path).mkString
-            parse(source) should matchPattern { case Success(_) => }
-        }
+        allSucceed("src/examples/valid/variables")
     }
 
     "All valid while programs" should "return success" in {
-        val srcPath = "src/examples/valid/while"
-        val allValidProgramPaths = getListOfFilesRecursively(srcPath)
-        for (path <- allValidProgramPaths) {
-            val source = Source.fromFile(path).mkString
-            parse(source) should matchPattern { case Success(_) => }
-        }
+        allSucceed("src/examples/valid/while")
     }
 
 
