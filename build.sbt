@@ -1,6 +1,6 @@
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
-val projectName = "WACC_16"
+val projectName = "waccCompiler"
 val PARSLEY_VER = "3.3.2"
 val SCALA_VER = "2.13.8"
 

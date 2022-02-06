@@ -1,6 +1,7 @@
 #ignore generated binary files and auto-generated ANTLR code
 bin
 src/antlr
+waccCompiler.jar
 
 #ignore Java class files
 *.class
