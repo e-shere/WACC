@@ -3,22 +3,27 @@ package frontend
 import lexer._
 import implicits.implicitToken
 import ast._
-import parsley.Parsley, parsley.Parsley._
-import parsley.expr.{InfixL, Prefix, SOps, precedence, Atoms}
-import parsley.implicits.character.{charLift}
+import parsley.Parsley
+import parsley.Parsley._
+import parsley.expr.{Atoms, InfixL, Prefix, SOps, precedence}
+import parsley.implicits.character.charLift
+
 import scala.language.implicitConversions
-import parsley.combinator.{sepBy, sepBy1, many, some}
+import parsley.combinator.{many, sepBy, sepBy1, some}
 import parsley.errors.ErrorBuilder
 import parsley.Result
 import parsley.debug._
+import parsley.io.ParseFromIO
+
+import java.io.File
 
 object parser {
 
-    def parse[Err: ErrorBuilder](input: String): Result[Err, WaccProgram] = `<program>`.parse(input)
+    def parse[Err: ErrorBuilder](input: File): Result[Err, WaccProgram] = `<program>`.parseFromFile(input).get
 
     private lazy val `<program>` = fully(WaccProgram("begin" *> many(`<func>`), sepBy1(`<stat>`, ";") <* "end")).debug("WaccProgram")
 
-    private lazy val `<func>` = attempt(Func(`<type>`, `<ident>`, "(" *> sepBy(`<param>`, ",") <* ")", "is" *> sepBy1(`<stat>`, ";") <* "end").debug("Func"))
+    private lazy val `<func>` = attempt(Func(`<type>`, `<ident>`, '(' *> sepBy(`<param>`, ',') <* ')', "is" *> sepBy1(`<stat>`, ';') <* "end").debug("Func"))
 
     private lazy val `<param>` = Param(`<type>`, `<ident>`).debug("Param")
 
@@ -41,10 +46,10 @@ object parser {
 
     private lazy val `<assign-rhs>` = 
            (`<expr>`
-        <|> ArrayElem(`<ident>`, "[" *> some(`<expr>`) <* "]")
-        <|> NewPair("newpair" *> "(" *> `<expr>` <* ",", `<expr>` <* ")")
+        <|> ArrayElem(`<ident>`, '[' *> some(`<expr>`) <* ']')
+        <|> NewPair("newpair" *> '(' *> `<expr>` <* ",", `<expr>` <* ')')
         <|> `<pair-elem>`
-        <|> Call("call" *> `<ident>`, "(" *> sepBy(`<expr>`, ",") <* ")"))
+        <|> Call("call" *> `<ident>`, '(' *> sepBy(`<expr>`, ',') <* ')'))
 
     private lazy val `<pair-elem>` = Fst("fst" *> `<expr>`) <|> Snd("snd" *> `<expr>`)
 
@@ -56,9 +61,9 @@ object parser {
                                      (StringType <# "string")
 
 
-    private lazy val `<array-type>` = ArrayType(`<type>` <* "[" <* "]")
+    private lazy val `<array-type>` = ArrayType(`<type>` <* '[' <* ']')
 
-    private lazy val `<pair-type>` = PairType("pair" *> "(" *> `<pair-elem-type>` <* ",", `<pair-elem-type>` <* ")")
+    private lazy val `<pair-type>` = PairType("pair" *> '(' *> `<pair-elem-type>` <* ',', `<pair-elem-type>` <* ')')
 
     private lazy val `<expr>`: Parsley[Expr] =
         precedence(SOps(InfixL)(Or  <# "||") +:
@@ -80,12 +85,12 @@ object parser {
         Null <# "null",
         `<ident>`,
         `<array-elem>`,
-        Paren("(" *> `<expr>` <* ")")
+        Paren('(' *> `<expr>` <* ')')
     )
 
     private lazy val `<ident>` = Ident(ID)
 
-    private lazy val `<array-elem>` = ArrayElem(`<ident>`, some("[" *> `<expr>` <* "]"))
+    private lazy val `<array-elem>` = ArrayElem(`<ident>`, some('[' *> `<expr>` <* ']'))
 
     private lazy val `<pair-elem-type>` = `<base-type>` <|> `<array-type>` <|> (NestedPairType <# "pair")
 
