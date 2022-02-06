@@ -39,7 +39,7 @@ object lexer {
   val BOOL: Parsley[Boolean] = token("true" #> true <|> "false" #> false)
 
   private val escapeChar =
-    choice('0' #> '\u0000', 'b' #> '\b', 't' #> '\t', 'f' #> '\f', 'r' #> '\r', '\"', '\'', '\\')
+    choice('0' #> '\u0000', 'b' #> '\b', 't' #> '\t', 'n' #> '\n', 'f' #> '\f', 'r' #> '\r', '\"', '\'', '\\')
   private val charLetter = noneOf('\\', '\'', '\"') <|> ('\\' *> escapeChar)
   val CHAR: Parsley[Char] = token('\'' *> charLetter <* '\'')
 
