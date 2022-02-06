@@ -24,7 +24,13 @@ build-job:
   script:
     - sbt compile
 
-test-job:
+syntactically-test-valid-job:
   stage: test
   script:
-    - sbt clean coverage test coverageReport
+    - sbt testOnly AllSyntacticallyValid
+#    - sbt clean coverage test coverageReport
+
+#syntactically-test-invalid-job:
+#  stage: test
+#  script:
+#    - sbt testOnly AllSyntacticallyInvalid
