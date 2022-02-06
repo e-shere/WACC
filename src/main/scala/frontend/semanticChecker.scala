@@ -21,48 +21,81 @@ object semanticChecker {
           val argsTable: Map[Ident, Type] = args.map {
             case Param(ty, id) => id->ty
           }.toMap
-          validateBlock(funcTable, argsTable, Map.empty[Ident,Type], body)
+          validateBlock(funcTable, argsTable, body)
 
         }
-        validateBlock(funcTable, Map.empty[Ident, Type], Map.empty[Ident,Type], stats)
+        validateBlock(funcTable, Map.empty[Ident, Type], stats)
       }
     }
   }
 
   def validateBlock(funcTable: Map[Ident, FuncType],
                     parentSymbols: Map[Ident, Type],
-                    localSymbols : Map[Ident, Type],
                     stats: List[Stat]): List[SemanticError] = {
-    stats match {
-      case Nil => { Nil }
-      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, localSymbols, tailStats)
-      case Declare(ty, id, rhs)::tailStats => {
-        validateRhs(funcTable, localSymbols ++ parentSymbols, rhs, ty)++(
-        if (localSymbols.contains(id)) {
-          SemanticError("")::validateBlock(funcTable, parentSymbols, localSymbols, tailStats)
-        } else {
-          validateBlock(funcTable, parentSymbols, localSymbols+(id->ty), tailStats)
-        })
-      }
-//      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-//      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-//      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-//      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-//      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-//      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-//      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-//      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-//      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
-//      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
+    val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
+    val localSymbols: mutable.Map[Ident, Type] = mutable.Map.empty[Ident, Type]
+    for (stat <- stats) {
+      stat match {
+        case Skip() => {}
+        case Declare(ty, id, rhs) => {
+          val (maybeRhs, rhsErrors) = validateRhs(funcTable, localSymbols.toMap ++ parentSymbols, rhs)
+          errors ++= rhsErrors
+          maybeRhs match {
+            case Some(rhsType) => if (rhsType != ty) {
+              errors += SemanticError("rhs of assignment doesn't match type")
+            }
+            case _ => {}
+          }
+          if (localSymbols contains id) {
+            errors += SemanticError("redeclaring identifier within same scope")
+          } else {
+            localSymbols += (id->ty)
+          }
+        }
+        case Assign(lhs, rhs) => {
+          val (maybeLhs, lhsErrors) = validateLhs(funcTable, localSymbols.toMap ++ parentSymbols, lhs)
+          val (maybeRhs, rhsErrors) = validateRhs(funcTable, localSymbols.toMap ++ parentSymbols, rhs)
+          errors ++= lhsErrors
+          errors ++= rhsErrors
+          (maybeLhs, maybeRhs) match {
+            case (Some(lhsType), Some(rhsType)) => if (lhsType != rhsType) {
+              errors += SemanticError("rhs of assignment doesn't match type")
+            }
+            case _ => {}
+          }
+        }
+//          //        validateLhs(funcTable, localSymbols ++ parentSymbols, lhs)++
+//          //          validateRhs(funcTable, localSymbols ++ parentSymbols, rhs)
+//
+//
+//          //TODO: CHECK
+//          validateBlock(funcTable, parentSymbols, localSymbols, tailStats)
+//        }
+        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
+        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
+        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
+        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
+        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
+        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
+        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
+        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
+        //      case Skip()::tailStats => validateBlock(funcTable, parentSymbols, tailStats)
 
+      }
     }
+    errors.toList
 
   }
 
   // get type of rhs and checking for semantic errors within rhs
-  def validateRhs(value: Map[Ident, FuncType],
-                  value1: Map[Ident, Type], rhs: AssignRhs, idealType: Type): List[SemanticError] = {
-    Nil
+  def validateRhs(funcTable: Map[Ident, FuncType],
+                  symbolTable: Map[Ident, Type], rhs: AssignRhs): (Option[Type], List[SemanticError]) = {
+    (None, Nil)
+  }
+
+  def validateLhs(funcTable: Map[Ident, FuncType],
+                  symbolTable: Map[Ident, Type], lhs: AssignLhs): (Option[Type], List[SemanticError]) = {
+    (None, Nil)
   }
 
   case class FuncType(returnType: Type, paramTypes: List[Type])
