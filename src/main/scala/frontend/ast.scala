@@ -60,11 +60,11 @@ object ast {
 
   case class PairType(ty1: PairElemType, ty2: PairElemType)(val pos: (Int, Int)) extends Type
 
-  sealed trait PairElemType extends NodeWithPosition // extend Type??
+  sealed trait PairElemType extends NodeWithPosition
   case class NestedPairType(val pos: (Int, Int)) extends PairElemType
 
   // Exprs
-  sealed trait Expr extends NodeWithPosition // extend assignRhs??
+  sealed trait Expr extends AssignRhs
 
   // Binary operators
 
@@ -118,7 +118,7 @@ object ast {
   case class Ident(id: String)(val pos: (Int, Int)) extends AssignLhs with Expr0
 
   // Array accesses
-  case class ArrayElem(id: Ident, indexes: List[Expr])(val pos: (Int, Int)) extends AssignLhs
+  case class ArrayElem(id: Ident, indexes: List[Expr])(val pos: (Int, Int)) extends AssignLhs with Expr0
 
   // Unary operators
   case class Not(x: Expr0)(val pos: (Int, Int)) extends Expr0
@@ -136,7 +136,7 @@ object ast {
 
   trait ParserBuilder[T] {
     val parser: Parsley[T]
-    final def <#(p: Parsley[_]): Parsley[T] = parser <~ p
+    final def <#(p: Parsley[_]): Parsley[T] = parser <* p
   }
 
   trait ParserBuilderPos0[R] extends ParserBuilder[R] {
@@ -152,6 +152,11 @@ object ast {
   trait ParserBuilderPos2[T1, T2, R] extends ParserBuilder[(T1, T2) => R] {
     def apply(x: T1, y: T2)(pos: (Int, Int)): R
     val parser: Parsley[(T1, T2) => R] = pos.map(p => apply(_, _)(p))
+  }
+
+  object WaccProgram {
+    def apply(funcs: Parsley[List[Func]], stats: Parsley[List[Stat]]): Parsley[WaccProgram] = 
+      pos <**> (funcs, stats).zipped(WaccProgram(_, _) _)
   }
 
   object Func {

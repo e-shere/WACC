@@ -6,7 +6,6 @@ import parsley.character.{digit, isWhitespace, noneOf}
 import parsley.combinator.{choice, eof, many, optionally}
 import parsley.implicits.character.{charLift, stringLift}
 import parsley.token.{LanguageDef, Lexer, Predicate}
-
 import scala.language.implicitConversions
 
 object lexer {
