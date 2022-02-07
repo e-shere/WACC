@@ -126,8 +126,7 @@ object semanticChecker {
     errors.toList
   }
 
-  //
-  private def validateBinaryOperators[A <: Type](symbolTable: Map[Ident, Type], x: Expr, y: Expr, pos: (Int, Int), opInfo: (String, String)): (Option[Type], List[SemanticError]) = {
+  private def validateBinaryOperators(symbolTable: Map[Ident, Type], x: Expr, y: Expr, pos: (Int, Int), opInfo: (String, String)): (Option[Type], List[SemanticError]) = {
     var maybeTy: Option[Type] = None
     val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
 
@@ -146,34 +145,53 @@ object semanticChecker {
     (maybeTy, errors.toList)
   }
 
+  private def validateEqualityOperators(symbolTable: Map[Ident, Type], x: Expr, y: Expr, pos: (Int, Int)): (Option[Type], List[SemanticError]) = {
+    var maybeTy: Option[Type] = None
+    val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
+
+    val (maybeXType, xErrors) = validateExpr(symbolTable, x)
+    val (maybeYType, yErrors) = validateExpr(symbolTable, y)
+    errors ++= xErrors
+    errors ++= yErrors
+    (maybeXType, maybeYType) match {
+      // TODO: dependent on overloading pair equality
+      case (Some(a), Some(b)) => if (a == b) {
+        maybeTy = Some(BoolType()(pos))
+      } else {
+        errors += SemanticError("Can't decide equality between two different types")
+      }
+      case (_, _) =>
+    }
+    (maybeTy, errors.toList)
+  }
+
+  private def validateComparisonOperators(symbolTable: Map[Ident, Type], x: Expr, y: Expr, pos: (Int, Int)): (Option[Type], List[SemanticError]) = {
+    var maybeTy: Option[Type] = None
+    val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
+
+    val (maybeXType, xErrors) = validateExpr(symbolTable, x)
+    val (maybeYType, yErrors) = validateExpr(symbolTable, y)
+    errors ++= xErrors
+    errors ++= yErrors
+    (maybeXType, maybeYType) match {
+      case (Some(IntType()), Some(IntType())) => maybeTy = Some(BoolType()(pos))
+      case (Some(CharType()), Some(CharType())) => maybeTy = Some(BoolType()(pos))
+      case (Some(a), Some(b)) => errors += SemanticError(s"Can't compare type $a and $b")
+      case (_, _) =>
+    }
+    (maybeTy, errors.toList)
+  }
+
   def validateExpr(symbolTable: Map[Ident, Type], expr: Expr): (Option[Type], List[SemanticError]) = {
     expr match {
       case orStat@Or(x, y) => validateBinaryOperators(symbolTable, x, y, orStat.pos, ("||", "bool"))
       case andStat@And(x, y) => validateBinaryOperators(symbolTable, x, y, andStat.pos, ("&&", "bool"))
-      case eqStat@Eq(x, y) => {
-        var maybeTy: Option[Type] = None
-        val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
-
-        val (maybeXType, xErrors) = validateExpr(symbolTable, x)
-        val (maybeYType, yErrors) = validateExpr(symbolTable, y)
-        errors ++= xErrors
-        errors ++= yErrors
-        (maybeXType, maybeYType) match {
-            // TODO: dependent on overloading pair equality
-          case (Some(a), Some(b)) => if (a == b) {
-            maybeTy = Some(BoolType()(eqStat.pos))
-          } else {
-            errors += SemanticError("Can't compare two different types")
-          }
-          case (_, _) =>
-        }
-        (maybeTy, errors.toList)
-      }
-//      case neqStat@Neq(x, y) =>
-//      case leqStat@Leq(x, y) =>
-//      case ltStat@Lt(x, y) =>
-//      case geqStat@Geq(x, y) =>
-//      case gtStat@Gt(x, y) =>
+      case eqStat@Eq(x, y) => validateEqualityOperators(symbolTable, x, y, eqStat.pos)
+      case neqStat@Neq(x, y) =>validateEqualityOperators(symbolTable, x, y, neqStat.pos)
+      case leqStat@Leq(x, y) => validateComparisonOperators(symbolTable, x, y, leqStat.pos)
+      case ltStat@Lt(x, y) => validateComparisonOperators(symbolTable, x, y, ltStat.pos)
+      case geqStat@Geq(x, y) => validateComparisonOperators(symbolTable, x, y, geqStat.pos)
+      case gtStat@Gt(x, y) => validateComparisonOperators(symbolTable, x, y, gtStat.pos)
       case addStat@Add(x, y) => validateBinaryOperators(symbolTable, x, y, addStat.pos, ("+", "int"))
       case subStat@Sub(x, y) => validateBinaryOperators(symbolTable, x, y, subStat.pos, ("-", "int"))
       case mulStat@Mul(x, y) => validateBinaryOperators(symbolTable, x, y, mulStat.pos, ("*", "int"))
