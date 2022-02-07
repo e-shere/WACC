@@ -250,10 +250,13 @@ object semanticChecker {
     }
   }
 
-  // check if is in local symbols
   def typeOfLhs(funcTable: Map[Ident, FuncType],
                   symbolTable: Map[Ident, Type], lhs: AssignLhs): (Option[Type], List[SemanticError]) = {
-    (None, Nil)
+    // Every subtype of AssignLhs is also a subtype of AssignRhs. This method
+    // exists anyway for easier extensibility if this were to change
+    lhs match {
+      case rhs: AssignRhs => typeOfRhs(funcTable, symbolTable, rhs)
+    }
   }
 
   case class FuncType(returnType: Type, paramTypes: List[Type])
