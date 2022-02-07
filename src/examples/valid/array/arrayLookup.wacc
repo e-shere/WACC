@@ -7,5 +7,5 @@
 
 begin
   int[] a = [43, 2, 18, 1] ;
-  a[0] = 1
+  println a[0]
 end
