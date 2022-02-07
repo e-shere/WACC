@@ -36,7 +36,7 @@ object semanticChecker {
     val localSymbols: mutable.Map[Ident, Type] = mutable.Map.empty[Ident, Type]
     for (stat <- stats) {
       stat match {
-        case Skip() => {}
+        case Skip() =>
         case Declare(ty, id, rhs) => {
           val (maybeRhs, rhsErrors) = validateRhs(funcTable, localSymbols.toMap ++ parentSymbols, rhs)
           errors ++= rhsErrors
@@ -44,7 +44,7 @@ object semanticChecker {
             case Some(rhsType) => if (rhsType != ty) {
               errors += SemanticError("rhs of assignment doesn't match type")
             }
-            case _ => {}
+            case _ =>
           }
           if (localSymbols contains id) {
             errors += SemanticError("redeclaring identifier within same scope")
@@ -61,20 +61,18 @@ object semanticChecker {
             case (Some(lhsType), Some(rhsType)) => if (lhsType != rhsType) {
               errors += SemanticError("rhs of assignment doesn't match type")
             }
-            case _ => {}
+            case _ =>
           }
         }
-        case Read(lhs) => {
-          errors ++= validateLhs(funcTable, localSymbols.toMap ++ parentSymbols, lhs)._2
-        }
+        case Read(lhs) => errors ++= validateLhs(funcTable, localSymbols.toMap ++ parentSymbols, lhs)._2
         case Free(expr) => {
           val (maybeExpr, exprErrors) = validateExpr(funcTable, localSymbols.toMap ++ parentSymbols, expr)
           errors ++= exprErrors
           maybeExpr match {
-            case Some(PairType(_, _)) => {}
-            case Some(ArrayType(_)) => {}
+            case Some(PairType(_, _)) =>
+            case Some(ArrayType(_)) =>
             case Some(_) => errors += SemanticError("Only a pair or array can be freed")
-            case _ => {}
+            case _ =>
           }
         }
         case Return(expr) => {
@@ -85,33 +83,27 @@ object semanticChecker {
               errors += SemanticError("return type must match return type of function")
             }
             case (_, None) => errors += SemanticError("can't return outside a function")
-            case (None, Some(_)) => {}
+            case (None, Some(_)) =>
           }
         }
         case Exit(expr) => {
           val (maybeExpr, exprErrors) = validateExpr(funcTable, localSymbols.toMap ++ parentSymbols, expr)
           errors ++= exprErrors
           maybeExpr match {
-            case Some(IntType()) => {}
+            case Some(IntType()) =>
             case Some(_) => errors += SemanticError("Exit status must be an integer")
-            case _ => {}
+            case _ =>
           }
         }
-        case Print(expr) => {
-          errors ++= validateExpr(funcTable, localSymbols.toMap ++ parentSymbols, expr)._2
-        }
-        case Println(expr) => {
-          errors ++= validateExpr(funcTable, localSymbols.toMap ++ parentSymbols, expr)._2
-        }
+        case Print(expr) => errors ++= validateExpr(funcTable, localSymbols.toMap ++ parentSymbols, expr)._2
+        case Println(expr) => errors ++= validateExpr(funcTable, localSymbols.toMap ++ parentSymbols, expr)._2
         case If(expr, thenStats, elseStats) => {
           val (maybeExpr, exprErrors) = validateExpr(funcTable, localSymbols.toMap ++ parentSymbols, expr)
           errors ++= exprErrors
           maybeExpr match {
-            case Some(BoolType()) => {}
-            case Some(_) => {
-              errors += SemanticError("If condition must be a bool")
-            }
-            case _ => {}
+            case Some(BoolType()) =>
+            case Some(_) => errors += SemanticError("If condition must be a bool")
+            case _ =>
           }
           errors ++= validateBlock(funcTable, localSymbols.toMap ++ parentSymbols, thenStats, returnType)
           errors ++= validateBlock(funcTable, localSymbols.toMap ++ parentSymbols, elseStats, returnType)
@@ -120,17 +112,15 @@ object semanticChecker {
           val (maybeExpr, exprErrors) = validateExpr(funcTable, localSymbols.toMap ++ parentSymbols, expr)
           errors ++= exprErrors
           maybeExpr match {
-            case Some(BoolType()) => {}
-            case Some(_) => {
-              errors += SemanticError("While condition must be a bool")
-            }
-            case _ => {}
+            case Some(BoolType()) =>
+            case Some(_) => errors += SemanticError("While condition must be a bool")
+
+            case _ =>
           }
           errors ++= validateBlock(funcTable, localSymbols.toMap ++ parentSymbols, doStats, returnType)
         }
-        case Scope(innerStats) => {
+        case Scope(innerStats) =>
           errors ++= validateBlock(funcTable, localSymbols.toMap ++ parentSymbols, innerStats, returnType)
-        }
       }
     }
     errors.toList

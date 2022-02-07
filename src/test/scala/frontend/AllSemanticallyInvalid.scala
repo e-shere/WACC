@@ -48,11 +48,11 @@ class AllSemanticallyInvalid extends AnyFlatSpec {
     allFail("src/examples/invalid/semanticErr/if")
   }
 
-  "All invalid if programs" should "return failure" in {
+  "All invalid IO programs" should "return failure" in {
     allFail("src/examples/invalid/semanticErr/IO")
   }
 
-  "All invalid if programs" should "return failure" in {
+  "All invalid multiple programs" should "return failure" in {
     allFail("src/examples/invalid/semanticErr/multiple")
   }
 
@@ -64,11 +64,11 @@ class AllSemanticallyInvalid extends AnyFlatSpec {
     allFail("src/examples/invalid/semanticErr/print")
   }
 
-  "All invalid print programs" should "return failure" in {
+  "All invalid read programs" should "return failure" in {
     allFail("src/examples/invalid/semanticErr/read")
   }
 
-  "All invalid print programs" should "return failure" in {
+  "All invalid scope programs" should "return failure" in {
     allFail("src/examples/invalid/semanticErr/scope")
   }
 
