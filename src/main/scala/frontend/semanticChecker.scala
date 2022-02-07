@@ -150,18 +150,25 @@ object semanticChecker {
     expr match {
       case orStat@Or(x, y) => validateBinaryOperators(symbolTable, x, y, orStat.pos, ("||", "bool"))
       case andStat@And(x, y) => validateBinaryOperators(symbolTable, x, y, andStat.pos, ("&&", "bool"))
-//      case eqStat@Eq(x, y) => {
-////        var maybeTy: Option[Type] = None
-////        val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
-//
-//        val (maybeXType, xErrors) = validateExpr(symbolTable, x)
-//        val (maybeYType, yErrors) = validateExpr(symbolTable, y)
-////        errors ++= xErrors
-////        errors ++= yErrors
-//        (maybeXType, maybeYType) match {
-//          case ()
-//        }
-//      }
+      case eqStat@Eq(x, y) => {
+        var maybeTy: Option[Type] = None
+        val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
+
+        val (maybeXType, xErrors) = validateExpr(symbolTable, x)
+        val (maybeYType, yErrors) = validateExpr(symbolTable, y)
+        errors ++= xErrors
+        errors ++= yErrors
+        (maybeXType, maybeYType) match {
+            // TODO: dependent on overloading pair equality
+          case (Some(a), Some(b)) => if (a == b) {
+            maybeTy = Some(BoolType()(eqStat.pos))
+          } else {
+            errors += SemanticError("Can't compare two different types")
+          }
+          case (_, _) =>
+        }
+        (maybeTy, errors.toList)
+      }
 //      case neqStat@Neq(x, y) =>
 //      case leqStat@Leq(x, y) =>
 //      case ltStat@Lt(x, y) =>
