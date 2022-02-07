@@ -209,8 +209,6 @@ object semanticChecker {
           case result@(None, _) => result
         }
       }
-//      case Ident(id) =>
-//      case IntLiter(x) =>
         //TODO: do we need to check that only valid types for inside arrays are given
         // surely that should be checked elsewhere?
       case lenStat@Len(x) => {
@@ -250,8 +248,6 @@ object semanticChecker {
           case result@(None, _) => result
         }
       }
-      //TODO: is the null type a problem?
-      case Null() => (None, List.empty)
       case ordStat@Ord(x) => {
         val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
         validateExpr(symbolTable, x) match {
@@ -264,8 +260,18 @@ object semanticChecker {
           case result@(None, _) => result
         }
       }
-//      case Paren(expr) =>
-//      case StrLiter(s) =>
+      //TODO: is the null type a problem? not sure if I should be checking for things here
+      case Null() => (None, List.empty)
+      //todo: any semantic issues with these?
+      case Paren(expr) => validateExpr(symbolTable, expr)
+      case Ident(_) => (None, List.empty)
+      case IntLiter(_) => (None, List.empty)
+      case StrLiter(_) => (None, List.empty)
+      case BoolLiter(_) => (None, List.empty)
+      case CharLiter(_) => (None, List.empty)
+//      case ArrayLiter(exprs) => // TODO oh dear god iterate through all exprs!
+//      case ArrayElem(id, index: expr) => //TODO: do we need to check index is low enough?
+      case _ => (None, List.empty) // can just use this for anything we're sure to do nothing on
     }
   }
 
