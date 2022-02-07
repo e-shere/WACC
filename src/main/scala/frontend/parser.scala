@@ -22,7 +22,7 @@ object parser {
 
     def parse[Err: ErrorBuilder](input: File): Result[Err, WaccProgram] = `<program>`.parseFromFile(input).get
 
-    private lazy val `<program>` = fully(WaccProgram("begin" *> many(`<func>`), sepBy1(`<stat>`, ";") <* "end"))
+    private lazy val `<program>` = fully("begin" *> WaccProgram(many(`<func>`), sepBy1(`<stat>`, ";") <* "end"))
 
     private lazy val `<func>` = attempt(Func(`<type>`, `<ident>`, "(" *> sepBy(`<param>`, ",") <* ")", "is" *> sepBy1(`<stat>`, ";") <* "end"))
 
@@ -43,7 +43,7 @@ object parser {
         <|> Scope("begin" *> sepBy1(`<stat>`,";") <* "end")
     )
 
-    private lazy val `<assign-lhs>` = `<ident>` <|> `<array-elem>` <|> `<pair-elem>`
+    private lazy val `<assign-lhs>` = attempt(`<array-elem>`) <|> `<ident>` <|> `<pair-elem>`
 
     private lazy val `<assign-rhs>` = 
            (`<expr>`
@@ -83,8 +83,8 @@ object parser {
         CharLiter(CHAR),
         StrLiter(STRING),
         Null <# "null",
-        attempt(`<ident>`),
-        `<array-elem>`,
+        attempt(`<array-elem>`),
+        `<ident>`,
         Paren("(" *> `<expr>` <* ")")
     )
 
