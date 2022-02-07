@@ -17,6 +17,6 @@ class MatchOutputTests extends AnyFlatSpec {
     "begin skip end program" should "only skip" in {
         val source = Source.fromFile("src/examples/valid/basic/skip/skip.wacc").mkString
         //parse(source).toString() shouldBe "Success(WaccProgram(List(),List(Skip((8,7)))))"
-      parse(new File("src/examples/valid/basic/skip/skip.wacc")).toString() shouldBe "Success(WaccProgram(List(),List(Skip((8,7)))))"
+      parse(new File("src/examples/valid/basic/skip/skip.wacc")).toString() shouldBe "Success(WaccProgram(List(),List(Skip()(8,7)))(8,7))"
     }
 }
