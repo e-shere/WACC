@@ -88,7 +88,7 @@ object parser {
         Paren("(" *> `<expr>` <* ")")
     )
 
-    private lazy val `<array-liter>` = ArrayLiter("[" *> sepBy1(`<expr>`, ",") <* "]")
+    private lazy val `<array-liter>` = ArrayLiter("[" *> sepBy(`<expr>`, ",") <* "]")
 
     private lazy val `<ident>` = Ident(ID)
 
