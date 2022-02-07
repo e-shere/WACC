@@ -56,26 +56,45 @@ object ast {
   case class Snd(expr: Expr)(val pos: (Int, Int)) extends PairElem
 
   // Types
-  sealed trait Type extends NodeWithPosition
+  sealed trait Type extends NodeWithPosition {
+    def toTypeName: String
+  }
 
   case class AnyType()(val pos: (Int, Int)) extends Type with PairElemType {
+    override def toTypeName: String = "any"
     override def canEqual(that: Any) = that.isInstanceOf[Type]
 
     override def equals(that: Any) = this.canEqual(that)
   }
 
   sealed trait BaseType extends Type with PairElemType
-  case class IntType()(val pos: (Int, Int)) extends BaseType
-  case class BoolType()(val pos: (Int, Int)) extends BaseType
-  case class CharType()(val pos: (Int, Int)) extends BaseType
-  case class StringType()(val pos: (Int, Int)) extends BaseType
+  case class IntType()(val pos: (Int, Int)) extends BaseType {
+    def toTypeName: String = "int"
+  }
+  case class BoolType()(val pos: (Int, Int)) extends BaseType {
+    def toTypeName: String = "bool"
+  }
+  case class CharType()(val pos: (Int, Int)) extends BaseType {
+    def toTypeName: String = "char"
+  }
+  case class StringType()(val pos: (Int, Int)) extends BaseType {
+    def toTypeName: String = "string"
+  }
 
-  case class ArrayType(ty: Type)(val pos: (Int, Int)) extends Type with PairElemType
+  case class ArrayType(ty: Type)(val pos: (Int, Int)) extends Type with PairElemType {
+    def toTypeName: String = ty.toTypeName + "[]"
+  }
 
-  case class PairType(ty1: PairElemType, ty2: PairElemType)(val pos: (Int, Int)) extends Type
+  case class PairType(ty1: PairElemType, ty2: PairElemType)(val pos: (Int, Int)) extends Type {
+    def toTypeName: String = "pair(" + ty1.toTypeName + ", " + ty2.toTypeName + ")"
+  }
 
-  sealed trait PairElemType extends NodeWithPosition
-  case class NestedPairType()(val pos: (Int, Int)) extends PairElemType
+  sealed trait PairElemType extends NodeWithPosition {
+    def toTypeName: String
+  }
+  case class NestedPairType()(val pos: (Int, Int)) extends PairElemType {
+    def toTypeName: String = "pair"
+  }
 
   // Exprs
   sealed trait Expr extends AssignRhs

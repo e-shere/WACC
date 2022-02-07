@@ -7,6 +7,19 @@ import scala.util.{Failure, Success, Try}
 
 object semanticChecker {
 
+  // used as the pos of a synthetic NodeWithPosition whose pos carries no meaning
+  private val NO_POS = (-1, -1)
+
+  private val ANY_TYPE = AnyType()(NO_POS)
+  private val INT_TYPE = IntType()(NO_POS)
+  private val BOOL_TYPE = BoolType()(NO_POS)
+  private val CHAR_TYPE = CharType()(NO_POS)
+  private val STRING_TYPE = StringType()(NO_POS)
+  private val PAIR_TYPE = PairType(ANY_TYPE, ANY_TYPE)(NO_POS)
+  private val ARRAY_TYPE = ArrayType(ANY_TYPE)(NO_POS)
+  private val COMP_ARG_TYPES: Set[Type] = Set(INT_TYPE, CHAR_TYPE)
+  private val EQ_ARG_TYPES: Set[Type] = Set(INT_TYPE, BOOL_TYPE, CHAR_TYPE, STRING_TYPE, PAIR_TYPE, ARRAY_TYPE)
+
   // TODO: should be returning some kind of optional try error?
   def validateProgram(program: WaccProgram): Unit = {
     program match {
@@ -126,156 +139,53 @@ object semanticChecker {
     errors.toList
   }
 
-//TODO: make this generic
-  private def validateBinaryBooleanOperators[A <: Type](symbolTable: Map[Ident, Type], x: Expr, y: Expr, pos: (Int, Int), opInfo: (String, String)): (Option[Type], List[SemanticError]) = {
-    var maybeTy: Option[Type] = None
-    val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
-
+  private def validateBinaryOperator(symbolTable: Map[Ident, Type], argType: Set[Type], x: Expr, y: Expr, ret: Type, opName: String): (Option[Type], List[SemanticError]) = {
     val (maybeXType, xErrors) = validateExpr(symbolTable, x)
     val (maybeYType, yErrors) = validateExpr(symbolTable, y)
-    errors ++= xErrors
-    errors ++= yErrors
     (maybeXType, maybeYType) match {
-      case (Some(BoolType()), Some(BoolType())) => { maybeTy = Some(BoolType()(pos))}
-      case (Some(_), Some(BoolType())) => errors += SemanticError(s"The first argument to ${opInfo._1} should be a ${opInfo._2}")
-      case (Some(BoolType()), Some(_)) => errors += SemanticError(s"The second argument to ${opInfo._1} should be a ${opInfo._2}")
-      case (Some(_), Some(_)) => errors += SemanticError(s"Both arguments to ${opInfo._1} must be a ${opInfo._2}")
-      case (_, _)  =>
-    }
-
-    (maybeTy, errors.toList)
-  }
-
-
-  private def validateBinaryIntegerOperators(symbolTable: Map[Ident, Type], x: Expr, y: Expr, pos: (Int, Int), opInfo: (String, String)): (Option[Type], List[SemanticError]) = {
-    var maybeTy: Option[Type] = None
-    val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
-
-    val (maybeXType, xErrors) = validateExpr(symbolTable, x)
-    val (maybeYType, yErrors) = validateExpr(symbolTable, y)
-    errors ++= xErrors
-    errors ++= yErrors
-    (maybeXType, maybeYType) match {
-      case (Some(BoolType()), Some(BoolType())) => { maybeTy = Some(BoolType()(pos))}
-      case (Some(_), Some(BoolType())) => errors += SemanticError(s"The first argument to ${opInfo._1} should be a ${opInfo._2}")
-      case (Some(BoolType()), Some(_)) => errors += SemanticError(s"The second argument to ${opInfo._1} should be a ${opInfo._2}")
-      case (Some(_), Some(_)) => errors += SemanticError(s"Both arguments to ${opInfo._1} must be a ${opInfo._2}")
-      case (_, _)  =>
-    }
-
-    (maybeTy, errors.toList)
-  }
-
-  private def validateEqualityOperators(symbolTable: Map[Ident, Type], x: Expr, y: Expr, pos: (Int, Int)): (Option[Type], List[SemanticError]) = {
-    var maybeTy: Option[Type] = None
-    val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
-
-    val (maybeXType, xErrors) = validateExpr(symbolTable, x)
-    val (maybeYType, yErrors) = validateExpr(symbolTable, y)
-    errors ++= xErrors
-    errors ++= yErrors
-    (maybeXType, maybeYType) match {
-      // TODO: dependent on overloading pair equality
-      case (Some(a), Some(b)) => if (a == b) {
-        maybeTy = Some(BoolType()(pos))
-      } else {
-        errors += SemanticError("Can't decide equality between two different types")
+      case (Some(xType), Some(yType)) => {
+        if (!(argType contains xType)) (None, xErrors ++ yErrors :+ SemanticError(s"The first argument to $opName should be one of ${argType.map(_.toTypeName).mkString(", ")}"))
+        else if (!(argType contains yType)) (None, xErrors ++ yErrors :+ SemanticError(s"The second argument to $opName should be one of ${argType.map(_.toTypeName).mkString(", ")}"))
+        else if (xType != yType) (None, xErrors ++ yErrors :+ SemanticError(s"The two arguments to $opName must have the same type"))
+        else (Some(ret), xErrors ++ yErrors)
       }
-      case (_, _) =>
+      case _ => (None, xErrors ++ yErrors)
     }
-    (maybeTy, errors.toList)
   }
 
-  private def validateComparisonOperators(symbolTable: Map[Ident, Type], x: Expr, y: Expr, pos: (Int, Int)): (Option[Type], List[SemanticError]) = {
-    var maybeTy: Option[Type] = None
-    val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
-
+  private def validateUnaryOperator(symbolTable: Map[Ident, Type], argType: Set[Type], x: Expr, ret: Type, opName: String): (Option[Type], List[SemanticError]) = {
     val (maybeXType, xErrors) = validateExpr(symbolTable, x)
-    val (maybeYType, yErrors) = validateExpr(symbolTable, y)
-    errors ++= xErrors
-    errors ++= yErrors
-    (maybeXType, maybeYType) match {
-      case (Some(IntType()), Some(IntType())) => maybeTy = Some(BoolType()(pos))
-      case (Some(CharType()), Some(CharType())) => maybeTy = Some(BoolType()(pos))
-      case (Some(a), Some(b)) => errors += SemanticError(s"Can't compare type $a and $b")
-      case (_, _) =>
+    maybeXType match {
+      case Some(xType) => {
+        if (!(argType contains xType)) (None, xErrors :+ SemanticError(s"The argument to $opName should be one of ${argType.map(_.toTypeName).mkString(", ")}"))
+        else (Some(ret), xErrors)
+      }
+      case _ => (None, xErrors)
     }
-    (maybeTy, errors.toList)
   }
+
 
   def validateExpr(symbolTable: Map[Ident, Type], expr: Expr): (Option[Type], List[SemanticError]) = {
     expr match {
-      case orStat@Or(x, y) => validateBinaryBooleanOperators(symbolTable, x, y, orStat.pos, ("||", "bool"))
-      case andStat@And(x, y) => validateBinaryBooleanOperators(symbolTable, x, y, andStat.pos, ("&&", "bool"))
-      case eqStat@Eq(x, y) => validateEqualityOperators(symbolTable, x, y, eqStat.pos)
-      case neqStat@Neq(x, y) =>validateEqualityOperators(symbolTable, x, y, neqStat.pos)
-      case leqStat@Leq(x, y) => validateComparisonOperators(symbolTable, x, y, leqStat.pos)
-      case ltStat@Lt(x, y) => validateComparisonOperators(symbolTable, x, y, ltStat.pos)
-      case geqStat@Geq(x, y) => validateComparisonOperators(symbolTable, x, y, geqStat.pos)
-      case gtStat@Gt(x, y) => validateComparisonOperators(symbolTable, x, y, gtStat.pos)
-      case addStat@Add(x, y) => validateBinaryIntegerOperators(symbolTable, x, y, addStat.pos, ("+", "int"))
-      case subStat@Sub(x, y) => validateBinaryIntegerOperators(symbolTable, x, y, subStat.pos, ("-", "int"))
-      case mulStat@Mul(x, y) => validateBinaryIntegerOperators(symbolTable, x, y, mulStat.pos, ("*", "int"))
-      case divStat@Div(x, y) => validateBinaryIntegerOperators(symbolTable, x, y, divStat.pos, ("/", "int"))
-      case modStat@Mod(x, y) => validateBinaryIntegerOperators(symbolTable, x, y, modStat.pos, ("%", "int"))
-      case chrStat@Chr(x) => {
-        val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
-        validateExpr(symbolTable, x) match {
-          case (Some(IntType()), expErrors) => (Some(CharType()(chrStat.pos)), expErrors)
-          case (Some(_), expErrors) => {
-            errors += SemanticError("Can only find the char of integers")
-            errors ++= expErrors
-            (None, errors.toList)
-          }
-          case result@(None, _) => result
-        }
-      }
-        //TODO: do we need to check that only valid types for inside arrays are given
-        // surely that should be checked elsewhere?
-      case lenStat@Len(x) => {
-        val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
-        validateExpr(symbolTable, x) match {
-          case (Some(ArrayType(_)), expErrors) => (Some(IntType()(lenStat.pos)), expErrors)
-          case (Some(_), expErrors) => (None, SemanticError("Can only find the size of arrays") :: expErrors)
-          case result@(None, _) => result
-        }
-      }
-        //TODO: neg and not are exactly the same with different acceptable types
-      case negStat@Neg(x) => {
-        val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
-        validateExpr(symbolTable, x) match {
-          case (Some(IntType()), expErrors) => (Some(IntType()(negStat.pos)), expErrors)
-          case (Some(_), expErrors) => (None, SemanticError("Can only negate integers") :: expErrors)
-          case result@(None, _) => result
-        }
-      }
-      case notStat@Not(x) => {
-        val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
-        validateExpr(symbolTable, x) match {
-          case (Some(BoolType()), expErrors) => (Some(BoolType()(notStat.pos)), expErrors)
-          case (Some(_), expErrors) => {
-            errors += SemanticError("Can only not booleans")
-            errors ++= expErrors
-            (None, errors.toList)
-          }
-          case result@(None, _) => result
-        }
-      }
-      case ordStat@Ord(x) => {
-        val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
-        validateExpr(symbolTable, x) match {
-          case (Some(CharType()), expErrors) => (Some(IntType()(ordStat.pos)), expErrors)
-          case (Some(_), expErrors) => {
-            errors += SemanticError("Can only find the ord of a char")
-            errors ++= expErrors
-            (None, errors.toList)
-          }
-          case result@(None, _) => result
-        }
-      }
-      //TODO: is the null type a problem? not sure if I should be checking for things here
+      case orStat@Or(x, y) => validateBinaryOperator(symbolTable, Set(BOOL_TYPE), x, y, BoolType()(orStat.pos), "||")
+      case andStat@And(x, y) => validateBinaryOperator(symbolTable, Set(BOOL_TYPE), x, y, BoolType()(andStat.pos), "&&")
+      case eqStat@Eq(x, y) => validateBinaryOperator(symbolTable, EQ_ARG_TYPES, x, y, BoolType()(eqStat.pos), "==")
+      case neqStat@Neq(x, y) => validateBinaryOperator(symbolTable, EQ_ARG_TYPES, x, y, BoolType()(neqStat.pos), "!=")
+      case leqStat@Leq(x, y) => validateBinaryOperator(symbolTable, COMP_ARG_TYPES, x, y, BoolType()(leqStat.pos), "<=")
+      case ltStat@Lt(x, y) => validateBinaryOperator(symbolTable, COMP_ARG_TYPES, x, y, BoolType()(ltStat.pos), "<")
+      case geqStat@Geq(x, y) => validateBinaryOperator(symbolTable, COMP_ARG_TYPES, x, y, BoolType()(geqStat.pos), ">=")
+      case gtStat@Gt(x, y) => validateBinaryOperator(symbolTable, COMP_ARG_TYPES, x, y, BoolType()(gtStat.pos), ">")
+      case addStat@Add(x, y) => validateBinaryOperator(symbolTable, Set(INT_TYPE), x, y, IntType()(addStat.pos), "+")
+      case subStat@Sub(x, y) => validateBinaryOperator(symbolTable, Set(INT_TYPE), x, y, IntType()(subStat.pos), "-")
+      case mulStat@Mul(x, y) => validateBinaryOperator(symbolTable, Set(INT_TYPE), x, y, IntType()(mulStat.pos), "*")
+      case divStat@Div(x, y) => validateBinaryOperator(symbolTable, Set(INT_TYPE), x, y, IntType()(divStat.pos), "/")
+      case modStat@Mod(x, y) => validateBinaryOperator(symbolTable, Set(INT_TYPE), x, y, IntType()(modStat.pos), "%")
+      case notStat@Not(x) => validateUnaryOperator(symbolTable, Set(BOOL_TYPE), x, BoolType()(notStat.pos), "!")
+      case negStat@Neg(x) => validateUnaryOperator(symbolTable, Set(INT_TYPE), x, IntType()(negStat.pos), "-")
+      case lenStat@Len(x) => validateUnaryOperator(symbolTable, Set(ARRAY_TYPE), x, IntType()(lenStat.pos), "len")
+      case ordStat@Ord(x) => validateUnaryOperator(symbolTable, Set(CHAR_TYPE), x, IntType()(ordStat.pos), "ord")
+      case chrStat@Chr(x) => validateUnaryOperator(symbolTable, Set(INT_TYPE), x, CharType()(chrStat.pos), "chr")
       case nullExpr@Null() => (Some(PairType(AnyType()(nullExpr.pos), AnyType()(nullExpr.pos))(nullExpr.pos)), Nil)
-      //todo: any semantic issues with these?
       case Paren(expr) => validateExpr(symbolTable, expr)
       case identExpr: Ident => (symbolTable get identExpr) match {
         case Some(ty) => (Some(ty), Nil)
