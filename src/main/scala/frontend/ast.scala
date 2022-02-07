@@ -58,6 +58,12 @@ object ast {
   // Types
   sealed trait Type extends NodeWithPosition
 
+  case class AnyType()(val pos: (Int, Int)) extends Type with PairElemType {
+    override def canEqual(that: Any) = that.isInstanceOf[Type]
+
+    override def equals(that: Any) = this.canEqual(that)
+  }
+
   sealed trait BaseType extends Type with PairElemType
   case class IntType()(val pos: (Int, Int)) extends BaseType
   case class BoolType()(val pos: (Int, Int)) extends BaseType

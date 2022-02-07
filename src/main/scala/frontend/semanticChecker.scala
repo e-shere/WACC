@@ -236,11 +236,7 @@ object semanticChecker {
         val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
         validateExpr(symbolTable, x) match {
           case (Some(ArrayType(_)), expErrors) => (Some(IntType()(lenStat.pos)), expErrors)
-          case (Some(_), expErrors) => {
-            errors += SemanticError("Can only find the size of arrays")
-            errors ++= expErrors
-            (None, errors.toList)
-          }
+          case (Some(_), expErrors) => (None, SemanticError("Can only find the size of arrays") :: expErrors)
           case result@(None, _) => result
         }
       }
@@ -249,11 +245,7 @@ object semanticChecker {
         val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
         validateExpr(symbolTable, x) match {
           case (Some(IntType()), expErrors) => (Some(IntType()(negStat.pos)), expErrors)
-          case (Some(_), expErrors) => {
-            errors += SemanticError("Can only negate integers")
-            errors ++= expErrors
-            (None, errors.toList)
-          }
+          case (Some(_), expErrors) => (None, SemanticError("Can only negate integers") :: expErrors)
           case result@(None, _) => result
         }
       }
@@ -282,17 +274,40 @@ object semanticChecker {
         }
       }
       //TODO: is the null type a problem? not sure if I should be checking for things here
-      case Null() => (None, List.empty)
+      case nullExpr@Null() => (Some(PairType(AnyType()(nullExpr.pos), AnyType()(nullExpr.pos))(nullExpr.pos)), Nil)
       //todo: any semantic issues with these?
       case Paren(expr) => validateExpr(symbolTable, expr)
-      case Ident(_) => (None, List.empty)
-      case IntLiter(_) => (None, List.empty)
-      case StrLiter(_) => (None, List.empty)
-      case BoolLiter(_) => (None, List.empty)
-      case CharLiter(_) => (None, List.empty)
-//      case ArrayLiter(exprs) => // TODO oh dear god iterate through all exprs!
-//      case ArrayElem(id, index: expr) => //TODO: do we need to check index is low enough?
-      case _ => (None, List.empty) // can just use this for anything we're sure to do nothing on
+      case identExpr: Ident => (symbolTable get identExpr) match {
+        case Some(ty) => (Some(ty), Nil)
+        case None => (None, List(SemanticError("undefined identifier")))
+      }
+      case intExpr: IntLiter => (Some(IntType()(intExpr.pos)), Nil)
+      case strExpr: StrLiter => (Some(StringType()(strExpr.pos)), Nil)
+      case boolExpr: BoolLiter => (Some(BoolType()(boolExpr.pos)), Nil)
+      case charExpr: CharLiter => (Some(CharType()(charExpr.pos)), Nil)
+      case arrayExpr@ArrayLiter(Nil) => (Some(ArrayType(AnyType()(arrayExpr.pos))(arrayExpr.pos)), Nil)
+      case arrayExpr@ArrayLiter(expr :: exprs) => {
+        val (maybeHeadType, headErrors) = validateExpr(symbolTable, expr)
+        val (maybeTailType, tailErrors) = validateExpr(symbolTable, ArrayLiter(exprs)(arrayExpr.pos))
+        (maybeHeadType, maybeTailType) match {
+          case (Some(a), Some(b)) => {
+            if (a == b) (Some(a), headErrors ++ tailErrors)
+            else (None, headErrors ++ tailErrors :+ SemanticError("All elements of an array must have the same type"))
+          } 
+          case (_, _) => (None, headErrors ++ tailErrors)
+        }
+      }
+      case ArrayElem(id, index: Expr) => {
+        val (maybeIndexType, indexErrors) = validateExpr(symbolTable, index)
+        maybeIndexType match {
+          case Some(IntType()) => {
+            val (maybeInnerType, innerErrors) = validateExpr(symbolTable, id)
+            (maybeInnerType, innerErrors ++ indexErrors)
+          }
+          case Some(_) => (None, indexErrors :+ SemanticError("Array index must be an int"))
+          case None => (None, indexErrors)
+        }
+      }
     }
   }
 
