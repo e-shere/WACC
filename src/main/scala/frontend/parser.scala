@@ -11,6 +11,7 @@ import parsley.implicits.character.charLift
 import scala.language.implicitConversions
 import parsley.combinator.{many, sepBy, sepBy1, some}
 import parsley.errors.ErrorBuilder
+import parsley.errors.combinator.ErrorMethods
 import parsley.Result
 import parsley.debug._
 import parsley.io.ParseFromIO
@@ -41,7 +42,8 @@ object parser {
         <|> If("if" *> `<expr>`, "then" *> sepBy1(`<stat>`, ";"), "else" *> sepBy1(`<stat>`,";") <* "fi")
         <|> While("while" *> `<expr>`, "do" *> sepBy1(`<stat>`, ";") <* "done")
         <|> Scope("begin" *> sepBy1(`<stat>`,";") <* "end")
-    )
+    ).label("statement").explain("Examples of statements are new variables, " +
+             "print instructions and the start of while or if expressions.")
 
     private lazy val `<assign-lhs>` = `<array-ident>` <|> `<pair-elem>`
 
@@ -50,18 +52,18 @@ object parser {
         <|> `<array-liter>`
         <|> NewPair("newpair" *> "(" *> `<expr>` <* ",", `<expr>` <* ")")
         <|> `<pair-elem>`
-        <|> Call("call" *> `<ident>`, "(" *> sepBy(`<expr>`, ",") <* ")"))
+        <|> Call("call" *> `<ident>`, "(" *> sepBy(`<expr>`, ",") <* ")").label("call to a function"))
 
     private lazy val `<pair-elem>` = Fst("fst" *> `<expr>`) <|> Snd("snd" *> `<expr>`)
 
-    private lazy val `<type>`: Parsley[Type] = chain.postfix(`<base-type>` <|> `<pair-type>`, ArrayType <# ("[" <* "]"))
+    private lazy val `<type>`: Parsley[Type] = chain.postfix(`<base-type>` <|> `<pair-type>`,
+      ArrayType <# ("[" <* "]")).label("type")
+      .explain("A type can be an array, pair, integer, boolean, character or string.")
 
-    private lazy val `<base-type>` = (IntType <# "int") <|>
+  private lazy val `<base-type>` = (IntType <# "int") <|>
                                       (BoolType <# "bool") <|>
                                       (CharType <# "char") <|>
                                      (StringType <# "string")
-
-
 
     private lazy val `<pair-type>`: Parsley[PairType] = PairType("pair" *> "(" *> `<pair-elem-type>` <* ",", `<pair-elem-type>` <* ")")
 
@@ -73,7 +75,7 @@ object parser {
                              Gt  <# ">",  Geq <# ">=") +:
                 SOps(InfixL)(Add <# "+",  Sub <# "-") +:
                 SOps(InfixL)(Mul <# "*",  Div <# "/", Mod <# "%") +:
-                SOps(Prefix)(Neg <# "-",  Not <# "!", Len <# "len", Ord <# "ord", Chr <# "chr") +:
+          SOps(Prefix)(Neg <# "-",  Not <# "!", Len <# "len", Ord <# "ord", Chr <# "chr") +:
                 `<expr0>`)
 
 
