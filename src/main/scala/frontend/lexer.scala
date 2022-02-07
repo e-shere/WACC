@@ -7,6 +7,7 @@ import parsley.combinator.{choice, eof, many, optionally}
 import parsley.implicits.character.{charLift, stringLift}
 import parsley.token.{LanguageDef, Lexer, Predicate}
 import scala.language.implicitConversions
+import parsley.errors.combinator.ErrorMethods
 
 object lexer {
   private val wacc = LanguageDef.plain.copy(
@@ -32,7 +33,13 @@ object lexer {
 
   private val minus: Parsley[Int => Int] = '-' #> {x: Int => -x}
   private val plus: Parsley[Int => Int] = optionally('+', identity)
-  private val nat = digit.foldLeft1[Int](0)((n, d) => n * 10 + d.asDigit)
+
+  //TODO: VERY HACKY! IS TESTING FOR OVERFLOW BY SEEING IF VALUE IS NEGATIVE
+//  private val checkOverflow: PartialFunction[Int, String] = {
+//    case x if x < 0 => "Integer overflow occurred"
+//  }
+
+  private val nat = digit.foldLeft1[Int](0)((n, d) => n * 10 + d.asDigit)//.filterOut(checkOverflow)
   val INT: Parsley[Int] = token((minus <|> plus) <*> nat)
 
   val BOOL: Parsley[Boolean] = token("true" #> true <|> "false" #> false)
