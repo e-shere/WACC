@@ -20,6 +20,10 @@ object ast {
     )
   }
 
+  // used as the pos of a synthetic NodeWithPosition whose pos carries no meaning
+  val NO_POS = (-1, -1)
+
+
   // Top level
   case class WaccProgram(funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends NodeWithPosition
   // todo: represent program arguments as something optional
@@ -56,18 +60,34 @@ object ast {
   case class Snd(expr: Expr)(val pos: (Int, Int)) extends PairElem
 
   // Types
-  sealed trait Type extends NodeWithPosition {
+
+  // The union of Type and PairElemType
+  sealed trait TypeLike extends NodeWithPosition {
     def toTypeName: String
   }
 
+  // The intersection of Type and PairElemType
+  sealed trait TypeOrPairElemType extends Type with PairElemType {
+    def toPairElemType: PairElemType = this
+    def toType: Type = this
+  }
+
+  sealed trait Type extends TypeLike {
+    def toPairElemType: PairElemType
+  }
+
   case class AnyType()(val pos: (Int, Int)) extends Type with PairElemType {
-    override def toTypeName: String = "any"
-    override def canEqual(that: Any) = that.isInstanceOf[Type]
+    def toTypeName: String = "any"
+
+    def toPairElemType: PairElemType = this
+    
+    def toType: Type = this
+    def canEqual(that: Any) = that.isInstanceOf[Type]
 
     override def equals(that: Any) = this.canEqual(that)
   }
 
-  sealed trait BaseType extends Type with PairElemType
+  sealed trait BaseType extends TypeOrPairElemType
   case class IntType()(val pos: (Int, Int)) extends BaseType {
     def toTypeName: String = "int"
   }
@@ -81,19 +101,21 @@ object ast {
     def toTypeName: String = "string"
   }
 
-  case class ArrayType(ty: Type)(val pos: (Int, Int)) extends Type with PairElemType {
+  case class ArrayType(ty: Type)(val pos: (Int, Int)) extends TypeOrPairElemType {
     def toTypeName: String = ty.toTypeName + "[]"
   }
 
   case class PairType(ty1: PairElemType, ty2: PairElemType)(val pos: (Int, Int)) extends Type {
     def toTypeName: String = "pair(" + ty1.toTypeName + ", " + ty2.toTypeName + ")"
+    def toPairElemType: PairElemType = NestedPairType()(pos)
   }
 
-  sealed trait PairElemType extends NodeWithPosition {
-    def toTypeName: String
+  sealed trait PairElemType extends TypeLike {
+    def toType: Type
   }
   case class NestedPairType()(val pos: (Int, Int)) extends PairElemType {
     def toTypeName: String = "pair"
+    def toType: Type = PairType(AnyType()(NO_POS), AnyType()(NO_POS))(pos)
   }
 
   // Exprs

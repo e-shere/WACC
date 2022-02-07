@@ -7,9 +7,6 @@ import scala.util.{Failure, Success, Try}
 
 object semanticChecker {
 
-  // used as the pos of a synthetic NodeWithPosition whose pos carries no meaning
-  private val NO_POS = (-1, -1)
-
   private val ANY_TYPE = AnyType()(NO_POS)
   private val INT_TYPE = IntType()(NO_POS)
   private val BOOL_TYPE = BoolType()(NO_POS)
@@ -236,10 +233,46 @@ object semanticChecker {
           else (None, elemErrors :+ SemanticError("All elements of an array must have the same type"))
         }
       }
-      case NewPair(fst, snd) => (None, Nil)
-      case Fst(expr) => (None, Nil)
-      case Snd(expr) => (None, Nil)
-      case Call(id, args) => (None, Nil)
+      case rhs@NewPair(fst, snd) => {
+        val (maybeFstType, fstErrors) = typeOfExpr(symbolTable, fst)
+        val (maybeSndType, sndErrors) = typeOfExpr(symbolTable, snd)
+        (maybeFstType, maybeSndType) match {
+          case (Some(fstType), Some(sndType)) => (Some(PairType(fstType.toPairElemType, sndType.toPairElemType)(rhs.pos)), fstErrors ++ sndErrors)
+          case _ => (None, fstErrors ++ sndErrors)
+        }
+      }
+      case Fst(expr) => {
+        val (maybeExprType, exprErrors) = typeOfExpr(symbolTable, expr)
+        maybeExprType match {
+          case Some(PairType(fstType, _)) => (Some(fstType.toType), exprErrors)
+          case Some(_) => (None, exprErrors :+ SemanticError("fst can only be invoked on a pair"))
+          case None => (None, exprErrors)
+        }
+      }
+      case Snd(expr) => {
+        val (maybeExprType, exprErrors) = typeOfExpr(symbolTable, expr)
+        maybeExprType match {
+          case Some(PairType(_, sndType)) => (Some(sndType.toType), exprErrors)
+          case Some(_) => (None, exprErrors :+ SemanticError("snd can only be invoked on a pair"))
+          case None => (None, exprErrors)
+        }
+      }
+      case Call(id, args) => {
+        val (maybeArgTypes, argErrorLists) = args.map(typeOfExpr(symbolTable, _)).unzip
+        val argErrors = argErrorLists.flatten
+        if (maybeArgTypes contains None) (None, argErrors)
+        else {
+          val argTypes = maybeArgTypes.map(_.get)
+          (funcTable get id) match {
+            case Some(FuncType(returnType, paramTypes)) => {
+              if (argTypes == paramTypes) (Some(returnType), argErrors)
+              // TODO: Compare argument types one by one to create a more helpful error message
+              else (None, argErrors :+ SemanticError("Incorrect argument types"))
+            }
+            case None => (None, argErrors :+ SemanticError("Undefined function"))
+          }
+        }
+      }
       // matching by a type normally doesn't work because of type erasure.
       // However, this is fine because this case is actually the default;
       // all subtypes of AssignRhs which are not also subtypes of Expr
