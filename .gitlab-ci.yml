@@ -33,10 +33,10 @@ syntactically-test-valid-job:
     - sbt "testOnly frontend.AllSyntacticallyValid"
 #    - sbt clean coverage test coverageReport
 
-syntactically-test-invalid-job:
-  stage: syntax-test-fail
-  script:
-    - sbt "testOnly frontend.AllSyntacticallyInvalid"
+#syntactically-test-invalid-job:
+#  stage: syntax-test-fail
+#  script:
+#    - sbt "testOnly frontend.AllSyntacticallyInvalid"
 #
 #syntactically-test-contents-of-ast:
 #  stage: syntax-test-ast
