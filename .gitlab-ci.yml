@@ -30,13 +30,13 @@ build-job:
 syntactically-test-valid-job:
   stage: syntax-test-success
   script:
-    - sbt testOnly src/test/scala/frontend/AllSyntacticallyValid.scala
+    - sbt "testOnly frontend.AllSyntacticallyValid"
 #    - sbt clean coverage test coverageReport
 
 #syntactically-test-invalid-job:
 #  stage: syntax-test-fail
 #  script:
-#    - sbt testOnly src/test/scala/frontend/AllSyntacticallyInvalid.scala
+#    - sbt "testOnly frontend.AllSyntacticallyInvalid"
 #
 #syntactically-test-contents-of-ast:
 #  stage: syntax-test-ast
