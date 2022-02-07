@@ -14,6 +14,7 @@ object Compiler {
     }
     val source = Source.fromFile(args(0)).mkString
     val maybeAst = parse(new File(args(0)))
+    print(maybeAst)
     maybeAst match {
       case Failure(err) => {
         // todo: output syntax error

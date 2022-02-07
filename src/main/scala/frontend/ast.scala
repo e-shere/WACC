@@ -126,10 +126,12 @@ object ast {
   case class ArrayLiter(xs: List[Expr])(val pos: (Int, Int)) extends Expr0
 
   // Identifiers
-  case class Ident(id: String)(val pos: (Int, Int)) extends AssignLhs with Expr0
+  case class Ident(id: String)(val pos: (Int, Int)) extends ArrayIdent
 
   // Array accesses
-  case class ArrayElem(id: Ident, indexes: List[Expr])(val pos: (Int, Int)) extends AssignLhs with Expr0
+  case class ArrayElem(id: ArrayIdent, index: Expr)(val pos: (Int, Int)) extends ArrayIdent
+
+  sealed trait ArrayIdent extends AssignLhs with Expr0
 
   // Unary operators
   case class Not(x: Expr0)(val pos: (Int, Int)) extends Expr0
@@ -163,6 +165,11 @@ object ast {
   trait ParserBuilderPos2[T1, T2, R] extends ParserBuilder[(T1, T2) => R] {
     def apply(x: T1, y: T2)(pos: (Int, Int)): R
     val parser: Parsley[(T1, T2) => R] = pos.map(p => apply(_, _)(p))
+  }
+
+  trait ParserBuilderCurriedFlippedPos2[T1, T2, R] extends ParserBuilder[T2 => T1 => R] {
+    def apply(x: T1, y: T2)(pos: (Int, Int)): R
+    val parser: Parsley[T2 => T1 => R] = pos.map(p => y => apply(_, y)(p))
   }
 
   object WaccProgram {
@@ -311,10 +318,10 @@ object ast {
     def apply(id: Parsley[String]): Parsley[Ident] = pos <**> id.map(Ident(_) _)
   }
 
-  object ArrayElem {
-    def apply(id: Parsley[Ident], indexes: Parsley[List[Expr]]): Parsley[ArrayElem] = pos <**> (id, indexes).zipped(ArrayElem(_, _) _)
-  }
-  
+  object ArrayElem extends ParserBuilderCurriedFlippedPos2[ArrayIdent, Expr, ArrayElem] //{
+//    def apply(id: Parsley[Ident], indexes: Parsley[List[Expr]]): Parsley[Arr/ayElem] = pos <**> (id, indexes).zipped(ArrayElem(_, _) _)
+//  }
+
   // Unary operators
   object Not extends ParserBuilderPos1[Expr0, Expr0]
   object Neg extends ParserBuilderPos1[Expr0, Expr0]
