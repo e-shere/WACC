@@ -126,7 +126,28 @@ object semanticChecker {
     errors.toList
   }
 
-  private def validateBinaryOperators(symbolTable: Map[Ident, Type], x: Expr, y: Expr, pos: (Int, Int), opInfo: (String, String)): (Option[Type], List[SemanticError]) = {
+//TODO: make this generic
+  private def validateBinaryBooleanOperators[A <: Type](symbolTable: Map[Ident, Type], x: Expr, y: Expr, pos: (Int, Int), opInfo: (String, String)): (Option[Type], List[SemanticError]) = {
+    var maybeTy: Option[Type] = None
+    val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
+
+    val (maybeXType, xErrors) = validateExpr(symbolTable, x)
+    val (maybeYType, yErrors) = validateExpr(symbolTable, y)
+    errors ++= xErrors
+    errors ++= yErrors
+    (maybeXType, maybeYType) match {
+      case (Some(BoolType()), Some(BoolType())) => { maybeTy = Some(BoolType()(pos))}
+      case (Some(_), Some(BoolType())) => errors += SemanticError(s"The first argument to ${opInfo._1} should be a ${opInfo._2}")
+      case (Some(BoolType()), Some(_)) => errors += SemanticError(s"The second argument to ${opInfo._1} should be a ${opInfo._2}")
+      case (Some(_), Some(_)) => errors += SemanticError(s"Both arguments to ${opInfo._1} must be a ${opInfo._2}")
+      case (_, _)  =>
+    }
+
+    (maybeTy, errors.toList)
+  }
+
+
+  private def validateBinaryIntegerOperators(symbolTable: Map[Ident, Type], x: Expr, y: Expr, pos: (Int, Int), opInfo: (String, String)): (Option[Type], List[SemanticError]) = {
     var maybeTy: Option[Type] = None
     val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
 
@@ -184,19 +205,19 @@ object semanticChecker {
 
   def validateExpr(symbolTable: Map[Ident, Type], expr: Expr): (Option[Type], List[SemanticError]) = {
     expr match {
-      case orStat@Or(x, y) => validateBinaryOperators(symbolTable, x, y, orStat.pos, ("||", "bool"))
-      case andStat@And(x, y) => validateBinaryOperators(symbolTable, x, y, andStat.pos, ("&&", "bool"))
+      case orStat@Or(x, y) => validateBinaryBooleanOperators(symbolTable, x, y, orStat.pos, ("||", "bool"))
+      case andStat@And(x, y) => validateBinaryBooleanOperators(symbolTable, x, y, andStat.pos, ("&&", "bool"))
       case eqStat@Eq(x, y) => validateEqualityOperators(symbolTable, x, y, eqStat.pos)
       case neqStat@Neq(x, y) =>validateEqualityOperators(symbolTable, x, y, neqStat.pos)
       case leqStat@Leq(x, y) => validateComparisonOperators(symbolTable, x, y, leqStat.pos)
       case ltStat@Lt(x, y) => validateComparisonOperators(symbolTable, x, y, ltStat.pos)
       case geqStat@Geq(x, y) => validateComparisonOperators(symbolTable, x, y, geqStat.pos)
       case gtStat@Gt(x, y) => validateComparisonOperators(symbolTable, x, y, gtStat.pos)
-      case addStat@Add(x, y) => validateBinaryOperators(symbolTable, x, y, addStat.pos, ("+", "int"))
-      case subStat@Sub(x, y) => validateBinaryOperators(symbolTable, x, y, subStat.pos, ("-", "int"))
-      case mulStat@Mul(x, y) => validateBinaryOperators(symbolTable, x, y, mulStat.pos, ("*", "int"))
-      case divStat@Div(x, y) => validateBinaryOperators(symbolTable, x, y, divStat.pos, ("/", "int"))
-      case modStat@Mod(x, y) => validateBinaryOperators(symbolTable, x, y, modStat.pos, ("%", "int"))
+      case addStat@Add(x, y) => validateBinaryIntegerOperators(symbolTable, x, y, addStat.pos, ("+", "int"))
+      case subStat@Sub(x, y) => validateBinaryIntegerOperators(symbolTable, x, y, subStat.pos, ("-", "int"))
+      case mulStat@Mul(x, y) => validateBinaryIntegerOperators(symbolTable, x, y, mulStat.pos, ("*", "int"))
+      case divStat@Div(x, y) => validateBinaryIntegerOperators(symbolTable, x, y, divStat.pos, ("/", "int"))
+      case modStat@Mod(x, y) => validateBinaryIntegerOperators(symbolTable, x, y, modStat.pos, ("%", "int"))
       case chrStat@Chr(x) => {
         val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
         validateExpr(symbolTable, x) match {
