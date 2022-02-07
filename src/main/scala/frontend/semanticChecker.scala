@@ -225,7 +225,29 @@ object semanticChecker {
     // get type of rhs and checking for semantic errors within rhs
   def typeOfRhs(funcTable: Map[Ident, FuncType],
                   symbolTable: Map[Ident, Type], rhs: AssignRhs): (Option[Type], List[SemanticError]) = {
-    (None, Nil)
+    rhs match {
+      case ArrayLiter(elements) => {
+        val (maybeTypes, elemErrorLists) = elements.map(typeOfExpr(symbolTable, _)).unzip
+        val elemErrors = elemErrorLists.flatten
+        if (maybeTypes contains None) (None, elemErrors)
+        else {
+          val types = maybeTypes.map(_.get)
+          if (types.forall(_ == types.head)) (Some(types.head), elemErrors)
+          else (None, elemErrors :+ SemanticError("All elements of an array must have the same type"))
+        }
+      }
+      case NewPair(fst, snd) => (None, Nil)
+      case Fst(expr) => (None, Nil)
+      case Snd(expr) => (None, Nil)
+      case Call(id, args) => (None, Nil)
+      // matching by a type normally doesn't work because of type erasure.
+      // However, this is fine because this case is actually the default;
+      // all subtypes of AssignRhs which are not also subtypes of Expr
+      // Are already handled by the above cases, so expr is always an Expr.
+      // The type annotation is only needed to make scala notice that this is
+      // the case.
+      case expr: Expr => typeOfExpr(symbolTable, expr)
+    }
   }
 
   // check if is in local symbols
