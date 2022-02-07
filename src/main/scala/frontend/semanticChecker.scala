@@ -197,6 +197,75 @@ object semanticChecker {
       case mulStat@Mul(x, y) => validateBinaryOperators(symbolTable, x, y, mulStat.pos, ("*", "int"))
       case divStat@Div(x, y) => validateBinaryOperators(symbolTable, x, y, divStat.pos, ("/", "int"))
       case modStat@Mod(x, y) => validateBinaryOperators(symbolTable, x, y, modStat.pos, ("%", "int"))
+      case chrStat@Chr(x) => {
+        val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
+        validateExpr(symbolTable, x) match {
+          case (Some(IntType()), expErrors) => (Some(CharType()(chrStat.pos)), expErrors)
+          case (Some(_), expErrors) => {
+            errors += SemanticError("Can only find the char of integers")
+            errors ++= expErrors
+            (None, errors.toList)
+          }
+          case result@(None, _) => result
+        }
+      }
+//      case Ident(id) =>
+//      case IntLiter(x) =>
+        //TODO: do we need to check that only valid types for inside arrays are given
+        // surely that should be checked elsewhere?
+      case lenStat@Len(x) => {
+        val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
+        validateExpr(symbolTable, x) match {
+          case (Some(ArrayType(_)), expErrors) => (Some(IntType()(lenStat.pos)), expErrors)
+          case (Some(_), expErrors) => {
+            errors += SemanticError("Can only find the size of arrays")
+            errors ++= expErrors
+            (None, errors.toList)
+          }
+          case result@(None, _) => result
+        }
+      }
+        //TODO: neg and not are exactly the same with different acceptable types
+      case negStat@Neg(x) => {
+        val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
+        validateExpr(symbolTable, x) match {
+          case (Some(IntType()), expErrors) => (Some(IntType()(negStat.pos)), expErrors)
+          case (Some(_), expErrors) => {
+            errors += SemanticError("Can only negate integers")
+            errors ++= expErrors
+            (None, errors.toList)
+          }
+          case result@(None, _) => result
+        }
+      }
+      case notStat@Not(x) => {
+        val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
+        validateExpr(symbolTable, x) match {
+          case (Some(BoolType()), expErrors) => (Some(BoolType()(notStat.pos)), expErrors)
+          case (Some(_), expErrors) => {
+            errors += SemanticError("Can only not booleans")
+            errors ++= expErrors
+            (None, errors.toList)
+          }
+          case result@(None, _) => result
+        }
+      }
+      //TODO: is the null type a problem?
+      case Null() => (None, List.empty)
+      case ordStat@Ord(x) => {
+        val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
+        validateExpr(symbolTable, x) match {
+          case (Some(CharType()), expErrors) => (Some(IntType()(ordStat.pos)), expErrors)
+          case (Some(_), expErrors) => {
+            errors += SemanticError("Can only find the ord of a char")
+            errors ++= expErrors
+            (None, errors.toList)
+          }
+          case result@(None, _) => result
+        }
+      }
+//      case Paren(expr) =>
+//      case StrLiter(s) =>
     }
   }
 
