@@ -51,7 +51,7 @@ object semanticChecker {
       stat match {
         case Skip() =>
         case Declare(ty, id, rhs) => {
-          val (maybeRhs, rhsErrors) = validateRhs(funcTable, localSymbols.toMap ++ parentSymbols, rhs)
+          val (maybeRhs, rhsErrors) = typeOfRhs(funcTable, localSymbols.toMap ++ parentSymbols, rhs)
           errors ++= rhsErrors
           maybeRhs match {
             case Some(rhsType) => if (rhsType != ty) {
@@ -66,8 +66,8 @@ object semanticChecker {
           }
         }
         case Assign(lhs, rhs) => {
-          val (maybeLhs, lhsErrors) = validateLhs(funcTable, localSymbols.toMap ++ parentSymbols, lhs)
-          val (maybeRhs, rhsErrors) = validateRhs(funcTable, localSymbols.toMap ++ parentSymbols, rhs)
+          val (maybeLhs, lhsErrors) = typeOfLhs(funcTable, localSymbols.toMap ++ parentSymbols, lhs)
+          val (maybeRhs, rhsErrors) = typeOfRhs(funcTable, localSymbols.toMap ++ parentSymbols, rhs)
           errors ++= lhsErrors
           errors ++= rhsErrors
           (maybeLhs, maybeRhs) match {
@@ -77,9 +77,9 @@ object semanticChecker {
             case _ =>
           }
         }
-        case Read(lhs) => errors ++= validateLhs(funcTable, localSymbols.toMap ++ parentSymbols, lhs)._2
+        case Read(lhs) => errors ++= typeOfLhs(funcTable, localSymbols.toMap ++ parentSymbols, lhs)._2
         case Free(expr) => {
-          val (maybeExpr, exprErrors) = validateExpr(localSymbols.toMap ++ parentSymbols, expr)
+          val (maybeExpr, exprErrors) = typeOfExpr(localSymbols.toMap ++ parentSymbols, expr)
           errors ++= exprErrors
           maybeExpr match {
             case Some(PairType(_, _)) =>
@@ -89,7 +89,7 @@ object semanticChecker {
           }
         }
         case Return(expr) => {
-          val (maybeExpr, exprErrors) = validateExpr(localSymbols.toMap ++ parentSymbols, expr)
+          val (maybeExpr, exprErrors) = typeOfExpr(localSymbols.toMap ++ parentSymbols, expr)
           errors ++= exprErrors
           (maybeExpr, returnType) match {
             case (Some(exprType), Some(ty)) => if (exprType != ty) {
@@ -100,7 +100,7 @@ object semanticChecker {
           }
         }
         case Exit(expr) => {
-          val (maybeExpr, exprErrors) = validateExpr(localSymbols.toMap ++ parentSymbols, expr)
+          val (maybeExpr, exprErrors) = typeOfExpr(localSymbols.toMap ++ parentSymbols, expr)
           errors ++= exprErrors
           maybeExpr match {
             case Some(IntType()) =>
@@ -108,10 +108,10 @@ object semanticChecker {
             case _ =>
           }
         }
-        case Print(expr) => errors ++= validateExpr(localSymbols.toMap ++ parentSymbols, expr)._2
-        case Println(expr) => errors ++= validateExpr(localSymbols.toMap ++ parentSymbols, expr)._2
+        case Print(expr) => errors ++= typeOfExpr(localSymbols.toMap ++ parentSymbols, expr)._2
+        case Println(expr) => errors ++= typeOfExpr(localSymbols.toMap ++ parentSymbols, expr)._2
         case If(expr, thenStats, elseStats) => {
-          val (maybeExpr, exprErrors) = validateExpr(localSymbols.toMap ++ parentSymbols, expr)
+          val (maybeExpr, exprErrors) = typeOfExpr(localSymbols.toMap ++ parentSymbols, expr)
           errors ++= exprErrors
           maybeExpr match {
             case Some(BoolType()) =>
@@ -122,7 +122,7 @@ object semanticChecker {
           errors ++= validateBlock(funcTable, localSymbols.toMap ++ parentSymbols, elseStats, returnType)
         }
         case While(expr, doStats) => {
-          val (maybeExpr, exprErrors) = validateExpr(localSymbols.toMap ++ parentSymbols, expr)
+          val (maybeExpr, exprErrors) = typeOfExpr(localSymbols.toMap ++ parentSymbols, expr)
           errors ++= exprErrors
           maybeExpr match {
             case Some(BoolType()) =>
@@ -139,9 +139,9 @@ object semanticChecker {
     errors.toList
   }
 
-  private def validateBinaryOperator(symbolTable: Map[Ident, Type], argType: Set[Type], x: Expr, y: Expr, ret: Type, opName: String): (Option[Type], List[SemanticError]) = {
-    val (maybeXType, xErrors) = validateExpr(symbolTable, x)
-    val (maybeYType, yErrors) = validateExpr(symbolTable, y)
+  private def typeOfBinOp(symbolTable: Map[Ident, Type], argType: Set[Type], x: Expr, y: Expr, ret: Type, opName: String): (Option[Type], List[SemanticError]) = {
+    val (maybeXType, xErrors) = typeOfExpr(symbolTable, x)
+    val (maybeYType, yErrors) = typeOfExpr(symbolTable, y)
     (maybeXType, maybeYType) match {
       case (Some(xType), Some(yType)) => {
         if (!(argType contains xType)) (None, xErrors ++ yErrors :+ SemanticError(s"The first argument to $opName should be one of ${argType.map(_.toTypeName).mkString(", ")}"))
@@ -153,8 +153,8 @@ object semanticChecker {
     }
   }
 
-  private def validateUnaryOperator(symbolTable: Map[Ident, Type], argType: Set[Type], x: Expr, ret: Type, opName: String): (Option[Type], List[SemanticError]) = {
-    val (maybeXType, xErrors) = validateExpr(symbolTable, x)
+  private def typeOfUnOp(symbolTable: Map[Ident, Type], argType: Set[Type], x: Expr, ret: Type, opName: String): (Option[Type], List[SemanticError]) = {
+    val (maybeXType, xErrors) = typeOfExpr(symbolTable, x)
     maybeXType match {
       case Some(xType) => {
         if (!(argType contains xType)) (None, xErrors :+ SemanticError(s"The argument to $opName should be one of ${argType.map(_.toTypeName).mkString(", ")}"))
@@ -165,28 +165,28 @@ object semanticChecker {
   }
 
 
-  def validateExpr(symbolTable: Map[Ident, Type], expr: Expr): (Option[Type], List[SemanticError]) = {
+  def typeOfExpr(symbolTable: Map[Ident, Type], expr: Expr): (Option[Type], List[SemanticError]) = {
     expr match {
-      case orStat@Or(x, y) => validateBinaryOperator(symbolTable, Set(BOOL_TYPE), x, y, BoolType()(orStat.pos), "||")
-      case andStat@And(x, y) => validateBinaryOperator(symbolTable, Set(BOOL_TYPE), x, y, BoolType()(andStat.pos), "&&")
-      case eqStat@Eq(x, y) => validateBinaryOperator(symbolTable, EQ_ARG_TYPES, x, y, BoolType()(eqStat.pos), "==")
-      case neqStat@Neq(x, y) => validateBinaryOperator(symbolTable, EQ_ARG_TYPES, x, y, BoolType()(neqStat.pos), "!=")
-      case leqStat@Leq(x, y) => validateBinaryOperator(symbolTable, COMP_ARG_TYPES, x, y, BoolType()(leqStat.pos), "<=")
-      case ltStat@Lt(x, y) => validateBinaryOperator(symbolTable, COMP_ARG_TYPES, x, y, BoolType()(ltStat.pos), "<")
-      case geqStat@Geq(x, y) => validateBinaryOperator(symbolTable, COMP_ARG_TYPES, x, y, BoolType()(geqStat.pos), ">=")
-      case gtStat@Gt(x, y) => validateBinaryOperator(symbolTable, COMP_ARG_TYPES, x, y, BoolType()(gtStat.pos), ">")
-      case addStat@Add(x, y) => validateBinaryOperator(symbolTable, Set(INT_TYPE), x, y, IntType()(addStat.pos), "+")
-      case subStat@Sub(x, y) => validateBinaryOperator(symbolTable, Set(INT_TYPE), x, y, IntType()(subStat.pos), "-")
-      case mulStat@Mul(x, y) => validateBinaryOperator(symbolTable, Set(INT_TYPE), x, y, IntType()(mulStat.pos), "*")
-      case divStat@Div(x, y) => validateBinaryOperator(symbolTable, Set(INT_TYPE), x, y, IntType()(divStat.pos), "/")
-      case modStat@Mod(x, y) => validateBinaryOperator(symbolTable, Set(INT_TYPE), x, y, IntType()(modStat.pos), "%")
-      case notStat@Not(x) => validateUnaryOperator(symbolTable, Set(BOOL_TYPE), x, BoolType()(notStat.pos), "!")
-      case negStat@Neg(x) => validateUnaryOperator(symbolTable, Set(INT_TYPE), x, IntType()(negStat.pos), "-")
-      case lenStat@Len(x) => validateUnaryOperator(symbolTable, Set(ARRAY_TYPE), x, IntType()(lenStat.pos), "len")
-      case ordStat@Ord(x) => validateUnaryOperator(symbolTable, Set(CHAR_TYPE), x, IntType()(ordStat.pos), "ord")
-      case chrStat@Chr(x) => validateUnaryOperator(symbolTable, Set(INT_TYPE), x, CharType()(chrStat.pos), "chr")
+      case orStat@Or(x, y) => typeOfBinOp(symbolTable, Set(BOOL_TYPE), x, y, BoolType()(orStat.pos), "||")
+      case andStat@And(x, y) => typeOfBinOp(symbolTable, Set(BOOL_TYPE), x, y, BoolType()(andStat.pos), "&&")
+      case eqStat@Eq(x, y) => typeOfBinOp(symbolTable, EQ_ARG_TYPES, x, y, BoolType()(eqStat.pos), "==")
+      case neqStat@Neq(x, y) => typeOfBinOp(symbolTable, EQ_ARG_TYPES, x, y, BoolType()(neqStat.pos), "!=")
+      case leqStat@Leq(x, y) => typeOfBinOp(symbolTable, COMP_ARG_TYPES, x, y, BoolType()(leqStat.pos), "<=")
+      case ltStat@Lt(x, y) => typeOfBinOp(symbolTable, COMP_ARG_TYPES, x, y, BoolType()(ltStat.pos), "<")
+      case geqStat@Geq(x, y) => typeOfBinOp(symbolTable, COMP_ARG_TYPES, x, y, BoolType()(geqStat.pos), ">=")
+      case gtStat@Gt(x, y) => typeOfBinOp(symbolTable, COMP_ARG_TYPES, x, y, BoolType()(gtStat.pos), ">")
+      case addStat@Add(x, y) => typeOfBinOp(symbolTable, Set(INT_TYPE), x, y, IntType()(addStat.pos), "+")
+      case subStat@Sub(x, y) => typeOfBinOp(symbolTable, Set(INT_TYPE), x, y, IntType()(subStat.pos), "-")
+      case mulStat@Mul(x, y) => typeOfBinOp(symbolTable, Set(INT_TYPE), x, y, IntType()(mulStat.pos), "*")
+      case divStat@Div(x, y) => typeOfBinOp(symbolTable, Set(INT_TYPE), x, y, IntType()(divStat.pos), "/")
+      case modStat@Mod(x, y) => typeOfBinOp(symbolTable, Set(INT_TYPE), x, y, IntType()(modStat.pos), "%")
+      case notStat@Not(x) => typeOfUnOp(symbolTable, Set(BOOL_TYPE), x, BoolType()(notStat.pos), "!")
+      case negStat@Neg(x) => typeOfUnOp(symbolTable, Set(INT_TYPE), x, IntType()(negStat.pos), "-")
+      case lenStat@Len(x) => typeOfUnOp(symbolTable, Set(ARRAY_TYPE), x, IntType()(lenStat.pos), "len")
+      case ordStat@Ord(x) => typeOfUnOp(symbolTable, Set(CHAR_TYPE), x, IntType()(ordStat.pos), "ord")
+      case chrStat@Chr(x) => typeOfUnOp(symbolTable, Set(INT_TYPE), x, CharType()(chrStat.pos), "chr")
       case nullExpr@Null() => (Some(PairType(AnyType()(nullExpr.pos), AnyType()(nullExpr.pos))(nullExpr.pos)), Nil)
-      case Paren(expr) => validateExpr(symbolTable, expr)
+      case Paren(expr) => typeOfExpr(symbolTable, expr)
       case identExpr: Ident => (symbolTable get identExpr) match {
         case Some(ty) => (Some(ty), Nil)
         case None => (None, List(SemanticError("undefined identifier")))
@@ -197,8 +197,8 @@ object semanticChecker {
       case charExpr: CharLiter => (Some(CharType()(charExpr.pos)), Nil)
       case arrayExpr@ArrayLiter(Nil) => (Some(ArrayType(AnyType()(arrayExpr.pos))(arrayExpr.pos)), Nil)
       case arrayExpr@ArrayLiter(expr :: exprs) => {
-        val (maybeHeadType, headErrors) = validateExpr(symbolTable, expr)
-        val (maybeTailType, tailErrors) = validateExpr(symbolTable, ArrayLiter(exprs)(arrayExpr.pos))
+        val (maybeHeadType, headErrors) = typeOfExpr(symbolTable, expr)
+        val (maybeTailType, tailErrors) = typeOfExpr(symbolTable, ArrayLiter(exprs)(arrayExpr.pos))
         (maybeHeadType, maybeTailType) match {
           case (Some(a), Some(b)) => {
             if (a == b) (Some(a), headErrors ++ tailErrors)
@@ -208,10 +208,10 @@ object semanticChecker {
         }
       }
       case ArrayElem(id, index: Expr) => {
-        val (maybeIndexType, indexErrors) = validateExpr(symbolTable, index)
+        val (maybeIndexType, indexErrors) = typeOfExpr(symbolTable, index)
         maybeIndexType match {
           case Some(IntType()) => {
-            val (maybeInnerType, innerErrors) = validateExpr(symbolTable, id)
+            val (maybeInnerType, innerErrors) = typeOfExpr(symbolTable, id)
             (maybeInnerType, innerErrors ++ indexErrors)
           }
           case Some(_) => (None, indexErrors :+ SemanticError("Array index must be an int"))
@@ -223,13 +223,13 @@ object semanticChecker {
 
 
     // get type of rhs and checking for semantic errors within rhs
-  def validateRhs(funcTable: Map[Ident, FuncType],
+  def typeOfRhs(funcTable: Map[Ident, FuncType],
                   symbolTable: Map[Ident, Type], rhs: AssignRhs): (Option[Type], List[SemanticError]) = {
     (None, Nil)
   }
 
   // check if is in local symbols
-  def validateLhs(funcTable: Map[Ident, FuncType],
+  def typeOfLhs(funcTable: Map[Ident, FuncType],
                   symbolTable: Map[Ident, Type], lhs: AssignLhs): (Option[Type], List[SemanticError]) = {
     (None, Nil)
   }
