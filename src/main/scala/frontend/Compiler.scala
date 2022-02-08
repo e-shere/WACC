@@ -24,14 +24,21 @@ object Compiler {
     val maybeAst = parse(new File(args(0)))
     maybeAst match {
       case Failure(err) => {
-        println(err)
-        // todo: output syntax error
+        // TODO: change later. Is needed this way for now for our tests
+        println(Failure(err))
         sys.exit(100);
       }
       case Success(ast) => {
-        //todo: semantic analysis
-        println(ast)
-        sys.exit(0)
+        semanticChecker.validateProgram(ast) match {
+          case Nil => {
+            println(Success(ast))
+            sys.exit(0)
+          }
+          case errors => {
+            println(errors)
+            sys.exit(200)
+          }
+        }
       }
     }
   }

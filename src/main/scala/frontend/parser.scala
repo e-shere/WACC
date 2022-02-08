@@ -7,6 +7,7 @@ import parsley.Parsley
 import parsley.Parsley._
 import parsley.expr.{Atoms, InfixL, Prefix, SOps, precedence}
 import parsley.implicits.character.charLift
+import parsley.errors.combinator.ErrorMethods
 
 import scala.language.implicitConversions
 import parsley.combinator.{many, sepBy, sepBy1, some}
@@ -25,7 +26,7 @@ object parser {
 
     private lazy val `<program>` = fully("begin" *> WaccProgram(many(`<func>`), sepBy1(`<stat>`, ";") <* "end"))
 
-    private lazy val `<func>` = attempt(Func(`<type>`, `<ident>`, "(" *> sepBy(`<param>`, ",") <* ")", "is" *> sepBy1(`<stat>`, ";") <* "end"))
+    private lazy val `<func>` = attempt(Func(`<type>`, `<ident>`, "(" *> sepBy(`<param>`, ",") <* ")", "is" *> sepBy1(`<stat>`, ";").filterOut(functions_return) <* "end"))
 
     private lazy val `<param>` = Param(`<type>`, `<ident>`)
 
@@ -75,7 +76,7 @@ object parser {
                              Gt  <# ">",  Geq <# ">=") +:
                 SOps(InfixL)(Add <# "+",  Sub <# "-") +:
                 SOps(InfixL)(Mul <# "*",  Div <# "/", Mod <# "%") +:
-          SOps(Prefix)(Neg <# "-",  Not <# "!", Len <# "len", Ord <# "ord", Chr <# "chr") +:
+                SOps(Prefix)(Neg <# NEG,  Not <# "!", Len <# "len", Ord <# "ord", Chr <# "chr") +:
                 `<expr0>`)
 
 
@@ -101,4 +102,18 @@ object parser {
     private lazy val `<pair-elem-type>`: Parsley[PairElemType] = attempt(chain.postfix1(`<base-type>` <|> `<pair-type>`, ArrayType <# ("[" <* "]"))) <|> `<base-type>` <|> (NestedPairType <# "pair")
 
 
+    // defined for all which fail!
+    private val functions_return = new PartialFunction[List[Stat], String] {
+        def apply(x: List[Stat]) = "All functions must end in a return statement"
+        def isDefinedAt(x: List[Stat]): Boolean = {
+          x.last match {
+              case Return(_) => false
+              case Exit(_) => false
+              case While(_, doStats) => isDefinedAt(doStats)
+              case If(_, thenStats, elseStats) => isDefinedAt(thenStats) || isDefinedAt(elseStats)
+              case Scope(stats) => isDefinedAt(stats)
+              case _ => true
+          }
+        }
+    }
 }

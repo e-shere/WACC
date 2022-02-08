@@ -3,9 +3,10 @@ package frontend
 import parsley.Parsley
 import parsley.Parsley._
 import parsley.character.{digit, isWhitespace, noneOf}
-import parsley.combinator.{choice, eof, many, optionally}
+import parsley.combinator.{choice, eof, many, manyUntil, optionally, some}
 import parsley.implicits.character.{charLift, stringLift}
 import parsley.token.{LanguageDef, Lexer, Predicate}
+
 import scala.language.implicitConversions
 import parsley.errors.combinator.ErrorMethods
 
@@ -31,10 +32,16 @@ object lexer {
 
   val NEG: Parsley[Unit] = token('-' *> notFollowedBy(digit))
 
-  private val minus: Parsley[Int => Int] = '-' #> {x: Int => -x}
-  private val plus: Parsley[Int => Int] = optionally('+', identity)
-  private val nat = digit.foldLeft1[Int](0)((n, d) => n * 10 + d.asDigit)
-  val INT: Parsley[Int] = token((minus <|> plus) <*> nat)
+  private val minus: Parsley[BigInt => BigInt] = '-' #> {x: BigInt => -x}
+  private val plus: Parsley[BigInt => BigInt] = optionally('+', identity)
+
+  private val checkOverflow: PartialFunction[BigInt, String] = {
+    case x if !x.isValidInt => "Integer overflow occurred"
+  }
+
+  private val nat = digit.foldLeft1[BigInt](0)((n, d) => n * 10 + d.asDigit)
+  private val bigInt = token((minus <|> plus) <*> nat).filterOut(checkOverflow)
+  val INT: Parsley[Int] = bigInt.map(_.intValue)
 
   val BOOL: Parsley[Boolean] = token("true" #> true <|> "false" #> false)
 

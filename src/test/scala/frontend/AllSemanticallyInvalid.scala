@@ -9,7 +9,7 @@ class AllSemanticallyInvalid extends AnyFlatSpec {
   import scala.io.Source
   import parsley.{Success, Failure}
 
-  behavior of "all semantically invalid programs"
+  behavior of "all semantically invalid programs are syntactically valid"
 
   def getListOfFilesRecursively(dir: String): Array[String] = {
     val d = new File(dir)
@@ -22,63 +22,63 @@ class AllSemanticallyInvalid extends AnyFlatSpec {
     }
   }
 
-  def allFail(srcPath: String) = {
+  def allSucceed(srcPath: String) = {
     val allValidProgramPaths = getListOfFilesRecursively(srcPath)
     for (path <- allValidProgramPaths) {
       val source = Source.fromFile(path).mkString
       //parse(source) should matchPattern { case Failure(_) => }
-      parse(new File(path)) should matchPattern { case Failure(_) => }
+      parse(new File(path)) should matchPattern { case Success(_) => }
     }
   }
 
   "All invalid array programs" should "return failure" in {
-    allFail("src/examples/invalid/semanticErr/exit")
+    allSucceed("src/examples/invalid/semanticErr/exit")
   }
 
   "All invalid expressions programs" should "return failure" in {
-    allFail("src/examples/invalid/semanticErr/expressions")
+    allSucceed("src/examples/invalid/semanticErr/expressions")
   }
 
   // TODO: Something is succeeding here?
   "All invalid function programs" should "return failure" in {
-    allFail("src/examples/invalid/semanticErr/function")
+    allSucceed("src/examples/invalid/semanticErr/function")
   }
 
   "All invalid if programs" should "return failure" in {
-    allFail("src/examples/invalid/semanticErr/if")
+    allSucceed("src/examples/invalid/semanticErr/if")
   }
 
   "All invalid IO programs" should "return failure" in {
-    allFail("src/examples/invalid/semanticErr/IO")
+    allSucceed("src/examples/invalid/semanticErr/IO")
   }
 
   "All invalid multiple programs" should "return failure" in {
-    allFail("src/examples/invalid/semanticErr/multiple")
+    allSucceed("src/examples/invalid/semanticErr/multiple")
   }
 
   "All invalid pairs programs" should "return failure" in {
-    allFail("src/examples/invalid/semanticErr/pairs")
+    allSucceed("src/examples/invalid/semanticErr/pairs")
   }
 
   "All invalid print programs" should "return failure" in {
-    allFail("src/examples/invalid/semanticErr/print")
+    allSucceed("src/examples/invalid/semanticErr/print")
   }
 
   "All invalid read programs" should "return failure" in {
-    allFail("src/examples/invalid/semanticErr/read")
+    allSucceed("src/examples/invalid/semanticErr/read")
   }
 
   "All invalid scope programs" should "return failure" in {
-    allFail("src/examples/invalid/semanticErr/scope")
+    allSucceed("src/examples/invalid/semanticErr/scope")
   }
 
   // TODO: I think it's an int overflow error isn't caught
   "All invalid variables programs" should "return failure" in {
-    allFail("src/examples/invalid/semanticErr/variables")
+    allSucceed("src/examples/invalid/semanticErr/variables")
   }
 
   "All invalid while programs" should "return failure" in {
-    allFail("src/examples/invalid/semanticErr/while")
+    allSucceed("src/examples/invalid/semanticErr/while")
   }
 
 }
