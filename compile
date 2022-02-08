@@ -6,3 +6,5 @@
 projectName = "waccCompiler"
 
 system("java -jar #{projectName}.jar #{ARGV[0]}")
+
+exit $?.exitstatus

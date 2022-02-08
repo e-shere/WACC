@@ -18,17 +18,17 @@ object Compiler {
       case Failure(err) => {
         // TODO: change later. Is needed this way for now for our tests
         println(Failure(err))
-        System.exit(100);
+        sys.exit(100);
       }
       case Success(ast) => {
         semanticChecker.validateProgram(ast) match {
           case Nil => {
             println(Success(ast))
-            System.exit(0)
+            sys.exit(0)
           }
           case errors => {
             println(errors)
-            System.exit(200)
+            sys.exit(200)
           }
         }
 
