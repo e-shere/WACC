@@ -21,10 +21,17 @@ object Compiler {
         sys.exit(100);
       }
       case Success(ast) => {
-        semanticChecker.validateProgram(ast)
-        // TODO: change later. Is needed this way for now for our tests
-        println(Success(ast))
-        sys.exit(0)
+        semanticChecker.validateProgram(ast) match {
+          case Nil => {
+            println(Success(ast))
+            sys.exit(0)
+          }
+          case errors => {
+            println(errors)
+            sys.exit(200)
+          }
+        }
+
       }
     }
   }

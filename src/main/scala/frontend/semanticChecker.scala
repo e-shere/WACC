@@ -18,7 +18,7 @@ object semanticChecker {
   private val EQ_ARG_TYPES: Set[Type] = Set(INT_TYPE, BOOL_TYPE, CHAR_TYPE, STRING_TYPE, PAIR_TYPE, ARRAY_TYPE)
 
   // TODO: should be returning some kind of optional try error?
-  def validateProgram(program: WaccProgram): Unit = {
+  def validateProgram(program: WaccProgram): List[SemanticError] = {
     program match {
       case WaccProgram(funcs, stats) => {
         // generate function table
