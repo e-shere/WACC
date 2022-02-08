@@ -32,19 +32,16 @@ object lexer {
 
   val NEG: Parsley[Unit] = token('-' *> notFollowedBy(digit))
 
-  private val minus: Parsley[Long => Long] = '-' #> {x: Long => -x}
-  private val plus: Parsley[Long => Long] = optionally('+', identity)
+  private val minus: Parsley[BigInt => BigInt] = '-' #> {x: BigInt => -x}
+  private val plus: Parsley[BigInt => BigInt] = optionally('+', identity)
 
-  private val overflowLength: PartialFunction[String, String] = {
-    case x if x.length > Int.MaxValue.toString.length => "Integer overflow occurred"
+  private val checkOverflow: PartialFunction[BigInt, String] = {
+    case x if !x.isValidInt => "Integer overflow occurred"
   }
-  private val overflowVal: PartialFunction[Long, String] = {
-    case x if (x > Int.MaxValue.toLong) => "Integer overflow occurred (+)"
-    case x if (x < Int.MinValue.toLong) => "Integer overflow occurred (-)"
-  }
-  private val intString =  manyUntil('0',notFollowedBy('0' *> '0')) *> some(digit).map(_.mkString).filterOut(overflowLength)
-  private val intLong = ((minus <|> plus) <*> intString.map(_.toLong)).filterOut(overflowVal)
-  val INT: Parsley[Int] = token(intLong.map(_.toInt))
+
+  private val nat = digit.foldLeft1[BigInt](0)((n, d) => n * 10 + d.asDigit)
+  private val bigInt = token((minus <|> plus) <*> nat).filterOut(checkOverflow)
+  val INT: Parsley[Int] = bigInt.map(_.intValue)
 
   val BOOL: Parsley[Boolean] = token("true" #> true <|> "false" #> false)
 
