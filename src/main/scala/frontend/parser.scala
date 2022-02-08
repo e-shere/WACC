@@ -73,7 +73,7 @@ object parser {
                              Gt  <# ">",  Geq <# ">=") +:
                 SOps(InfixL)(Add <# "+",  Sub <# "-") +:
                 SOps(InfixL)(Mul <# "*",  Div <# "/", Mod <# "%") +:
-                SOps(Prefix)(Neg <# "-",  Not <# "!", Len <# "len", Ord <# "ord", Chr <# "chr") +:
+                SOps(Prefix)(Neg <# NEG,  Not <# "!", Len <# "len", Ord <# "ord", Chr <# "chr") +:
                 `<expr0>`)
 
 
