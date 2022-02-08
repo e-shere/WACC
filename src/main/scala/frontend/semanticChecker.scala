@@ -137,16 +137,15 @@ object semanticChecker {
   }
 
   private def typeOfBinOp(symbolTable: Map[Ident, Type], argType: Set[Type], x: Expr, y: Expr, ret: Type, opName: String): (Option[Type], List[SemanticError]) = {
-    val (maybeXType, xErrors) = typeOfExpr(symbolTable, x)
-    val (maybeYType, yErrors) = typeOfExpr(symbolTable, y)
-    (maybeXType, maybeYType) match {
-      case (Some(xType), Some(yType)) => {
-        if (!(argType contains xType)) (None, xErrors ++ yErrors :+ SemanticError(s"The first argument to $opName should be one of ${argType.map(_.toTypeName).mkString(", ")}"))
-        else if (!(argType contains yType)) (None, xErrors ++ yErrors :+ SemanticError(s"The second argument to $opName should be one of ${argType.map(_.toTypeName).mkString(", ")}"))
-        else if (xType != yType) (None, xErrors ++ yErrors :+ SemanticError(s"The two arguments to $opName must have the same type"))
-        else (Some(ret), xErrors ++ yErrors)
+    val (maybeTypes, errors) = typeOfExpr2(symbolTable, x, y)
+    maybeTypes match {
+      case Some((xType, yType)) => {
+        if (!(argType contains xType)) (None, errors :+ SemanticError(s"The first argument to $opName should be one of ${argType.map(_.toTypeName).mkString(", ")}"))
+        else if (!(argType contains yType)) (None, errors :+ SemanticError(s"The second argument to $opName should be one of ${argType.map(_.toTypeName).mkString(", ")}"))
+        else if (xType != yType) (None, errors :+ SemanticError(s"The two arguments to $opName must have the same type"))
+        else (Some(ret), errors)
       }
-      case _ => (None, xErrors ++ yErrors)
+      case _ => (None, errors)
     }
   }
 
@@ -194,14 +193,13 @@ object semanticChecker {
       case charExpr: CharLiter => (Some(CharType()(charExpr.pos)), Nil)
       case arrayExpr@ArrayLiter(Nil) => (Some(ArrayType(AnyType()(arrayExpr.pos))(arrayExpr.pos)), Nil)
       case arrayExpr@ArrayLiter(expr :: exprs) => {
-        val (maybeHeadType, headErrors) = typeOfExpr(symbolTable, expr)
-        val (maybeTailType, tailErrors) = typeOfExpr(symbolTable, ArrayLiter(exprs)(arrayExpr.pos))
-        (maybeHeadType, maybeTailType) match {
-          case (Some(a), Some(b)) => {
-            if (a == b) (Some(a), headErrors ++ tailErrors)
-            else (None, headErrors ++ tailErrors :+ SemanticError("All elements of an array must have the same type"))
+        val (maybeTypes, errors) = typeOfExpr2(symbolTable, expr, ArrayLiter(exprs)(arrayExpr.pos))
+        maybeTypes match {
+          case Some((a, b)) => {
+            if (a == b) (Some(a), errors)
+            else (None, errors :+ SemanticError("All elements of an array must have the same type"))
           } 
-          case (_, _) => (None, headErrors ++ tailErrors)
+          case _ => (None, errors)
         }
       }
       case ArrayElem(id, index: Expr) => {
@@ -215,6 +213,16 @@ object semanticChecker {
           case None => (None, indexErrors)
         }
       }
+    }
+  }
+
+  def typeOfExpr2(symbolTable: Map[Ident, Type], x: Expr, y: Expr): (Option[(Type, Type)], List[SemanticError]) = {
+    val (maybeXType, xErrors) = typeOfExpr(symbolTable, x)
+    val (maybeYType, yErrors) = typeOfExpr(symbolTable, y)
+    val errors = xErrors ++ yErrors
+    (maybeXType, maybeYType) match {
+      case (Some(xType), Some(yType)) => (Some((xType, yType)), errors)
+      case _ => (None, errors)
     }
   }
 
@@ -234,11 +242,10 @@ object semanticChecker {
         }
       }
       case rhs@NewPair(fst, snd) => {
-        val (maybeFstType, fstErrors) = typeOfExpr(symbolTable, fst)
-        val (maybeSndType, sndErrors) = typeOfExpr(symbolTable, snd)
-        (maybeFstType, maybeSndType) match {
-          case (Some(fstType), Some(sndType)) => (Some(PairType(fstType.toPairElemType, sndType.toPairElemType)(rhs.pos)), fstErrors ++ sndErrors)
-          case _ => (None, fstErrors ++ sndErrors)
+        val (maybeTypes, errors) = typeOfExpr2(symbolTable, fst, snd)
+        maybeTypes match {
+          case Some((fstType, sndType)) => (Some(PairType(fstType.toPairElemType, sndType.toPairElemType)(rhs.pos)), errors)
+          case _ => (None, errors)
         }
       }
       case Fst(expr) => {
