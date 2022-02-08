@@ -209,7 +209,7 @@ object semanticChecker {
             val (maybeArrayType, arrayErrors) = typeOfExpr(symbolTable, id)
             val errors = indexErrors ++ arrayErrors
             maybeArrayType match {
-              case Some(ty@ArrayType(_)) => (Some(ty), errors)
+              case Some(ArrayType(innerType)) => (Some(innerType), errors)
               case Some(_) => (None, errors :+ SemanticError("This is not an array"))
               case None => (None, errors)
             }
