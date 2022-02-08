@@ -44,7 +44,7 @@ object parser {
         <|> Scope("begin" *> sepBy1(`<stat>`,";") <* "end")
     )
 
-    private lazy val `<assign-lhs>` = attempt(`<array-elem>`) <|> `<ident>` <|> `<pair-elem>`
+    private lazy val `<assign-lhs>` = `<array-ident>` <|> `<pair-elem>`
 
     private lazy val `<assign-rhs>` = 
            (`<expr>`
@@ -82,8 +82,7 @@ object parser {
         CharLiter(CHAR),
         StrLiter(STRING),
         Null <# "null",
-        attempt(`<array-elem>`),
-        `<ident>`,
+        `<array-ident>`,
         Paren("(" *> `<expr>` <* ")")
     )
 
@@ -91,7 +90,10 @@ object parser {
 
     private lazy val `<ident>` = Ident(ID)
 
-    private lazy val `<array-elem>` = ArrayElem(`<ident>`, some("[" *> `<expr>` <* "]"))
+  // ???: parsley[ident => array_elem]
+    private lazy val `<array-ident>` = chain.postfix(`<ident>`, ArrayElem <# "[" <*> `<expr>` <* "]")
+
+//    private lazy val `<array-elem>` = ArrayElem(`<ident>`, some("[" *> `<expr>` <* "]"))
 
     private lazy val `<pair-elem-type>`: Parsley[PairElemType] = attempt(chain.postfix1(`<base-type>` <|> `<pair-type>`, ArrayType <# ("[" <* "]"))) <|> `<base-type>` <|> (NestedPairType <# "pair")
 
