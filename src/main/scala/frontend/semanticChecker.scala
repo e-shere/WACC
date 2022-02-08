@@ -206,8 +206,13 @@ object semanticChecker {
         val (maybeIndexType, indexErrors) = typeOfExpr(symbolTable, index)
         maybeIndexType match {
           case Some(IntType()) => {
-            val (maybeInnerType, innerErrors) = typeOfExpr(symbolTable, id)
-            (maybeInnerType, innerErrors ++ indexErrors)
+            val (maybeArrayType, arrayErrors) = typeOfExpr(symbolTable, id)
+            val errors = indexErrors ++ arrayErrors
+            maybeArrayType match {
+              case Some(ArrayType(innerType)) => (Some(innerType), errors)
+              case Some(_) => (None, errors :+ SemanticError("This is not an array"))
+              case None => (None, errors)
+            }
           }
           case Some(_) => (None, indexErrors :+ SemanticError("Array index must be an int"))
           case None => (None, indexErrors)
