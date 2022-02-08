@@ -62,32 +62,27 @@ object ast {
   // Types
 
   // The union of Type and PairElemType
-  sealed trait TypeLike extends NodeWithPosition {
+  sealed trait TypeOrPairElemType extends NodeWithPosition {
     def toTypeName: String
   }
 
   // The intersection of Type and PairElemType
-  sealed trait TypeOrPairElemType extends Type with PairElemType {
+  sealed trait TypeAndPairElemType extends Type with PairElemType {
     def toPairElemType: PairElemType = this
     def toType: Type = this
   }
 
-  sealed trait Type extends TypeLike {
+  sealed trait Type extends TypeOrPairElemType {
     def toPairElemType: PairElemType
   }
 
-  case class AnyType()(val pos: (Int, Int)) extends Type with PairElemType {
+  case class AnyType()(val pos: (Int, Int)) extends TypeAndPairElemType {
     def toTypeName: String = "any"
-
-    def toPairElemType: PairElemType = this
-    
-    def toType: Type = this
     def canEqual(that: Any) = that.isInstanceOf[Type]
-
     override def equals(that: Any) = this.canEqual(that)
   }
 
-  sealed trait BaseType extends TypeOrPairElemType
+  sealed trait BaseType extends TypeAndPairElemType
   case class IntType()(val pos: (Int, Int)) extends BaseType {
     def toTypeName: String = "int"
   }
@@ -101,7 +96,7 @@ object ast {
     def toTypeName: String = "string"
   }
 
-  case class ArrayType(ty: Type)(val pos: (Int, Int)) extends TypeOrPairElemType {
+  case class ArrayType(ty: Type)(val pos: (Int, Int)) extends TypeAndPairElemType {
     def toTypeName: String = ty.toTypeName + "[]"
   }
 
@@ -110,7 +105,7 @@ object ast {
     def toPairElemType: PairElemType = NestedPairType()(pos)
   }
 
-  sealed trait PairElemType extends TypeLike {
+  sealed trait PairElemType extends TypeOrPairElemType {
     def toType: Type
   }
   case class NestedPairType()(val pos: (Int, Int)) extends PairElemType {
