@@ -14,14 +14,16 @@ object Compiler {
     }
     val source = Source.fromFile(args(0)).mkString
     val maybeAst = parse(new File(args(0)))
-    print(maybeAst)
     maybeAst match {
       case Failure(err) => {
-        // todo: output syntax error
+        // TODO: change later. Is needed this way for now for our tests
+        println(Failure(err))
         sys.exit(100);
       }
       case Success(ast) => {
-        //todo: semantic analysis
+        semanticChecker.validateProgram(ast)
+        // TODO: change later. Is needed this way for now for our tests
+        println(Success(ast))
         sys.exit(0)
       }
     }
