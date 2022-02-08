@@ -3,9 +3,10 @@ package frontend
 import parsley.Parsley
 import parsley.Parsley._
 import parsley.character.{digit, isWhitespace, noneOf}
-import parsley.combinator.{choice, eof, many, optionally}
+import parsley.combinator.{choice, eof, many, manyUntil, optionally, some}
 import parsley.implicits.character.{charLift, stringLift}
 import parsley.token.{LanguageDef, Lexer, Predicate}
+
 import scala.language.implicitConversions
 import parsley.errors.combinator.ErrorMethods
 
@@ -31,16 +32,19 @@ object lexer {
 
   val NEG: Parsley[Unit] = token('-' *> notFollowedBy(digit))
 
-  private val minus: Parsley[Int => Int] = '-' #> {x: Int => -x}
-  private val plus: Parsley[Int => Int] = optionally('+', identity)
+  private val minus: Parsley[Long => Long] = '-' #> {x: Long => -x}
+  private val plus: Parsley[Long => Long] = optionally('+', identity)
 
-  //TODO: VERY HACKY! IS TESTING FOR OVERFLOW BY SEEING IF VALUE IS NEGATIVE
-//  private val checkOverflow: PartialFunction[Int, String] = {
-//    case x if x < 0 => "Integer overflow occurred"
-//  }
-
-  private val nat = digit.foldLeft1[Int](0)((n, d) => n * 10 + d.asDigit)//.filterOut(checkOverflow)
-  val INT: Parsley[Int] = token((minus <|> plus) <*> nat)
+  private val overflowLength: PartialFunction[String, String] = {
+    case x if x.length > Int.MaxValue.toString.length => "Integer overflow occurred"
+  }
+  private val overflowVal: PartialFunction[Long, String] = {
+    case x if (x > Int.MaxValue.toLong) => "Integer overflow occurred (+)"
+    case x if (x < Int.MinValue.toLong) => "Integer overflow occurred (-)"
+  }
+  private val intString =  manyUntil('0',notFollowedBy('0' *> '0')) *> some(digit).map(_.mkString).filterOut(overflowLength)
+  private val intLong = ((minus <|> plus) <*> intString.map(_.toLong)).filterOut(overflowVal)
+  val INT: Parsley[Int] = token(intLong.map(_.toInt))
 
   val BOOL: Parsley[Boolean] = token("true" #> true <|> "false" #> false)
 
