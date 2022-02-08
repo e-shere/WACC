@@ -15,7 +15,6 @@ class MatchOutputTests extends AnyFlatSpec {
     behavior of "one line wacc programs"
 
     "begin skip end program" should "only skip" in {
-        val source = Source.fromFile("src/examples/valid/basic/skip/skip.wacc").mkString
       parse(new File("src/examples/valid/basic/skip/skip.wacc")).toString() shouldBe "Success(WaccProgram(List(),List(Skip()(8,7)))(8,7))"
     }
 
@@ -23,4 +22,5 @@ class MatchOutputTests extends AnyFlatSpec {
       println(parse(new File("src/examples/outputTests/minus.wacc")).toString())
       parse(new File("src/examples/outputTests/minus.wacc")).toString() shouldBe "Success(WaccProgram(List(),List(Declare(IntType()(2,3),Ident(x)(2,7),Neg(IntLiter(-2147483648)(2,12))(2,11))(2,3)))(2,3))"
     }
+
 }
