@@ -64,6 +64,16 @@ object ast {
   // The union of Type and PairElemType
   sealed trait TypeOrPairElemType extends NodeWithPosition {
     def toTypeName: String
+    override def toString(): String = toTypeName
+    def coercesTo(that: TypeOrPairElemType): Boolean = 
+      (this, that) match {
+        case (AnyType(), _) => true  
+        case (_, AnyType()) => true  
+        case (PairType(x1, y1), PairType(x2, y2)) => (x1 coercesTo x2) && (y1 coercesTo y2)
+        case (ArrayType(x), ArrayType(y)) => x coercesTo y
+        case (ArrayType(CharType()), StringType()) => true
+        case _ => this == that
+      }
   }
 
   // The intersection of Type and PairElemType
@@ -78,8 +88,6 @@ object ast {
 
   case class AnyType()(val pos: (Int, Int)) extends TypeAndPairElemType {
     def toTypeName: String = "any"
-    def canEqual(that: Any) = that.isInstanceOf[Type]
-    override def equals(that: Any) = this.canEqual(that)
   }
 
   sealed trait BaseType extends TypeAndPairElemType

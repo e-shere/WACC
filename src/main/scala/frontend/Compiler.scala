@@ -27,7 +27,7 @@ object Compiler {
             sys.exit(0)
           }
           case errors => {
-            println(errors)
+            println(errors.mkString("\n"))
             sys.exit(200)
           }
         }
