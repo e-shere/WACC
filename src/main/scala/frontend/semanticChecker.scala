@@ -255,7 +255,8 @@ object semanticChecker {
         if (maybeTypes contains None) (None, elemErrors)
         else {
           val types = maybeTypes.map(_.get)
-          if (types.forall(_ == types.head)) (Some(ArrayType(types.head)(rhs.pos)), elemErrors)
+          if (types.isEmpty) (Some(ArrayType(AnyType()(rhs.pos))(rhs.pos)), elemErrors)
+          else if (types.forall(_ == types.head)) (Some(ArrayType(types.head)(rhs.pos)), elemErrors)
           else (None, elemErrors :+ SemanticError("All elements of an array must have the same type"))
         }
       }
