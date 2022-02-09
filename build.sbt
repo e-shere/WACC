@@ -1,7 +1,7 @@
 Global / onChangedBuildSource := ReloadOnSourceChanges
 
 val projectName = "waccCompiler"
-val PARSLEY_VER = "3.3.2"
+val PARSLEY_VER = "3.3.5"
 val SCALA_VER = "2.13.8"
 
 lazy val sbtAssemblySettings = baseAssemblySettings ++ Seq(

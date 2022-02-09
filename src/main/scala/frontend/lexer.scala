@@ -15,7 +15,7 @@ object lexer {
     commentLine = "#",
     keywords = Set("begin", "end", "skip", "read", "free", "return", "exit", "print", "println",
                     "if", "then", "else", "fi", "while", "do", "done", "newpair", "call",
-                    "fst", "snd", "int", "bool", "char", "string", "pair", "true", "false", "null"),
+                    "fst", "snd", "int", "bool", "char", "string", "pair", "true", "false", "null", "len", "ord", "chr"),
     operators = Set("!", "-", "len", "ord", "chr", "*", "/", "%", "+",
                     ">", "<", ">=", "<=", "==", "!=", "&&", "||"),
     identStart = Predicate(c => c.isLetter || c == '_'),
