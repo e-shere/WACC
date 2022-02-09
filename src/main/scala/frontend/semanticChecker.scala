@@ -251,13 +251,13 @@ object semanticChecker {
   def typeOfRhs(funcTable: Map[Ident, FuncType],
                   symbolTable: Map[Ident, Type], rhs: AssignRhs): (Option[Type], List[SemanticError]) = {
     rhs match {
-      case ArrayLiter(elements) => {
+      case rhs@ArrayLiter(elements) => {
         val (maybeTypes, elemErrorLists) = elements.map(typeOfExpr(symbolTable, _)).unzip
         val elemErrors = elemErrorLists.flatten
         if (maybeTypes contains None) (None, elemErrors)
         else {
           val types = maybeTypes.map(_.get)
-          if (types.forall(_ == types.head)) (Some(types.head), elemErrors)
+          if (types.forall(_ == types.head)) (Some(ArrayType(types.head)(rhs.pos)), elemErrors)
           else (None, elemErrors :+ SemanticError("All elements of an array must have the same type"))
         }
       }
