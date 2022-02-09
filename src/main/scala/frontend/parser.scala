@@ -69,14 +69,14 @@ object parser {
     private lazy val `<pair-type>`: Parsley[PairType] = PairType("pair" *> "(" *> `<pair-elem-type>` <* ",", `<pair-elem-type>` <* ")")
 
     private lazy val `<expr>`: Parsley[Expr] =
-        precedence(SOps(InfixL)(Or  <# "||") +:
-                SOps(InfixL)(And <# "&&") +:
-                SOps(InfixL)(Eq  <# "==", Neq <# "!=") +:
-                SOps(InfixL)(Lt  <# "<",  Leq <# "<=",
-                             Gt  <# ">",  Geq <# ">=") +:
-                SOps(InfixL)(Add <# "+",  Sub <# "-") +:
-                SOps(InfixL)(Mul <# "*",  Div <# "/", Mod <# "%") +:
-                SOps(Prefix)(Neg <# NEG,  Not <# "!", Len <# "len", Ord <# "ord", Chr <# "chr") +:
+        precedence(SOps(InfixL)(Or  <# "||".label("operator")) +:
+                SOps(InfixL)(And <# "&&".label("operator")) +:
+                SOps(InfixL)(Eq  <# "==".label("operator"), Neq <# "!=".label("operator")) +:
+                SOps(InfixL)(Lt  <# "<".label("operator"),  Leq <# "<=".label("operator"),
+                             Gt  <# ">".label("operator"),  Geq <# ">=".label("operator")) +:
+                SOps(InfixL)(Add <# "+".label("operator"),  Sub <# "-".label("operator")) +:
+                SOps(InfixL)(Mul <# "*".label("operator"),  Div <# "/", Mod <# "%".label("operator")) +:
+                SOps(Prefix)(Neg <# NEG,  Not <# "!".label("operator"), Len <# "len", Ord <# "ord", Chr <# "chr") +:
                 `<expr0>`)
 
 
