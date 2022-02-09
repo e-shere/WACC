@@ -48,14 +48,29 @@ object semanticChecker {
       stat match {
         case Skip() =>
         case Declare(ty, id, rhs) => {
-          val (maybeRhs, rhsErrors) = typeOfRhs(funcTable, localSymbols.toMap ++ parentSymbols, rhs)
-          errors ++= rhsErrors
-          maybeRhs match {
-            case Some(rhsType) => if (rhsType != ty) {
-              errors += SemanticError("rhs of assignment doesn't match type")
+          ty match {
+            case ArrayType(innerTy) => {
+              val (maybeRhs, rhsErrors) = typeOfRhs(funcTable, localSymbols.toMap ++ parentSymbols, rhs)
+              errors ++= rhsErrors
+              maybeRhs match {
+                case Some(rhsType) => if (rhsType != innerTy) {
+                  errors += SemanticError("rhs of assignment doesn't match type")
+                }
+                case _ =>
+              }
             }
-            case _ =>
+            case _ => {
+              val (maybeRhs, rhsErrors) = typeOfRhs(funcTable, localSymbols.toMap ++ parentSymbols, rhs)
+              errors ++= rhsErrors
+              maybeRhs match {
+                case Some(rhsType) => if (rhsType != ty) {
+                  errors += SemanticError("rhs of assignment doesn't match type")
+                }
+                case _ =>
+              }
+            }
           }
+
           if (localSymbols contains id) {
             errors += SemanticError("redeclaring identifier within same scope")
           } else {
