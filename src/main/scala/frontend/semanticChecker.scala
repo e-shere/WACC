@@ -19,23 +19,27 @@ object semanticChecker {
 
   // TODO: should be returning some kind of optional try error?
   def validateProgram(program: WaccProgram): List[SemanticError] = {
+    val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
     program match {
       case WaccProgram(funcs, stats) => {
         // generate function table
-        val funcTable: Map[Ident, FuncType] = funcs.map {
-          case Func(ty, id, args, _) => {
-            id->FuncType(ty, args.map{case Param(ty, _) => ty})
-          }
-        }.toMap
+        val funcTableMut: mutable.Map[Ident, FuncType] = mutable.Map.empty
+        for (Func(ty, id, args, _) <- funcs) {
+          if (funcTableMut contains id) errors += SemanticError("Duplicate function definition")
+          funcTableMut += (id -> FuncType(ty, args.map{case Param(ty, _) => ty}))
+        }
+        
+        val funcTable: Map[Ident, FuncType] =  funcTableMut.toMap
         for (Func(ty, _, args, body) <- funcs) {
           val argsTable: Map[Ident, Type] = args.map {
             case Param(ty, id) => id->ty
           }.toMap
-          validateBlock(funcTable, argsTable, body, Some(ty))
+          errors ++= validateBlock(funcTable, argsTable, body, Some(ty))
         }
-        validateBlock(funcTable, Map.empty[Ident, Type], stats, None)
+        errors ++= validateBlock(funcTable, Map.empty[Ident, Type], stats, None)
       }
     }
+    errors.toList
   }
 
   def validateBlock(funcTable: Map[Ident, FuncType],
@@ -50,7 +54,7 @@ object semanticChecker {
         case Declare(ty, id, rhs) => {
           ty match {
             case ArrayType(innerTy) => {
-              val (maybeRhs, rhsErrors) = typeOfRhs(funcTable, localSymbols.toMap ++ parentSymbols, rhs)
+              val (maybeRhs, rhsErrors) = typeOfRhs(funcTable, parentSymbols ++ localSymbols.toMap, rhs)
               errors ++= rhsErrors
               maybeRhs match {
                 case Some(rhsType) => if (rhsType != innerTy) {
@@ -60,7 +64,7 @@ object semanticChecker {
               }
             }
             case _ => {
-              val (maybeRhs, rhsErrors) = typeOfRhs(funcTable, localSymbols.toMap ++ parentSymbols, rhs)
+              val (maybeRhs, rhsErrors) = typeOfRhs(funcTable, parentSymbols ++ localSymbols.toMap, rhs)
               errors ++= rhsErrors
               maybeRhs match {
                 case Some(rhsType) => if (rhsType != ty) {
@@ -78,8 +82,8 @@ object semanticChecker {
           }
         }
         case Assign(lhs, rhs) => {
-          val (maybeLhs, lhsErrors) = typeOfLhs(funcTable, localSymbols.toMap ++ parentSymbols, lhs)
-          val (maybeRhs, rhsErrors) = typeOfRhs(funcTable, localSymbols.toMap ++ parentSymbols, rhs)
+          val (maybeLhs, lhsErrors) = typeOfLhs(funcTable, parentSymbols ++ localSymbols.toMap, lhs)
+          val (maybeRhs, rhsErrors) = typeOfRhs(funcTable, parentSymbols ++ localSymbols.toMap, rhs)
           errors ++= lhsErrors
           errors ++= rhsErrors
           (maybeLhs, maybeRhs) match {
@@ -89,9 +93,17 @@ object semanticChecker {
             case _ =>
           }
         }
-        case Read(lhs) => errors ++= typeOfLhs(funcTable, localSymbols.toMap ++ parentSymbols, lhs)._2
+        case Read(lhs) => {
+          val (maybeType, lhsErrors) = typeOfLhs(funcTable, parentSymbols ++ localSymbols.toMap, lhs)
+          errors ++= lhsErrors
+          maybeType match {
+            case Some(IntType()) | Some(CharType()) =>
+            case Some(_) => errors += SemanticError("read can only assign to an int or char")
+            case None =>
+          }
+        }
         case Free(expr) => {
-          val (maybeExpr, exprErrors) = typeOfExpr(localSymbols.toMap ++ parentSymbols, expr)
+          val (maybeExpr, exprErrors) = typeOfExpr(parentSymbols ++ localSymbols.toMap, expr)
           errors ++= exprErrors
           maybeExpr match {
             case Some(PairType(_, _)) =>
@@ -101,7 +113,7 @@ object semanticChecker {
           }
         }
         case Return(expr) => {
-          val (maybeExpr, exprErrors) = typeOfExpr(localSymbols.toMap ++ parentSymbols, expr)
+          val (maybeExpr, exprErrors) = typeOfExpr(parentSymbols ++ localSymbols.toMap, expr)
           errors ++= exprErrors
           (maybeExpr, returnType) match {
             case (Some(exprType), Some(ty)) => if (exprType != ty) {
@@ -112,7 +124,7 @@ object semanticChecker {
           }
         }
         case Exit(expr) => {
-          val (maybeExpr, exprErrors) = typeOfExpr(localSymbols.toMap ++ parentSymbols, expr)
+          val (maybeExpr, exprErrors) = typeOfExpr(parentSymbols ++ localSymbols.toMap, expr)
           errors ++= exprErrors
           maybeExpr match {
             case Some(IntType()) =>
@@ -120,21 +132,21 @@ object semanticChecker {
             case _ =>
           }
         }
-        case Print(expr) => errors ++= typeOfExpr(localSymbols.toMap ++ parentSymbols, expr)._2
-        case Println(expr) => errors ++= typeOfExpr(localSymbols.toMap ++ parentSymbols, expr)._2
+        case Print(expr) => errors ++= typeOfExpr(parentSymbols ++ localSymbols.toMap, expr)._2
+        case Println(expr) => errors ++= typeOfExpr(parentSymbols ++ localSymbols.toMap, expr)._2
         case If(expr, thenStats, elseStats) => {
-          val (maybeExpr, exprErrors) = typeOfExpr(localSymbols.toMap ++ parentSymbols, expr)
+          val (maybeExpr, exprErrors) = typeOfExpr(parentSymbols ++ localSymbols.toMap, expr)
           errors ++= exprErrors
           maybeExpr match {
             case Some(BoolType()) =>
             case Some(_) => errors += SemanticError("If condition must be a bool")
             case _ =>
           }
-          errors ++= validateBlock(funcTable, localSymbols.toMap ++ parentSymbols, thenStats, returnType)
-          errors ++= validateBlock(funcTable, localSymbols.toMap ++ parentSymbols, elseStats, returnType)
+          errors ++= validateBlock(funcTable, parentSymbols ++ localSymbols.toMap, thenStats, returnType)
+          errors ++= validateBlock(funcTable, parentSymbols ++ localSymbols.toMap, elseStats, returnType)
         }
         case While(expr, doStats) => {
-          val (maybeExpr, exprErrors) = typeOfExpr(localSymbols.toMap ++ parentSymbols, expr)
+          val (maybeExpr, exprErrors) = typeOfExpr(parentSymbols ++ localSymbols.toMap, expr)
           errors ++= exprErrors
           maybeExpr match {
             case Some(BoolType()) =>
@@ -142,21 +154,21 @@ object semanticChecker {
 
             case _ =>
           }
-          errors ++= validateBlock(funcTable, localSymbols.toMap ++ parentSymbols, doStats, returnType)
+          errors ++= validateBlock(funcTable, parentSymbols ++ localSymbols.toMap, doStats, returnType)
         }
         case Scope(innerStats) =>
-          errors ++= validateBlock(funcTable, localSymbols.toMap ++ parentSymbols, innerStats, returnType)
+          errors ++= validateBlock(funcTable, parentSymbols ++ localSymbols.toMap, innerStats, returnType)
       }
     }
     errors.toList
   }
 
-  private def typeOfBinOp(symbolTable: Map[Ident, Type], argType: Set[Type], x: Expr, y: Expr, ret: Type, opName: String): (Option[Type], List[SemanticError]) = {
+  private def typeOfBinOp(symbolTable: Map[Ident, Type], argTypes: Set[Type], x: Expr, y: Expr, ret: Type, opName: String): (Option[Type], List[SemanticError]) = {
     val (maybeTypes, errors) = typeOfExpr2(symbolTable, x, y)
     maybeTypes match {
       case Some((xType, yType)) => {
-        if (!(argType contains xType)) (None, errors :+ SemanticError(s"The first argument to $opName should be one of ${argType.map(_.toTypeName).mkString(", ")}"))
-        else if (!(argType contains yType)) (None, errors :+ SemanticError(s"The second argument to $opName should be one of ${argType.map(_.toTypeName).mkString(", ")}"))
+        if (!(argTypes contains xType)) (None, errors :+ SemanticError(s"The first argument to $opName should be one of ${argTypes.map(_.toTypeName).mkString(", ")}"))
+        else if (!(argTypes contains yType)) (None, errors :+ SemanticError(s"The second argument to $opName should be one of ${argTypes.map(_.toTypeName).mkString(", ")}"))
         else if (xType != yType) (None, errors :+ SemanticError(s"The two arguments to $opName must have the same type"))
         else (Some(ret), errors)
       }
@@ -198,10 +210,11 @@ object semanticChecker {
       case chrStat@Chr(x) => typeOfUnOp(symbolTable, Set(INT_TYPE), x, CharType()(chrStat.pos), "chr")
       case nullExpr@Null() => (Some(PairType(AnyType()(nullExpr.pos), AnyType()(nullExpr.pos))(nullExpr.pos)), Nil)
       case Paren(expr) => typeOfExpr(symbolTable, expr)
-      case identExpr: Ident => (symbolTable get identExpr) match {
-        case Some(ty) => (Some(ty), Nil)
-        case None => (None, List(SemanticError("undefined identifier")))
-      }
+      case identExpr: Ident =>
+        (symbolTable get identExpr) match {
+          case Some(ty) => (Some(ty), Nil)
+          case None => (None, List(SemanticError("undefined identifier")))
+        }
       case intExpr: IntLiter => (Some(IntType()(intExpr.pos)), Nil)
       case strExpr: StrLiter => (Some(StringType()(strExpr.pos)), Nil)
       case boolExpr: BoolLiter => (Some(BoolType()(boolExpr.pos)), Nil)
@@ -269,19 +282,25 @@ object semanticChecker {
         }
       }
       case Fst(expr) => {
-        val (maybeExprType, exprErrors) = typeOfExpr(symbolTable, expr)
-        maybeExprType match {
-          case Some(PairType(fstType, _)) => (Some(fstType.toType), exprErrors)
-          case Some(_) => (None, exprErrors :+ SemanticError("fst can only be invoked on a pair"))
-          case None => (None, exprErrors)
+        if (expr == Null()(NO_POS)) (None, List(SemanticError("Argument to fst must be non-null")))
+        else {
+          val (maybeExprType, exprErrors) = typeOfExpr(symbolTable, expr)
+          maybeExprType match {
+            case Some(PairType(fstType, _)) => (Some(fstType.toType), exprErrors)
+            case Some(_) => (None, exprErrors :+ SemanticError("fst can only be invoked on a pair"))
+            case None => (None, exprErrors)
+          }
         }
       }
       case Snd(expr) => {
-        val (maybeExprType, exprErrors) = typeOfExpr(symbolTable, expr)
-        maybeExprType match {
-          case Some(PairType(_, sndType)) => (Some(sndType.toType), exprErrors)
-          case Some(_) => (None, exprErrors :+ SemanticError("snd can only be invoked on a pair"))
-          case None => (None, exprErrors)
+        if (expr == Null()(NO_POS)) (None, List(SemanticError("Argument to snd must be non-null")))
+        else {
+          val (maybeExprType, exprErrors) = typeOfExpr(symbolTable, expr)
+          maybeExprType match {
+            case Some(PairType(_, sndType)) => (Some(sndType.toType), exprErrors)
+            case Some(_) => (None, exprErrors :+ SemanticError("snd can only be invoked on a pair"))
+            case None => (None, exprErrors)
+          }
         }
       }
       case Call(id, args) => {
