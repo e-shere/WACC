@@ -28,7 +28,11 @@ class AllValid extends AnyFlatSpec {
         for (path <- allValidProgramPaths) {
             val source = Source.fromFile(path).mkString
             //parse(source) should matchPattern { case Success(_) => }
-            parse(new File(path)) should matchPattern { case Success(_) => }
+            val maybeAst = parse(new File(path))// should matchPattern { case Success(_) => }
+            maybeAst should matchPattern { case Success(_) => }
+            semanticChecker.validateProgram(maybeAst.get) should matchPattern {
+                    case Nil =>
+            }
         }
     }
 
