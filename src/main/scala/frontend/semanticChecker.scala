@@ -18,7 +18,6 @@ object semanticChecker {
   private val COMP_ARG_TYPES: Set[Type] = Set(INT_TYPE, CHAR_TYPE)
   private val EQ_ARG_TYPES: Set[Type] = Set(INT_TYPE, BOOL_TYPE, CHAR_TYPE, STRING_TYPE, PAIR_TYPE, ARRAY_TYPE)
 
-  // TODO: should be returning some kind of optional try error?
   def validateProgram(program: WaccProgram): List[SemanticError] = {
     program match {
       case WaccProgram(funcs, stats) => {
@@ -55,7 +54,7 @@ object semanticChecker {
           errors ++= rhsErrors
           maybeRhs match {
             case Some(rhsType) => if (rhsType != ty) {
-              errors += SemanticError(s"Can't assign a $rhsType to a $ty", s.pos)
+              errors += SemanticError(s"Can't assign a ${rhsType.toTypeName} to a ${ty.toTypeName}", s.pos)
             }
             case _ =>
           }
@@ -72,7 +71,7 @@ object semanticChecker {
           errors ++= rhsErrors
           (maybeLhs, maybeRhs) match {
             case (Some(lhsType), Some(rhsType)) => if (lhsType != rhsType) {
-              errors += SemanticError(s"Can't assign a $rhsType to a $lhsType", s.pos)
+              errors += SemanticError(s"Can't assign a ${rhsType.toTypeName} to a ${lhsType.toTypeName}", s.pos)
             }
             case _ =>
           }
@@ -93,7 +92,7 @@ object semanticChecker {
           errors ++= exprErrors
           (maybeExpr, returnType) match {
             case (Some(exprType), Some(ty)) => if (exprType != ty) {
-              errors += SemanticError(s"Can't return a $exprType as a $ty", s.pos)
+              errors += SemanticError(s"Can't return a ${exprType.toTypeName} as a ${ty.toTypeName}", s.pos)
             }
             case (_, None) => errors += SemanticError("Can't return outside a function", s.pos)
             case (None, Some(_)) =>
