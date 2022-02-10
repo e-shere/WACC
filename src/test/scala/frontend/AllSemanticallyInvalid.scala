@@ -9,7 +9,7 @@ class AllSemanticallyInvalid extends AnyFlatSpec {
   import scala.io.Source
   import parsley.{Success, Failure}
 
-  behavior of "all semantically invalid programs are syntactically valid"
+  behavior of "all semantically invalid programs"
 
   def getListOfFilesRecursively(dir: String): Array[String] = {
     val d = new File(dir)
