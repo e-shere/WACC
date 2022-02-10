@@ -37,7 +37,7 @@ semantically-test-invalid-job:
     - sbt "testOnly frontend.AllSemanticallyInvalid"
 
 syntactically-test-contents-of-ast:
-  stage: syntax-test-ast
+  stage: ast-test
   script:
     - sbt "testOnly frontend.MatchOutputTests"
 
