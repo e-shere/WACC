@@ -52,12 +52,12 @@ object semanticChecker {
           errors ++= rhsErrors
           maybeRhs match {
             case Some(rhsType) => if (rhsType != ty) {
-              errors += SemanticError("rhs of assignment doesn't match type", s.pos)
+              errors += SemanticError(s"Can't assign a $rhsType to a $ty", s.pos)
             }
             case _ =>
           }
           if (localSymbols contains id) {
-            errors += SemanticError("redeclaring identifier within same scope", s.pos)
+            errors += SemanticError(s"Can't redeclare $id in the same scope", s.pos)
           } else {
             localSymbols += (id->ty)
           }
@@ -69,7 +69,7 @@ object semanticChecker {
           errors ++= rhsErrors
           (maybeLhs, maybeRhs) match {
             case (Some(lhsType), Some(rhsType)) => if (lhsType != rhsType) {
-              errors += SemanticError("rhs of assignment doesn't match type", s.pos)
+              errors += SemanticError(s"Can't assign a $rhsType to a $lhsType", s.pos)
             }
             case _ =>
           }
@@ -90,9 +90,9 @@ object semanticChecker {
           errors ++= exprErrors
           (maybeExpr, returnType) match {
             case (Some(exprType), Some(ty)) => if (exprType != ty) {
-              errors += SemanticError("return type must match return type of function", s.pos)
+              errors += SemanticError(s"Can't return a $exprType as a $ty", s.pos)
             }
-            case (_, None) => errors += SemanticError("can't return outside a function", s.pos)
+            case (_, None) => errors += SemanticError("Can't return outside a function", s.pos)
             case (None, Some(_)) =>
           }
         }
@@ -185,7 +185,7 @@ object semanticChecker {
       case Paren(expr) => typeOfExpr(symbolTable, expr)
       case identExpr: Ident => (symbolTable get identExpr) match {
         case Some(ty) => (Some(ty), Nil)
-        case None => (None, List(SemanticError("undefined identifier", expr.pos)))
+        case None => (None, List(SemanticError(s"Undefined identifier ${identExpr.id}", expr.pos)))
       }
       case intExpr: IntLiter => (Some(IntType()(intExpr.pos)), Nil)
       case strExpr: StrLiter => (Some(StringType()(strExpr.pos)), Nil)
@@ -210,7 +210,7 @@ object semanticChecker {
             val errors = indexErrors ++ arrayErrors
             maybeArrayType match {
               case Some(ArrayType(innerType)) => (Some(innerType), errors)
-              case Some(_) => (None, errors :+ SemanticError("This is not an array", s.pos))
+              case Some(_) => (None, errors :+ SemanticError(s"$id is not an array", s.pos))
               case None => (None, errors)
             }
           }
@@ -279,9 +279,9 @@ object semanticChecker {
             case Some(FuncType(returnType, paramTypes)) => {
               if (argTypes == paramTypes) (Some(returnType), argErrors)
               // TODO: Compare argument types one by one to create a more helpful error message
-              else (None, argErrors :+ SemanticError("Incorrect argument types", s.pos))
+              else (None, argErrors :+ SemanticError(s"Incorrect argument types to ${id.id}", s.pos))
             }
-            case None => (None, argErrors :+ SemanticError("Undefined function", s.pos))
+            case None => (None, argErrors :+ SemanticError(s"Undefined function ${id.id}", s.pos))
           }
         }
       }
