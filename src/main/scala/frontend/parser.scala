@@ -24,9 +24,9 @@ object parser {
 
     def parse[Err: ErrorBuilder](input: File): Result[Err, WaccProgram] = `<program>`.parseFromFile(input).get
 
-    private lazy val `<program>` = fully("begin" *> WaccProgram(many(`<func>`), sepBy1(`<stat>`, ";") <* "end"))
+    private lazy val `<program>` = fully("begin" *> WaccProgram(many(`<func>`), sepBy1(`<stat>`, ";".label("new statement")) <* "end"))
 
-    private lazy val `<func>` = attempt(Func(`<type>`, `<ident>`, "(" *> sepBy(`<param>`, ",") <* ")", "is" *> sepBy1(`<stat>`, ";").filterOut(functions_return) <* "end"))
+    private lazy val `<func>` = attempt(Func(`<type>`, `<ident>`, "(" *> sepBy(`<param>`, ",") <* ")", "is" *> sepBy1(`<stat>`, ";".label("new statement")).filterOut(functions_return) <* "end"))
 
     private lazy val `<param>` = Param(`<type>`, `<ident>`)
 
@@ -40,9 +40,9 @@ object parser {
         <|> Exit("exit" *> `<expr>`)
         <|> Print("print" *> `<expr>`)
         <|> Println("println" *> `<expr>`)
-        <|> If("if" *> `<expr>`, "then" *> sepBy1(`<stat>`, ";"), "else" *> sepBy1(`<stat>`,";") <* "fi")
-        <|> While("while" *> `<expr>`, "do" *> sepBy1(`<stat>`, ";") <* "done")
-        <|> Scope("begin" *> sepBy1(`<stat>`,";") <* "end")
+        <|> If("if" *> `<expr>`, "then" *> sepBy1(`<stat>`, ";".label("new statement")), "else" *> sepBy1(`<stat>`,";".label("new statement")) <* "fi")
+        <|> While("while" *> `<expr>`, "do" *> sepBy1(`<stat>`, ";".label("new statement")) <* "done")
+        <|> Scope("begin" *> sepBy1(`<stat>`,";".label("new statement")) <* "end")
     ).label("statement").explain("Examples of statements are new variables, " +
              "print instructions and the start of while or if expressions.")
 
