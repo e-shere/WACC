@@ -24,14 +24,13 @@ object Compiler {
     val maybeAst = parse(new File(args(0)))
     maybeAst match {
       case Failure(err) => {
-        // TODO: change later. Is needed this way for now for our tests
-        println(Failure(err))
+        println(err)
         sys.exit(100);
       }
       case Success(ast) => {
         semanticChecker.validateProgram(ast) match {
           case Nil => {
-            println(Success(ast))
+            println(ast)
             sys.exit(0)
           }
           case errors => {
