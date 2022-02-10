@@ -1,5 +1,6 @@
 package frontend
 
+import frontend.semanticChecker.SemanticError
 import parser._
 import parsley.errors.{DefaultErrorBuilder, ErrorBuilder}
 
@@ -13,13 +14,7 @@ object Compiler {
       System.err.println("No source file specified!")
       System.exit(-1)
     }
-//    val source = Source.fromFile(args(0)).mkString
-
-    //TODO: override any settings here for error builder
-    implicit val eb = new DefaultErrorBuilder {
-      override def format(pos: String, source: Option[String], lines: Seq[String]): String =
-        "Syntax error found:\n" + super.format(pos, source, lines)
-    }
+    implicit val eb = new SyntaxErrorBuilder()
 
     val maybeAst = parse(new File(args(0)))
     maybeAst match {
@@ -34,11 +29,29 @@ object Compiler {
             sys.exit(0)
           }
           case errors => {
-            println(errors)
+            implicit val eb = new SemanticErrorBuilder(errors)
+            println(eb.format("", Some(args(0)), Seq.empty))
             sys.exit(200)
           }
         }
       }
     }
   }
+
+  class SyntaxErrorBuilder() extends DefaultErrorBuilder {
+    override def format(pos: String, source: Option[String], lines: Seq[String]): String =
+      "Syntax error found:\n" + super.format(pos, source, lines)
+  }
+
+  class SemanticErrorBuilder(errors: List[SemanticError]) extends DefaultErrorBuilder {
+    override def format(pos: String, source: Option[String], lines: Seq[String]): String = {
+      val file = source match {
+        case None => ""
+        case Some(source) => s"in file ${source.split('/').last} \n"
+      }
+      s"Semantic error found $file" + errors.map(err => super.format(toPosition(err.pos), None, Seq(err.msg)))
+    }
+  }
+  def toPosition(pos: (Int, Int)): String =
+    s"(line $pos._1, column $pos._2)"
 }
