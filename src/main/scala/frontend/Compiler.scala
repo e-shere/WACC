@@ -49,9 +49,9 @@ object Compiler {
         case None => ""
         case Some(source) => s"in file ${source.split('/').last} \n"
       }
-      s"Semantic error found $file" + errors.map(err => super.format(toPosition(err.pos), None, Seq(err.msg)))
+      s"Semantic error(s) found $file" + errors.map(err => toPosition(err.pos) + " " + err.msg + "\n").mkString("")
     }
   }
   def toPosition(pos: (Int, Int)): String =
-    s"(line $pos._1, column $pos._2)"
+    s"(line ${pos._1}, column ${pos._2})"
 }
