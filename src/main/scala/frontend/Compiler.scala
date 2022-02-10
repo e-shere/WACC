@@ -49,7 +49,7 @@ object Compiler {
         case None => ""
         case Some(source) => s"in file ${source.split('/').last} \n"
       }
-      s"Semantic error(s) found $file" + errors.map(err => toPosition(err.pos) + " " + err.msg + "\n").mkString("")
+      s"Semantic error(s) found $file" + super.format("", None, errors.map(err => toPosition(err.pos) + " " + err.msg))
     }
   }
   def toPosition(pos: (Int, Int)): String =
