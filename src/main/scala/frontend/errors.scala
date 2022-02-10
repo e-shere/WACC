@@ -61,7 +61,7 @@ object errors {
     override def named(item: String): Named = TestNamed(item)
     override val endOfInput: EndOfInput = TestEndOfInput
 
-    override val numLinesBefore: Int = 0
-    override val numLinesAfter: Int = 0
+    override val numLinesBefore: Int = 1
+    override val numLinesAfter: Int = 1
   }
 }

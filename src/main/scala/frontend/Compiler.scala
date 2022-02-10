@@ -1,10 +1,8 @@
 package frontend
 
 import parser._
-import parsley.errors.{DefaultErrorBuilder, ErrorBuilder}
 
 import java.io.File
-import scala.io.Source
 import parsley.{Failure, Success}
 
 object Compiler {
@@ -14,12 +12,6 @@ object Compiler {
       System.exit(-1)
     }
 //    val source = Source.fromFile(args(0)).mkString
-
-    //TODO: override any settings here for error builder
-    implicit val eb = new DefaultErrorBuilder {
-      override def format(pos: String, source: Option[String], lines: Seq[String]): String =
-        "Syntax error found:\n" + super.format(pos, source, lines)
-    }
 
     val maybeAst = parse(new File(args(0)))
     maybeAst match {

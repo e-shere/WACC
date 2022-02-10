@@ -3,6 +3,7 @@ package frontend
 import lexer._
 import implicits.implicitToken
 import ast._
+import frontend.errors.{CompileError, CompileErrorBuilder}
 import parsley.Parsley
 import parsley.Parsley._
 import parsley.expr.{Atoms, InfixL, Prefix, SOps, precedence}
@@ -11,7 +12,7 @@ import parsley.errors.combinator.ErrorMethods
 
 import scala.language.implicitConversions
 import parsley.combinator.{many, sepBy, sepBy1, some}
-import parsley.errors.ErrorBuilder
+import parsley.errors.{DefaultErrorBuilder, ErrorBuilder}
 import parsley.errors.combinator.ErrorMethods
 import parsley.Result
 import parsley.debug._
@@ -22,7 +23,13 @@ import parsley.expr.chain
 
 object parser {
 
-    def parse[Err: ErrorBuilder](input: File): Result[Err, WaccProgram] = `<program>`.parseFromFile(input).get
+    /*implicit val eb = new DefaultErrorBuilder {
+      override def format(pos: String, source: Option[String], lines: Seq[String]): String =
+        "Syntax error found:\n" + super.format(pos, source, lines)
+    }*/
+    implicit val eb = new CompileErrorBuilder
+
+    def parse(input: File): Result[CompileError, WaccProgram] = `<program>`.parseFromFile(input).get
 
     private lazy val `<program>` = fully("begin" *> WaccProgram(many(`<func>`), sepBy1(`<stat>`, ";") <* "end"))
 
