@@ -10,18 +10,11 @@
 image: hseeberger/scala-sbt:8u222_1.3.5_2.13.1
 
 stages:
-#    - lint
     - build
-    - syntax-test-success
+    - test-success
     - syntax-test-fail
-    - syntax-test-ast
-#    - semantic-test-fail
-#    - syntax-test-error-codes
-
-#lint-job:
-#  stage: lint
-#  script:
-#    - sbt scalafmtCheck
+    - semantic-test-fail
+    - ast-test
 
 build-job:
   stage: build
@@ -29,15 +22,19 @@ build-job:
     - sbt compile
 
 test-valid-job:
-  stage: syntax-test-success
+  stage: test-success
   script:
     - sbt "testOnly frontend.AllValid"
-#    - sbt clean coverage test coverageReport
 
 syntactically-test-invalid-job:
   stage: syntax-test-fail
   script:
     - sbt "testOnly frontend.AllSyntacticallyInvalid"
+
+semantically-test-invalid-job:
+  stage: semantic-test-fail
+  script:
+    - sbt "testOnly frontend.AllSemanticallyInvalid"
 
 syntactically-test-contents-of-ast:
   stage: syntax-test-ast
