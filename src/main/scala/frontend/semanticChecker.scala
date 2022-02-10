@@ -3,6 +3,7 @@ package frontend
 import ast._
 
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
 import scala.util.{Failure, Success, Try}
 
 object semanticChecker {
@@ -27,13 +28,15 @@ object semanticChecker {
             id->FuncType(ty, args.map{case Param(ty, _) => ty})
           }
         }.toMap
+        var errors: mutable.ListBuffer[SemanticError]  = mutable.ListBuffer.empty
         for (Func(ty, _, args, body) <- funcs) {
           val argsTable: Map[Ident, Type] = args.map {
             case Param(ty, id) => id->ty
           }.toMap
-          validateBlock(funcTable, argsTable, body, Some(ty))
+          errors ++= validateBlock(funcTable, argsTable, body, Some(ty))
         }
-        validateBlock(funcTable, Map.empty[Ident, Type], stats, None)
+        errors ++= validateBlock(funcTable, Map.empty[Ident, Type], stats, None)
+        errors.toList
       }
     }
   }
