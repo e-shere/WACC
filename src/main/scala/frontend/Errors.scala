@@ -1,17 +1,31 @@
 package frontend
 
-import ast._
+import frontend.ast._
 import parsley.errors.ErrorBuilder
-
 
 object Errors {
 
-  def format(pos: String, source: Option[String], lines: Seq[String], error: WaccError): String = {
-    s"$error error \n${source.fold("")(name => s"In $name ")}$pos:\n${lines.mkString("  ", "\n  ", "")}"
+  def format(
+      pos: String,
+      source: Option[String],
+      lines: Seq[String],
+      error: WaccError
+  ): String = {
+    s"$error error \n${source.fold("")(name => s"In $name ")}$pos:\n${lines
+      .mkString("  ", "\n  ", "")}"
   }
 
-  def vanillaError(unexpected: Option[String], expected: Option[String], reasons: Seq[String], lines: Seq[String]): Seq[String] = {
-    Seq(s"${unexpected.getOrElse("")}, ${expected.getOrElse("")}", s"${reasons}", s"${lines}")
+  def vanillaError(
+      unexpected: Option[String],
+      expected: Option[String],
+      reasons: Seq[String],
+      lines: Seq[String]
+  ): Seq[String] = {
+    Seq(
+      s"${unexpected.getOrElse("")}, ${expected.getOrElse("")}",
+      s"${reasons}",
+      s"${lines}"
+    )
   }
 
   def specialisedError(msgs: Seq[String], lines: Seq[String]): Seq[String] = {
@@ -24,7 +38,11 @@ object Errors {
 
   }
 
-  case class WaccError(pos: (Int, Int), file: String, errorLines: WaccErrorLines) {
+  case class WaccError(
+      pos: (Int, Int),
+      file: String,
+      errorLines: WaccErrorLines
+  ) {
     override def toString: String = {
       s"""${errorLines.errorType}:
         |in file $file at line ${pos._1}, column ${pos._2}
@@ -33,24 +51,32 @@ object Errors {
     }
   }
 
-  case class SyntaxError(unexpected: String, expected: String, reasons: Seq[String]) extends WaccErrorLines {
+  case class SyntaxError(
+      unexpected: String,
+      expected: String,
+      reasons: Seq[String]
+  ) extends WaccErrorLines {
     override val errorType = "Syntax Error"
-    override val lines: Seq[String] = "unexpected: " + unexpected :: "expected: " + expected :: reasons.toList
+    override val lines: Seq[String] =
+      "unexpected: " + unexpected :: "expected: " + expected :: reasons.toList
   }
 
   sealed trait SemanticError extends WaccErrorLines {
     override val errorType = "Semantic Error"
   }
 
-  case class TypeError(place: String, expectedTypes: Set[Type], foundType: Type) extends SemanticError {
+  case class TypeError(place: String, expectedTypes: Set[Type], foundType: Type)
+      extends SemanticError {
     private val expectedString = expectedTypes.toList match {
-      case List(ty) => ty.toTypeName
-      case types@_ => "one of " + types.map(_.toTypeName).mkString(", ")
+      case List(ty)  => ty.toTypeName
+      case types @ _ => "one of " + types.map(_.toTypeName).mkString(", ")
     }
 
-    override val lines = Seq(s"Type mismatch in $place : ",
-                              s"Expected $expectedString",
-                              s"found $foundType")
+    override val lines = Seq(
+      s"Type mismatch in $place : ",
+      s"Expected $expectedString",
+      s"found $foundType"
+    )
   }
 
   case class UndefinedFunctionError(id: Ident) extends SemanticError {
@@ -73,8 +99,11 @@ object Errors {
     override val lines = Seq(s"Value must be non-null")
   }
 
-  case class NumOfArgsError(place: String, expected: Int, found: Int) extends SemanticError {
-    override val lines = Seq(s"Required $expected arguments, found $found arguments")
+  case class NumOfArgsError(place: String, expected: Int, found: Int)
+      extends SemanticError {
+    override val lines = Seq(
+      s"Required $expected arguments, found $found arguments"
+    )
   }
 
   case class MisplacedReturnError() extends SemanticError {
@@ -82,25 +111,43 @@ object Errors {
   }
 
   class WaccErrorBuilder extends ErrorBuilder[WaccError] {
-    override def format(pos: Position, source: Source, lines: ErrorInfoLines): WaccError = WaccError(pos, source, lines)
+    override def format(
+        pos: Position,
+        source: Source,
+        lines: ErrorInfoLines
+    ): WaccError = WaccError(pos, source, lines)
 
     override type Position = (Int, Int)
     override type Source = String
 
     override def pos(line: Int, col: Int): Position = (line, col)
 
-    override def source(sourceName: Option[String]): Source = sourceName.getOrElse("")
+    override def source(sourceName: Option[String]): Source =
+      sourceName.getOrElse("")
 
     override type ErrorInfoLines = WaccErrorLines
 
-    override def vanillaError(unexpected: UnexpectedLine, expected: ExpectedLine, reasons: Messages, line: LineInfo): ErrorInfoLines = SyntaxError(unexpected.getOrElse(""), expected.getOrElse(""), reasons ++ line)
+    override def vanillaError(
+        unexpected: UnexpectedLine,
+        expected: ExpectedLine,
+        reasons: Messages,
+        line: LineInfo
+    ): ErrorInfoLines = SyntaxError(
+      unexpected.getOrElse(""),
+      expected.getOrElse(""),
+      reasons ++ line
+    )
 
-    override def specialisedError(msgs: Messages, line: LineInfo): ErrorInfoLines = SyntaxError("", "", msgs)
+    override def specialisedError(
+        msgs: Messages,
+        line: LineInfo
+    ): ErrorInfoLines = SyntaxError("", "", msgs)
 
     override type ExpectedItems = Option[String]
     override type Messages = Seq[Message]
 
-    override def combineExpectedItems(alts: Set[Item]): ExpectedItems = if (alts.isEmpty) None else Some(alts.mkString(", "))
+    override def combineExpectedItems(alts: Set[Item]): ExpectedItems =
+      if (alts.isEmpty) None else Some(alts.mkString(", "))
 
     override def combineMessages(alts: Seq[Message]): Messages = alts
 
@@ -117,10 +164,15 @@ object Errors {
 
     override def message(msg: String): Message = msg
 
-    override def lineInfo(line: String, linesBefore: Seq[String], linesAfter: Seq[String], errorPointsAt: Int): LineInfo = {
-        linesBefore.map(line => s">$line") ++:
-          Seq(s">$line", s" ${" " * errorPointsAt}^") ++:
-          linesAfter.map(line => s">$line")
+    override def lineInfo(
+        line: String,
+        linesBefore: Seq[String],
+        linesAfter: Seq[String],
+        errorPointsAt: Int
+    ): LineInfo = {
+      linesBefore.map(line => s">$line") ++:
+        Seq(s">$line", s" ${" " * errorPointsAt}^") ++:
+        linesAfter.map(line => s">$line")
     }
 
     override val numLinesBefore: Int = 1
@@ -132,13 +184,14 @@ object Errors {
 
     override def raw(item: String): Raw =
       item match {
-        case cs if cs.head.isWhitespace => cs.head match {
-          case c if c.isSpaceChar  => "space"
-          case '\n'                => "newline"
-          case '\t'                => "tab"
-          case _                   => "whitespace character"
-        }
-        case cs              => "\"" + cs.takeWhile(!_.isWhitespace) + "\""
+        case cs if cs.head.isWhitespace =>
+          cs.head match {
+            case c if c.isSpaceChar => "space"
+            case '\n'               => "newline"
+            case '\t'               => "tab"
+            case _                  => "whitespace character"
+          }
+        case cs => "\"" + cs.takeWhile(!_.isWhitespace) + "\""
       }
 
     override def named(item: String): Named = item

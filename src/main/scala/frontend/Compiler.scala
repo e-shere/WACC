@@ -1,12 +1,9 @@
 package frontend
 
-import parser._
-import java.io.File
-
-import frontend.Errors.WaccErrorBuilder
-
-import scala.io.Source
+import frontend.parser._
 import parsley.{Failure, Success}
+
+import java.io.File
 
 object Compiler {
   def main(args: Array[String]): Unit = {

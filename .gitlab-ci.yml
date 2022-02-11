@@ -10,11 +10,18 @@
 image: hseeberger/scala-sbt:8u222_1.3.5_2.13.1
 
 stages:
+    - lint
     - build
     - test-success
     - syntax-test-fail
     - semantic-test-fail
     - ast-test
+
+lint-job:
+  stage: lint
+  script:
+    - sbt scalafmtCheck
+
 
 build-job:
   stage: build
