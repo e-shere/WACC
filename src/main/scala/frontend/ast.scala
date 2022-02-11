@@ -101,29 +101,37 @@ object ast {
 
   sealed trait Type extends TypeOrPairElemType {
     def toPairElemType: PairElemType
+    def withPos(pos: (Int, Int)): Type
   }
 
   case class AnyType()(val pos: (Int, Int)) extends TypeAndPairElemType {
     def toTypeName: String = "any"
+    def withPos(pos: (Int, Int)): AnyType = AnyType()(pos)
   }
 
   sealed trait BaseType extends TypeAndPairElemType
+
   case class IntType()(val pos: (Int, Int)) extends BaseType {
     def toTypeName: String = "int"
+    def withPos(pos: (Int, Int)): IntType = IntType()(pos)
   }
   case class BoolType()(val pos: (Int, Int)) extends BaseType {
     def toTypeName: String = "bool"
+    def withPos(pos: (Int, Int)): BoolType = BoolType()(pos)
   }
   case class CharType()(val pos: (Int, Int)) extends BaseType {
     def toTypeName: String = "char"
+    def withPos(pos: (Int, Int)): CharType = CharType()(pos)
   }
   case class StringType()(val pos: (Int, Int)) extends BaseType {
     def toTypeName: String = "string"
+    def withPos(pos: (Int, Int)): StringType = StringType()(pos)
   }
 
   case class ArrayType(ty: Type)(val pos: (Int, Int))
       extends TypeAndPairElemType {
     def toTypeName: String = ty.toTypeName + "[]"
+    def withPos(pos: (Int, Int)): ArrayType = ArrayType(ty)(pos)
   }
 
   case class PairType(ty1: PairElemType, ty2: PairElemType)(val pos: (Int, Int))
@@ -131,6 +139,7 @@ object ast {
     def toTypeName: String =
       "pair(" + ty1.toTypeName + ", " + ty2.toTypeName + ")"
     def toPairElemType: PairElemType = NestedPairType()(pos)
+    def withPos(pos: (Int, Int)): PairType = PairType(ty1, ty2)(pos)
   }
 
   sealed trait PairElemType extends TypeOrPairElemType {
