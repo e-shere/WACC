@@ -50,6 +50,8 @@ object semanticChecker {
     errors.toList
   }
 
+  // validate stats. This function may be called recursively to validate
+  // nested blocks.
   def validateBlock(
       parentSymbols: Map[Ident, Type],
       stats: List[Stat],
@@ -63,6 +65,7 @@ object semanticChecker {
     var localSymbols: Map[Ident, Type] = Map.empty[Ident, Type]
     implicit var childSymbols = parentSymbols ++ localSymbols
     for (stat <- stats) {
+      // match on different types of statements
       stat match {
         case Skip() =>
         case Declare(ty, id, rhs) => {
@@ -206,6 +209,7 @@ object semanticChecker {
     errors.toList
   }
 
+  // validate arguments for a given binary operator, returning type ret if arguments type-check
   private def typeOfBinOp(
     argTypes: Set[Type],
     x: Expr,
@@ -241,6 +245,7 @@ object semanticChecker {
     }
   }
 
+  // validate argument for a given binary operator, returning type ret if argument type-checks
   private def typeOfUnOp(
     argType: Set[Type],
     x: Expr,
