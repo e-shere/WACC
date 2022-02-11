@@ -15,8 +15,8 @@ object ast {
     // This causes all positions to be shown in the printed AST
     // Otherwise, only the first argument set is shown
     override def toString(): String = (
-      ScalaRunTime._toString(this) // The usual string representation of a case class
-      + pos.toString // Comment out this line to disable position printing
+       ScalaRunTime._toString(this) // The usual string representation of a case class
+       + pos.toString // Comment out this line to disable position printing
     )
   }
 
