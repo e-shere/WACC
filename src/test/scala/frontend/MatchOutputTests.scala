@@ -32,14 +32,14 @@ class MatchOutputTests extends AnyFlatSpec {
 
   "functionDeclaration program" should "declare the 0 function" in {
     parse(new File("src/examples/valid/function/simple_functions/functionDeclaration.wacc")).toString() shouldBe
-      "Success(WaccProgram(List(Func(int,Ident(f)(9,7),List(),List(Return(IntLiter(0)(10,12))(10,5)))(9,3)),List(Skip()(12,3)))(9,3))"
+      "Success(WaccProgram(List(f),List(Skip()(12,3)))(9,3))"
   }
 
   "booleanExprs program" should "use and, or and not" in {
-    parse(new File("src/examples/outputTests/boolExprs.wacc")).toString() shouldBe "Success(WaccProgram(List()," +
-      "List(Declare(bool,Ident(a)(12,8),BoolLiter(true)(12,12))(12,3), Declare(bool,Ident(b)(13,8),BoolLiter(false)(13,12))(13,3), " +
-      "Println(Or(Ident(a)(14,11),Ident(b)(14,16))(14,13))(14,3), Println(And(Ident(a)(15,11),Ident(b)(15,16))(15,13))(15,3), " +
-      "Println(Not(Ident(a)(16,12))(16,11))(16,3)))(12,3))"
+    parse(new File("src/examples/outputTests/boolExprs.wacc")).toString() shouldBe
+      "Success(WaccProgram(List(),List(Declare(bool,a,BoolLiter(true)(12,12))(12,3), " +
+        "Declare(bool,b,BoolLiter(false)(13,12))(13,3), Println(Or(a,b)(14,13))(14,3), " +
+        "Println(And(a,b)(15,13))(15,3), Println(Not(a)(16,11))(16,3)))(12,3))"
   }
 
 }
