@@ -35,6 +35,7 @@ object semanticChecker {
         }
 
         val funcTable: Map[Ident, FuncType] = funcTableMut.toMap
+        // validate functions
         for (Func(ty, _, args, body) <- funcs) {
           val argsTable: Map[Ident, Type] = args.map { case Param(ty, id) =>
             id -> ty
@@ -47,6 +48,8 @@ object semanticChecker {
     errors.toList
   }
 
+  // validate stats. This function may be called recursively to validate
+  // nested blocks.
   def validateBlock(
       funcTable: Map[Ident, FuncType],
       parentSymbols: Map[Ident, Type],
@@ -54,8 +57,10 @@ object semanticChecker {
       returnType: Option[Type]
   )(implicit file: String): List[WaccError] = {
     val errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer.empty
+
     val localSymbols: mutable.Map[Ident, Type] = mutable.Map.empty[Ident, Type]
     for (stat <- stats) {
+      // match on different types of statements
       stat match {
         case Skip() =>
         case Declare(ty, id, rhs) => {
@@ -239,6 +244,7 @@ object semanticChecker {
     errors.toList
   }
 
+  // validate arguments for a given binary operator, returning type ret if arguments type-check
   private def typeOfBinOp(
       symbolTable: Map[Ident, Type],
       argTypes: Set[Type],
@@ -283,6 +289,7 @@ object semanticChecker {
     }
   }
 
+  // validate argument for a given binary operator, returning type ret if argument type-checks
   private def typeOfUnOp(
       symbolTable: Map[Ident, Type],
       argType: Set[Type],
@@ -308,6 +315,7 @@ object semanticChecker {
     }
   }
 
+  // return expected type of a given expression
   def typeOfExpr(symbolTable: Map[Ident, Type], expr: Expr)(implicit
       file: String
   ): (Option[Type], List[WaccError]) = {
@@ -543,6 +551,7 @@ object semanticChecker {
     }
   }
 
+  // determine types of expressions x and y
   def typeOfExpr2(symbolTable: Map[Ident, Type], x: Expr, y: Expr)(implicit
       file: String
   ): (Option[(Type, Type)], List[WaccError]) = {
