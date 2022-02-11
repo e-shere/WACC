@@ -417,7 +417,14 @@ object semanticChecker {
       case Paren(expr) => typeOfExpr(expr)
       case identExpr: Ident =>
         (symbolTable get identExpr) match {
-          case Some(ty) => (Some(ty), Nil)
+          // Need to find out what type it is because we need to construct a new object to change the pos
+          case Some(IntType()) => (Some(IntType()(identExpr.pos)), Nil)
+          case Some(BoolType()) => (Some(BoolType()(identExpr.pos)), Nil)
+          case Some(CharType()) => (Some(CharType()(identExpr.pos)), Nil)
+          case Some(StringType()) => (Some(StringType()(identExpr.pos)), Nil)
+          case Some(PairType(x, y)) => (Some(PairType(x, y)(identExpr.pos)), Nil)
+          case Some(ArrayType(x)) => (Some(ArrayType(x)(identExpr.pos)), Nil)
+          case Some(AnyType()) => (Some(AnyType()(identExpr.pos)), Nil)
           case None =>
             (
               None,
