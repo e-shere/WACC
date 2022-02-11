@@ -418,13 +418,7 @@ object semanticChecker {
       case identExpr: Ident =>
         (symbolTable get identExpr) match {
           // Need to find out what type it is because we need to construct a new object to change the pos
-          case Some(IntType()) => (Some(IntType()(identExpr.pos)), Nil)
-          case Some(BoolType()) => (Some(BoolType()(identExpr.pos)), Nil)
-          case Some(CharType()) => (Some(CharType()(identExpr.pos)), Nil)
-          case Some(StringType()) => (Some(StringType()(identExpr.pos)), Nil)
-          case Some(PairType(x, y)) => (Some(PairType(x, y)(identExpr.pos)), Nil)
-          case Some(ArrayType(x)) => (Some(ArrayType(x)(identExpr.pos)), Nil)
-          case Some(AnyType()) => (Some(AnyType()(identExpr.pos)), Nil)
+          case Some(ty) => (Some(ty.withPos(identExpr.pos)), Nil)
           case None =>
             (
               None,
@@ -462,11 +456,11 @@ object semanticChecker {
             val (maybeArrayType, arrayErrors) = typeOfExpr(id)
             val errors = indexErrors ++ arrayErrors
             maybeArrayType match {
-              case Some(ArrayType(innerType)) => (Some(innerType), errors)
+              case Some(ArrayType(innerType)) => (Some(innerType.withPos(arrayElem.pos)), errors)
               case Some(ty) =>
                 (
                   None,
-                  errors :+ TypeError.mkError("array", Set(ARRAY_TYPE), ty)
+                  errors :+ TypeError.mkError("array", Set(ARRAY_TYPE), ty.withPos(arrayElem.pos))
                 )
               case None => (None, errors)
             }
@@ -474,7 +468,7 @@ object semanticChecker {
           case Some(ty) =>
             (
               None,
-              indexErrors :+ TypeError.mkError("array index", Set(INT_TYPE), ty)
+              indexErrors :+ TypeError.mkError("array index", Set(INT_TYPE), ty.withPos(index.pos))
             )
           case None => (None, indexErrors)
         }
@@ -583,7 +577,7 @@ object semanticChecker {
                 )
               else if (
                 argTypes.lazyZip(paramTypes).map(_ coercesTo _).forall(identity)
-              ) (Some(returnType), argErrors)
+              ) (Some(returnType.withPos(callExpr.pos)), argErrors)
               else {
                 (
                   None,
