@@ -1,0 +1,17 @@
+# evaluating boolean expressions
+
+# Output:
+# true
+# false
+# true
+
+# Program:
+
+
+begin
+  bool a = true ;
+  bool b = false ;
+  println a || b ;
+  println a && b ;
+  println !a
+end
