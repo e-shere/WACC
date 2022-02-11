@@ -21,9 +21,9 @@ object Errors {
   object LineInfo{
     def from(pos: (Int, Int))(implicit fileLines: Array[String]): LineInfo = pos match {
       case (line, col) => LineInfo(
-        fileLines(line), 
-        if (line > 0) Seq(fileLines(line - 1)) else Nil,
-        if (line < fileLines.length - 1) Seq(fileLines(line + 1)) else Nil,
+        fileLines(line - 1),
+        if (line > 1) Seq(fileLines(line - 2)) else Nil,
+        if (line < fileLines.length) Seq(fileLines(line)) else Nil,
         col
       )
     }
