@@ -41,13 +41,15 @@ object lexer {
 
   private val nat = digit.foldLeft1[BigInt](0)((n, d) => n * 10 + d.asDigit)
   private val bigInt = token((minus <|> plus) <*> nat).filterOut(checkOverflow)
-  val INT: Parsley[Int] = bigInt.map(_.intValue)
+  val INT: Parsley[Int] = bigInt.map(_.intValue).label("integer")
+    .explain("A valid integer is in the range [-2^31, 2^31 - 1]")
 
-  val BOOL: Parsley[Boolean] = token("true" #> true <|> "false" #> false)
+  val BOOL: Parsley[Boolean] = token("true" #> true <|> "false" #> false).label("boolean")
 
   private val escapeChar =
     choice('0' #> '\u0000', 'b' #> '\b', 't' #> '\t', 'n' #> '\n', 'f' #> '\f', 'r' #> '\r', '\"', '\'', '\\')
-  private val charLetter = noneOf('\\', '\'', '\"') <|> ('\\' *> escapeChar)
+      .label("end of escape sequence").explain("valid escape characters include 0, b, t, n, f, r, \\, \" and \'")
+  private val charLetter = noneOf('\\', '\'', '\"').label("string character") <|> ('\\' *> escapeChar).label("escape character")
   val CHAR: Parsley[Char] = token('\'' *> charLetter <* '\'')
 
   val STRING: Parsley[String] = token('\"' *> many(charLetter).map(_.mkString) <* '\"')

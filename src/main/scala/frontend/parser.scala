@@ -25,9 +25,9 @@ object parser {
 
     def parse(input: File): Result[WaccError, WaccProgram] = `<program>`.parseFromFile(input).get
 
-    private lazy val `<program>` = fully("begin" *> WaccProgram(many(`<func>`), sepBy1(`<stat>`, ";") <* "end"))
+    private lazy val `<program>` = fully("begin" *> WaccProgram(many(`<func>`), sepBy1(`<stat>`, ";".label("new statement")) <* "end"))
 
-    private lazy val `<func>` = attempt(Func(`<type>`, `<ident>`, "(" *> sepBy(`<param>`, ",") <* ")", "is" *> sepBy1(`<stat>`, ";").filterOut(functions_return) <* "end"))
+    private lazy val `<func>` = attempt(Func(`<type>`, `<ident>`, "(" *> sepBy(`<param>`, ",") <* ")", "is" *> sepBy1(`<stat>`, ";".label("new statement")).filterOut(functions_return) <* "end"))
 
     private lazy val `<param>` = Param(`<type>`, `<ident>`)
 
@@ -41,10 +41,11 @@ object parser {
         <|> Exit("exit" *> `<expr>`)
         <|> Print("print" *> `<expr>`)
         <|> Println("println" *> `<expr>`)
-        <|> If("if" *> `<expr>`, "then" *> sepBy1(`<stat>`, ";"), "else" *> sepBy1(`<stat>`,";") <* "fi")
-        <|> While("while" *> `<expr>`, "do" *> sepBy1(`<stat>`, ";") <* "done")
-        <|> Scope("begin" *> sepBy1(`<stat>`,";") <* "end")
-    )
+        <|> If("if" *> `<expr>`, "then" *> sepBy1(`<stat>`, ";".label("new statement")), "else" *> sepBy1(`<stat>`,";".label("new statement")) <* "fi")
+        <|> While("while" *> `<expr>`, "do" *> sepBy1(`<stat>`, ";".label("new statement")) <* "done")
+        <|> Scope("begin" *> sepBy1(`<stat>`,";".label("new statement")) <* "end")
+    ).label("statement").explain("Examples of statements are new variables, " +
+             "print instructions and the start of while or if expressions")
 
     private lazy val `<assign-lhs>` = `<array-ident>` <|> `<pair-elem>`
 
@@ -53,11 +54,12 @@ object parser {
         <|> `<array-liter>`
         <|> NewPair("newpair" *> "(" *> `<expr>` <* ",", `<expr>` <* ")")
         <|> `<pair-elem>`
-        <|> Call("call" *> `<ident>`, "(" *> sepBy(`<expr>`, ",") <* ")"))
+        <|> Call("call" *> `<ident>`, "(" *> sepBy(`<expr>`, ",") <* ")").label("call to a function"))
 
     private lazy val `<pair-elem>` = Fst("fst" *> `<expr>`) <|> Snd("snd" *> `<expr>`)
 
     private lazy val `<type>`: Parsley[Type] = chain.postfix(`<base-type>` <|> `<pair-type>`, ArrayType <# ("[" <* "]"))
+      .label("type").explain("A type ca be a array, pair, integer, boolean, character or string.")
 
     private lazy val `<base-type>` = (IntType <# "int") <|>
                                       (BoolType <# "bool") <|>
@@ -67,14 +69,14 @@ object parser {
     private lazy val `<pair-type>`: Parsley[PairType] = PairType("pair" *> "(" *> `<pair-elem-type>` <* ",", `<pair-elem-type>` <* ")")
 
     private lazy val `<expr>`: Parsley[Expr] =
-        precedence(SOps(InfixL)(Or  <# "||") +:
-                SOps(InfixL)(And <# "&&") +:
-                SOps(InfixL)(Eq  <# "==", Neq <# "!=") +:
-                SOps(InfixL)(Lt  <# "<",  Leq <# "<=",
-                             Gt  <# ">",  Geq <# ">=") +:
-                SOps(InfixL)(Add <# "+",  Sub <# "-") +:
-                SOps(InfixL)(Mul <# "*",  Div <# "/", Mod <# "%") +:
-                SOps(Prefix)(Neg <# NEG,  Not <# "!", Len <# "len", Ord <# "ord", Chr <# "chr") +:
+        precedence(SOps(InfixL)(Or  <# "||".label("operator")) +:
+                SOps(InfixL)(And <# "&&".label("operator")) +:
+                SOps(InfixL)(Eq  <# "==".label("operator"), Neq <# "!=".label("operator")) +:
+                SOps(InfixL)(Lt  <# "<".label("operator"),  Leq <# "<=".label("operator"),
+                             Gt  <# ">".label("operator"),  Geq <# ">=".label("operator")) +:
+                SOps(InfixL)(Add <# "+".label("operator"),  Sub <# "-".label("operator")) +:
+                SOps(InfixL)(Mul <# "*".label("operator"),  Div <# "/".label("operator"), Mod <# "%".label("operator")) +:
+                SOps(Prefix)(Neg <# NEG,  Not <# "!".label("operator"), Len <# "len".label("operator"), Ord <# "ord".label("operator"), Chr <# "chr".label("operator")) +:
                 `<expr0>`)
 
 
