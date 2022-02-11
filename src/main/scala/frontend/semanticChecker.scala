@@ -23,9 +23,9 @@ object semanticChecker {
   private def lineInfo(pos: (Int, Int))(implicit fileLines: Array[String]): LineInfo = pos match {
     case (line, col) => {
       LineInfo(
-        fileLines(line), 
-        if (line > 0) Seq(fileLines(line - 1)) else Nil,
-        if (line < fileLines.length - 1) Seq(fileLines(line + 1)) else Nil,
+        fileLines(line - 1),
+        if (line > 1) Seq(fileLines(line - 2)) else Nil,
+        if (line < fileLines.length) Seq(fileLines(line)) else Nil,
         col
       )
     }
@@ -92,7 +92,7 @@ object semanticChecker {
             case _ =>
           }
           if (localSymbols contains id) {
-            errors += WaccError(rhs.pos, file, RedefinedVariableError(id, lineInfo(rhs.pos)))
+            errors += WaccError(id.pos, file, RedefinedVariableError(id, lineInfo(id.pos)))
           } else {
             localSymbols += (id -> ty)
             childSymbols = parentSymbols ++ localSymbols
@@ -175,7 +175,7 @@ object semanticChecker {
                 )
               }
             case (_, None) =>
-              errors += WaccError(returnExpr.pos, file, MisplacedReturnError(lineInfo(expr.pos)))
+              errors += WaccError(returnExpr.pos, file, MisplacedReturnError(lineInfo(returnExpr.pos)))
             case (None, Some(_)) =>
           }
         }
