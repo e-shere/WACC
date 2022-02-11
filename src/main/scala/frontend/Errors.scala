@@ -13,7 +13,7 @@ object Errors {
   ) {
     def toSeq: Seq[String] = {
       linesBefore.map(line => s">$line") ++:
-        Seq(s">$line", s" ${" " * errorPointsAt}^") ++:
+        Seq(s">$line", s"${" " * errorPointsAt}^") ++:
         linesAfter.map(line => s">$line")
     }
   }
