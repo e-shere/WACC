@@ -6,15 +6,15 @@ import parsley.errors.ErrorBuilder
 object Errors {
 
   case class LineInfo(
-    line: String,
-    linesBefore: Seq[String],
-    linesAfter: Seq[String],
-    errorPointsAt: Int
+      line: String,
+      linesBefore: Seq[String],
+      linesAfter: Seq[String],
+      errorPointsAt: Int
   ) {
     def toSeq: Seq[String] = {
       linesBefore.map(line => s">$line") ++:
-      Seq(s">$line", s" ${" " * errorPointsAt}^") ++:
-      linesAfter.map(line => s">$line")
+        Seq(s">$line", s" ${" " * errorPointsAt}^") ++:
+        linesAfter.map(line => s">$line")
     }
   }
 
@@ -47,7 +47,9 @@ object Errors {
     override val errorType = "Syntax Error"
     override val lines: Seq[String] = (unexpected, expected) match {
       case (None, None) => reasons.toList
-      case _ => "unexpected: " + unexpected.getOrElse("") :: "expected: " + expected.getOrElse("") :: reasons.toList
+      case _ =>
+        "unexpected: " + unexpected.getOrElse("") :: "expected: " + expected
+          .getOrElse("") :: reasons.toList
     }
   }
 
@@ -55,8 +57,12 @@ object Errors {
     override val errorType = "Semantic Error"
   }
 
-  case class TypeError(place: String, expectedTypes: Set[Type], foundType: Type, lineInfo: LineInfo)
-      extends SemanticError {
+  case class TypeError(
+      place: String,
+      expectedTypes: Set[Type],
+      foundType: Type,
+      lineInfo: LineInfo
+  ) extends SemanticError {
     private val expectedString = expectedTypes.toList match {
       case List(ty)  => ty.toTypeName
       case types @ _ => "one of " + types.map(_.toTypeName).mkString(", ")
@@ -69,28 +75,37 @@ object Errors {
     )
   }
 
-  case class UndefinedFunctionError(id: Ident, lineInfo: LineInfo) extends SemanticError {
+  case class UndefinedFunctionError(id: Ident, lineInfo: LineInfo)
+      extends SemanticError {
     override val lines = Seq(s"Undefined function ${id.id}")
   }
 
-  case class UndefinedVariableError(id: Ident, lineInfo: LineInfo) extends SemanticError {
+  case class UndefinedVariableError(id: Ident, lineInfo: LineInfo)
+      extends SemanticError {
     override val lines = Seq(s"Undefined variable ${id.id}")
   }
 
-  case class RedefinedFunctionError(id: Ident, lineInfo: LineInfo) extends SemanticError {
+  case class RedefinedFunctionError(id: Ident, lineInfo: LineInfo)
+      extends SemanticError {
     override val lines = Seq(s"Duplicate function declaration ${id.id}")
   }
 
-  case class RedefinedVariableError(id: Ident, lineInfo: LineInfo) extends SemanticError {
+  case class RedefinedVariableError(id: Ident, lineInfo: LineInfo)
+      extends SemanticError {
     override val lines = Seq(s"Variable ${id.id} defined twice in same scope")
   }
 
-  case class NullExceptionError(place: String, lineInfo: LineInfo) extends SemanticError {
+  case class NullExceptionError(place: String, lineInfo: LineInfo)
+      extends SemanticError {
     override val lines = Seq(s"Value must be non-null")
   }
 
-  case class NumOfArgsError(place: String, expected: Int, found: Int, lineInfo: LineInfo)
-      extends SemanticError {
+  case class NumOfArgsError(
+      place: String,
+      expected: Int,
+      found: Int,
+      lineInfo: LineInfo
+  ) extends SemanticError {
     override val lines = Seq(
       s"Required $expected arguments, found $found arguments"
     )
