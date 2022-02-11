@@ -577,7 +577,7 @@ object semanticChecker {
                 )
               else if (
                 argTypes.lazyZip(paramTypes).map(_ coercesTo _).forall(identity)
-              ) (Some(returnType), argErrors)
+              ) (Some(returnType.withPos(callExpr.pos)), argErrors)
               else {
                 (
                   None,
