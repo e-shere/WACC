@@ -676,7 +676,7 @@ object semanticChecker {
                       WaccError(
                         argType.pos,
                         file,
-                        TypeError(s"argument of $id", Set(paramType), argType, lineInfo(argType.pos))
+                        TypeError(s"argument of $id", Set(paramType), argType, lineInfo(id.pos))
                       )
                   }
                 )
