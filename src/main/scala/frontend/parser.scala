@@ -15,13 +15,15 @@ import parsley.errors.ErrorBuilder
 import parsley.Result
 import parsley.debug._
 import parsley.io.ParseFromIO
-
 import java.io.File
+
+import frontend.Errors.{WaccError, WaccErrorBuilder}
 import parsley.expr.chain
 
 object parser {
+    implicit val eb: WaccErrorBuilder = new WaccErrorBuilder
 
-    def parse[Err: ErrorBuilder](input: File): Result[Err, WaccProgram] = `<program>`.parseFromFile(input).get
+    def parse(input: File): Result[WaccError, WaccProgram] = `<program>`.parseFromFile(input).get
 
     private lazy val `<program>` = fully("begin" *> WaccProgram(many(`<func>`), sepBy1(`<stat>`, ";") <* "end"))
 

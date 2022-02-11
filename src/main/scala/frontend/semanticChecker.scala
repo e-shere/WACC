@@ -1,6 +1,7 @@
 package frontend
 
 import ast._
+import frontend.Errors._
 
 import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
@@ -17,15 +18,15 @@ object semanticChecker {
   private val COMP_ARG_TYPES: Set[Type] = Set(INT_TYPE, CHAR_TYPE)
   private val EQ_ARG_TYPES: Set[Type] = Set(INT_TYPE, BOOL_TYPE, CHAR_TYPE, STRING_TYPE, PAIR_TYPE, ARRAY_TYPE)
 
-  // TODO: should be returning some kind of optional try error?
-  def validateProgram(program: WaccProgram): List[SemanticError] = {
-    val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
+  def validateProgram(program: WaccProgram, file: String): List[WaccError] = {
+    implicit val fileImplicit: String = file
+    val errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer.empty
     program match {
       case WaccProgram(funcs, stats) => {
         // generate function table
         val funcTableMut: mutable.Map[Ident, FuncType] = mutable.Map.empty
-        for (Func(ty, id, args, _) <- funcs) {
-          if (funcTableMut contains id) errors += SemanticError(s"Duplicate function definition ${id.id}")
+        for (f@Func(ty, id, args, _) <- funcs) {
+          if (funcTableMut contains id) errors += WaccError(f.pos, file, RedefinedFunctionError(id))
           funcTableMut += (id -> FuncType(ty, args.map{case Param(ty, _) => ty}))
         }
         
@@ -45,8 +46,8 @@ object semanticChecker {
   def validateBlock(funcTable: Map[Ident, FuncType],
                     parentSymbols: Map[Ident, Type],
                     stats: List[Stat],
-                    returnType: Option[Type]): List[SemanticError] = {
-    val errors: mutable.ListBuffer[SemanticError] = mutable.ListBuffer.empty
+                    returnType: Option[Type])(implicit file: String): List[WaccError] = {
+    val errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer.empty
     val localSymbols: mutable.Map[Ident, Type] = mutable.Map.empty[Ident, Type]
     for (stat <- stats) {
       stat match {
@@ -56,12 +57,12 @@ object semanticChecker {
           errors ++= rhsErrors
           maybeRhs match {
             case Some(rhsType) => if (!(rhsType coercesTo ty)) {
-              errors += SemanticError(s"rhs of assignment (type $rhsType) doesn't match type $ty")
+              errors += WaccError(rhs.pos, file, TypeError("rhs of declaration statement", Set(ty), rhsType))
             }
             case _ =>
           }
           if (localSymbols contains id) {
-            errors += SemanticError(s"redeclaring identifier ${id.id} within same scope")
+            errors += WaccError(rhs.pos, file, RedefinedVariableError(id))
           } else {
             localSymbols += (id -> ty)
           }
@@ -72,9 +73,8 @@ object semanticChecker {
           errors ++= lhsErrors
           errors ++= rhsErrors
           (maybeLhs, maybeRhs) match {
-            // TODO: account for one way coercion
             case (Some(lhsType), Some(rhsType)) => if (!(rhsType coercesTo lhsType)) {
-              errors += SemanticError(s"rhs of assignment $rhsType doesn't match required type $lhsType")
+              errors += WaccError(rhs.pos, file, TypeError("rhs of assignment statement", Set(lhsType), rhsType))
             }
             case _ =>
           }
@@ -84,7 +84,7 @@ object semanticChecker {
           errors ++= lhsErrors
           maybeType match {
             case Some(IntType()) | Some(CharType()) =>
-            case Some(ty) => errors += SemanticError(s"read can only assign to an int or char, not a $ty")
+            case Some(ty) => errors += WaccError(lhs.pos, file, TypeError("argument of read statement", Set(INT_TYPE, CHAR_TYPE), ty))
             case None =>
           }
         }
@@ -94,19 +94,18 @@ object semanticChecker {
           maybeExpr match {
             case Some(PairType(_, _)) =>
             case Some(ArrayType(_)) =>
-            case Some(_) => errors += SemanticError("Only a pair or array can be freed")
+            case Some(ty) => errors += WaccError(expr.pos, file, TypeError("argument of free statement", Set(PAIR_TYPE, ARRAY_TYPE), ty))
             case _ =>
           }
         }
-        case Return(expr) => {
+        case returnExpr@Return(expr) => {
           val (maybeExpr, exprErrors) = typeOfExpr(parentSymbols ++ localSymbols.toMap, expr)
           errors ++= exprErrors
           (maybeExpr, returnType) match {
-            // TODO: account for one way coercion
             case (Some(exprType), Some(ty)) => if (!(exprType coercesTo ty)) {
-              errors += SemanticError("return type must match return type of function")
+              errors += WaccError(expr.pos, file, TypeError("argument of return statement", Set(ty), exprType))
             }
-            case (_, None) => errors += SemanticError("can't return outside a function")
+            case (_, None) => errors += WaccError(returnExpr.pos, file, MisplacedReturnError())
             case (None, Some(_)) =>
           }
         }
@@ -115,7 +114,7 @@ object semanticChecker {
           errors ++= exprErrors
           maybeExpr match {
             case Some(IntType()) =>
-            case Some(_) => errors += SemanticError("Exit status must be an integer")
+            case Some(ty) => errors += WaccError(expr.pos, file, TypeError("argument of exit statement", Set(INT_TYPE), ty))
             case _ =>
           }
         }
@@ -126,7 +125,7 @@ object semanticChecker {
           errors ++= exprErrors
           maybeExpr match {
             case Some(BoolType()) =>
-            case Some(_) => errors += SemanticError("If condition must be a bool")
+            case Some(ty) => errors += WaccError(expr.pos, file, TypeError("condition of if statement", Set(BOOL_TYPE), ty))
             case _ =>
           }
           errors ++= validateBlock(funcTable, parentSymbols ++ localSymbols.toMap, thenStats, returnType)
@@ -137,7 +136,7 @@ object semanticChecker {
           errors ++= exprErrors
           maybeExpr match {
             case Some(BoolType()) =>
-            case Some(_) => errors += SemanticError("While condition must be a bool")
+            case Some(ty) => errors += WaccError(expr.pos, file, TypeError("condition of while statement", Set(BOOL_TYPE), ty))
 
             case _ =>
           }
@@ -150,28 +149,26 @@ object semanticChecker {
     errors.toList
   }
 
-  private def typeOfBinOp(symbolTable: Map[Ident, Type], argTypes: Set[Type], x: Expr, y: Expr, ret: Type, opName: String): (Option[Type], List[SemanticError]) = {
+  private def typeOfBinOp(symbolTable: Map[Ident, Type], argTypes: Set[Type], x: Expr, y: Expr, ret: Type, opName: String)(implicit file: String): (Option[Type], List[WaccError]) = {
     val (maybeTypes, errors) = typeOfExpr2(symbolTable, x, y)
     maybeTypes match {
       case Some((xType, yType)) => {
             // TODO: account for one way coercion
-        if (!argTypes.exists(xType coercesTo _)) (None, errors :+ SemanticError(s"The first argument to $opName should be one of ${argTypes.map(_.toTypeName).mkString(", ")}"))
+        if (!argTypes.exists(xType coercesTo _)) (None, errors :+ WaccError(x.pos, file, TypeError(s"first argument of $opName", argTypes, xType)))
+        else if (!argTypes.exists(yType coercesTo _)) (None, errors :+ WaccError(y.pos, file, TypeError(s"second argument of $opName", argTypes, yType)))
             // TODO: account for one way coercion
-        else if (!argTypes.exists(yType coercesTo _)) (None, errors :+ SemanticError(s"The second argument to $opName should be one of ${argTypes.map(_.toTypeName).mkString(", ")}"))
-            // TODO: account for one way coercion
-        else if (!((xType coercesTo yType) || (yType coercesTo xType))) (None, errors :+ SemanticError(s"The two arguments to $opName must have the same type"))
+        else if (!((xType coercesTo yType) || (yType coercesTo xType))) (None, errors :+ WaccError(x.pos, file, TypeError(s"arguments of $opName", Set(xType), yType)))
         else (Some(ret), errors)
       }
       case _ => (None, errors)
     }
   }
 
-  private def typeOfUnOp(symbolTable: Map[Ident, Type], argType: Set[Type], x: Expr, ret: Type, opName: String): (Option[Type], List[SemanticError]) = {
+  private def typeOfUnOp(symbolTable: Map[Ident, Type], argType: Set[Type], x: Expr, ret: Type, opName: String)(implicit file: String): (Option[Type], List[WaccError]) = {
     val (maybeXType, xErrors) = typeOfExpr(symbolTable, x)
     maybeXType match {
       case Some(xType) => {
-            // TODO: account for one way coercion
-        if (!argType.exists(xType coercesTo _)) (None, xErrors :+ SemanticError(s"The argument to $opName should be one of ${argType.map(_.toTypeName).mkString(", ")}"))
+        if (!argType.exists(xType coercesTo _)) (None, xErrors :+ WaccError(x.pos, file, TypeError(s"argument of $opName", argType, xType)))
         else (Some(ret), xErrors)
       }
       case _ => (None, xErrors)
@@ -179,7 +176,7 @@ object semanticChecker {
   }
 
 
-  def typeOfExpr(symbolTable: Map[Ident, Type], expr: Expr): (Option[Type], List[SemanticError]) = {
+  def typeOfExpr(symbolTable: Map[Ident, Type], expr: Expr)(implicit file: String): (Option[Type], List[WaccError]) = {
     expr match {
       case orExpr@Or(x, y) => typeOfBinOp(symbolTable, Set(BOOL_TYPE), x, y, BoolType()(orExpr.pos), "||")
       case andExpr@And(x, y) => typeOfBinOp(symbolTable, Set(BOOL_TYPE), x, y, BoolType()(andExpr.pos), "&&")
@@ -204,7 +201,7 @@ object semanticChecker {
       case identExpr: Ident =>
         (symbolTable get identExpr) match {
           case Some(ty) => (Some(ty), Nil)
-          case None => (None, List(SemanticError(s"undefined identifier ${identExpr.id}")))
+          case None => (None, List(WaccError(identExpr.pos, file, UndefinedVariableError(identExpr))))
         }
       case intExpr: IntLiter => (Some(IntType()(intExpr.pos)), Nil)
       case strExpr: StrLiter => (Some(StringType()(strExpr.pos)), Nil)
@@ -215,15 +212,14 @@ object semanticChecker {
         val (maybeTypes, errors) = typeOfExpr2(symbolTable, expr, ArrayLiter(exprs)(arrayExpr.pos))
         maybeTypes match {
           case Some((a, ArrayType(b))) => {
-            // TODO: account for one way coercion
             if (b coercesTo a) (Some(ArrayType(a)(arrayExpr.pos)), errors)
             else if (a coercesTo b) (Some(ArrayType(b)(arrayExpr.pos)), errors)
-            else (None, errors :+ SemanticError(s"All elements of an array must have the same type ($a does not match $b)"))
+            else (None, errors :+ WaccError(arrayExpr.pos, file, TypeError("elements of array", Set(a), b)))
           } 
           case _ => (None, errors)
         }
       }
-      case ArrayElem(id, index: Expr) => {
+      case arrayElem@ArrayElem(id, index: Expr) => {
         val (maybeIndexType, indexErrors) = typeOfExpr(symbolTable, index)
         maybeIndexType match {
           case Some(IntType()) => {
@@ -231,18 +227,18 @@ object semanticChecker {
             val errors = indexErrors ++ arrayErrors
             maybeArrayType match {
               case Some(ArrayType(innerType)) => (Some(innerType), errors)
-              case Some(ty) => (None, errors :+ SemanticError(s"This is not an array, it's $ty"))
+              case Some(ty) => (None, errors :+ WaccError(arrayElem.pos, file, TypeError("array", Set(ARRAY_TYPE), ty)))
               case None => (None, errors)
             }
           }
-          case Some(ty) => (None, indexErrors :+ SemanticError(s"Array index must be an int $ty"))
+          case Some(ty) => (None, indexErrors :+ WaccError(arrayElem.pos, file, TypeError("array index", Set(INT_TYPE), ty)))
           case None => (None, indexErrors)
         }
       }
     }
   }
 
-  def typeOfExpr2(symbolTable: Map[Ident, Type], x: Expr, y: Expr): (Option[(Type, Type)], List[SemanticError]) = {
+  def typeOfExpr2(symbolTable: Map[Ident, Type], x: Expr, y: Expr)(implicit file: String): (Option[(Type, Type)], List[WaccError]) = {
     val (maybeXType, xErrors) = typeOfExpr(symbolTable, x)
     val (maybeYType, yErrors) = typeOfExpr(symbolTable, y)
     val errors = xErrors ++ yErrors
@@ -255,7 +251,7 @@ object semanticChecker {
 
     // get type of rhs and checking for semantic errors within rhs
   def typeOfRhs(funcTable: Map[Ident, FuncType],
-                  symbolTable: Map[Ident, Type], rhs: AssignRhs): (Option[Type], List[SemanticError]) = {
+                  symbolTable: Map[Ident, Type], rhs: AssignRhs)(implicit file: String): (Option[Type], List[WaccError]) = {
     rhs match {
       case rhs@NewPair(fst, snd) => {
         val (maybeTypes, errors) = typeOfExpr2(symbolTable, fst, snd)
@@ -265,28 +261,28 @@ object semanticChecker {
         }
       }
       case Fst(expr) => {
-        if (expr == Null()(NO_POS)) (None, List(SemanticError("Argument to fst must be non-null")))
+        if (expr == Null()(NO_POS)) (None, List(WaccError(expr.pos, file, NullExceptionError(s"argument of $rhs"))))
         else {
           val (maybeExprType, exprErrors) = typeOfExpr(symbolTable, expr)
           maybeExprType match {
             case Some(PairType(fstType, _)) => (Some(fstType.toType), exprErrors)
-            case Some(ty) => (None, exprErrors :+ SemanticError(s"fst can only be invoked on a pair, not a $ty"))
+            case Some(ty) => (None, exprErrors :+ WaccError(expr.pos, file, TypeError(s"argument of $rhs", Set(PAIR_TYPE), ty)))
             case None => (None, exprErrors)
           }
         }
       }
       case Snd(expr) => {
-        if (expr == Null()(NO_POS)) (None, List(SemanticError("Argument to snd must be non-null")))
+        if (expr == Null()(NO_POS)) (None, List(WaccError(expr.pos, file, NullExceptionError(s"argument of $rhs"))))
         else {
           val (maybeExprType, exprErrors) = typeOfExpr(symbolTable, expr)
           maybeExprType match {
             case Some(PairType(_, sndType)) => (Some(sndType.toType), exprErrors)
-            case Some(ty) => (None, exprErrors :+ SemanticError(s"snd can only be invoked on a pair, not a $ty"))
+            case Some(ty) => (None, exprErrors :+ WaccError(expr.pos, file, TypeError(s"argument of $rhs", Set(PAIR_TYPE), ty)))
             case None => (None, exprErrors)
           }
         }
       }
-      case Call(id, args) => {
+      case callExpr@Call(id, args) => {
         val (maybeArgTypes, argErrorLists) = args.map(typeOfExpr(symbolTable, _)).unzip
         val argErrors = argErrorLists.flatten
         if (maybeArgTypes contains None) (None, argErrors)
@@ -294,13 +290,13 @@ object semanticChecker {
           val argTypes = maybeArgTypes.map(_.get)
           (funcTable get id) match {
             case Some(FuncType(returnType, paramTypes)) => {
-              // TODO: account for one way coercion
-              if (argTypes.length != paramTypes.length) (None, argErrors :+ SemanticError(s"Incorrect number of arguments (expected ${paramTypes.length}, got ${argTypes.length})"))
-              else if (argTypes.lazyZip(paramTypes).map(_ coercesTo _).forall(identity(_))) (Some(returnType), argErrors)
-              // TODO: Compare argument types one by one to create a more helpful error message
-              else (None, argErrors :+ SemanticError(s"Incorrect argument types (showing the specific mismatch is currently not implemented)"))
+              if (argTypes.length != paramTypes.length) (None, argErrors :+ WaccError(callExpr.pos, file, NumOfArgsError(s"arguments of ${id.id}", paramTypes.length, argTypes.length)))
+              else if (argTypes.lazyZip(paramTypes).map(_ coercesTo _).forall(identity)) (Some(returnType), argErrors)
+              else {
+                (None, argErrors ++ (argTypes zip paramTypes).collect { case (argType, paramType) if (!(argType coercesTo paramType)) =>  WaccError(argType.pos, file, TypeError(s"argument of $id", Set(paramType), argType)) })
+              }
             }
-            case None => (None, argErrors :+ SemanticError(s"Undefined function $id"))
+            case None => (None, argErrors :+ WaccError(callExpr.pos, file, UndefinedFunctionError(id)))
           }
         }
       }
@@ -315,7 +311,7 @@ object semanticChecker {
   }
 
   def typeOfLhs(funcTable: Map[Ident, FuncType],
-                  symbolTable: Map[Ident, Type], lhs: AssignLhs): (Option[Type], List[SemanticError]) = {
+                  symbolTable: Map[Ident, Type], lhs: AssignLhs)(implicit file: String): (Option[Type], List[WaccError]) = {
     // Every subtype of AssignLhs is also a subtype of AssignRhs. This method
     // exists anyway for easier extensibility if this were to change
     lhs match {
@@ -324,6 +320,5 @@ object semanticChecker {
   }
 
   case class FuncType(returnType: Type, paramTypes: List[Type])
-  case class SemanticError(msg: String)
 
 }

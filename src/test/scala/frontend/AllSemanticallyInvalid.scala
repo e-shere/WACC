@@ -28,7 +28,7 @@ class AllSemanticallyInvalid extends AnyFlatSpec {
       val source = Source.fromFile(path).mkString
       val maybeAst = parse(new File(path))
       maybeAst should matchPattern { case Success(_) => }
-      semanticChecker.validateProgram(maybeAst.get) should not matchPattern {
+      semanticChecker.validateProgram(maybeAst.get, path) should not matchPattern {
             case Nil =>
       }
     }

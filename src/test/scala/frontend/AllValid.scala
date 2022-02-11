@@ -30,7 +30,7 @@ class AllValid extends AnyFlatSpec {
             //parse(source) should matchPattern { case Success(_) => }
             val maybeAst = parse(new File(path))// should matchPattern { case Success(_) => }
             maybeAst should matchPattern { case Success(_) => }
-            semanticChecker.validateProgram(maybeAst.get) should matchPattern {
+            semanticChecker.validateProgram(maybeAst.get, path) should matchPattern {
                     case Nil =>
             }
         }
