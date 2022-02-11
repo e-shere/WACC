@@ -20,17 +20,6 @@ object semanticChecker {
   private val EQ_ARG_TYPES: Set[Type] =
     Set(INT_TYPE, BOOL_TYPE, CHAR_TYPE, STRING_TYPE, PAIR_TYPE, ARRAY_TYPE)
 
-  private def lineInfo(pos: (Int, Int))(implicit fileLines: Array[String]): LineInfo = pos match {
-    case (line, col) => {
-      LineInfo(
-        fileLines(line), 
-        if (line > 0) Seq(fileLines(line - 1)) else Nil,
-        if (line < fileLines.length - 1) Seq(fileLines(line + 1)) else Nil,
-        col
-      )
-    }
-  }
-
   def validateProgram(program: WaccProgram, file: String): List[WaccError] = {
     implicit val fileImplicit: String = file
     implicit val fileLines: Array[String] = Source.fromFile(new File(file)).getLines().toArray
@@ -41,7 +30,7 @@ object semanticChecker {
         val funcTableMut: mutable.Map[Ident, FuncType] = mutable.Map.empty
         for (f @ Func(ty, id, args, _) <- funcs) {
           if (funcTableMut contains id)
-            errors += WaccError(f.pos, file, RedefinedFunctionError(id, lineInfo(f.pos)))
+            errors += RedefinedFunctionError.mkError(id)
           funcTableMut += (id -> FuncType(
             ty,
             args.map { case Param(ty, _) => ty }
@@ -83,16 +72,12 @@ object semanticChecker {
           maybeRhs match {
             case Some(rhsType) =>
               if (!(rhsType coercesTo ty)) {
-                errors += WaccError(
-                  rhs.pos,
-                  file,
-                  TypeError("rhs of declaration statement", Set(ty), rhsType, lineInfo(rhs.pos))
-                )
+                errors += TypeError.mkError("rhs of declaration statement", Set(ty), rhsType)
               }
             case _ =>
           }
           if (localSymbols contains id) {
-            errors += WaccError(rhs.pos, file, RedefinedVariableError(id, lineInfo(rhs.pos)))
+            errors += RedefinedVariableError.mkError(id)
           } else {
             localSymbols += (id -> ty)
             childSymbols = parentSymbols ++ localSymbols
@@ -108,16 +93,7 @@ object semanticChecker {
           (maybeLhs, maybeRhs) match {
             case (Some(lhsType), Some(rhsType)) =>
               if (!(rhsType coercesTo lhsType)) {
-                errors += WaccError(
-                  rhs.pos,
-                  file,
-                  TypeError(
-                    "rhs of assignment statement",
-                    Set(lhsType),
-                    rhsType,
-                    lineInfo(rhs.pos)
-                  )
-                )
+                errors += TypeError.mkError("rhs of assignment statement", Set(lhsType), rhsType)
               }
             case _ =>
           }
@@ -129,14 +105,10 @@ object semanticChecker {
           maybeType match {
             case Some(IntType()) | Some(CharType()) =>
             case Some(ty) =>
-              errors += WaccError(
-                lhs.pos,
-                file,
-                TypeError(
+              errors += TypeError.mkError(
                   "argument of read statement",
                   Set(INT_TYPE, CHAR_TYPE),
-                  ty, lineInfo(lhs.pos)
-                )
+                  ty
               )
             case None =>
           }
@@ -149,14 +121,10 @@ object semanticChecker {
             case Some(PairType(_, _)) =>
             case Some(ArrayType(_))   =>
             case Some(ty) =>
-              errors += WaccError(
-                expr.pos,
-                file,
-                TypeError(
+              errors += TypeError.mkError(
                   "argument of free statement",
                   Set(PAIR_TYPE, ARRAY_TYPE),
-                  ty, lineInfo(expr.pos)
-                )
+                  ty
               )
             case _ =>
           }
@@ -168,14 +136,10 @@ object semanticChecker {
           (maybeExpr, returnType) match {
             case (Some(exprType), Some(ty)) =>
               if (!(exprType coercesTo ty)) {
-                errors += WaccError(
-                  expr.pos,
-                  file,
-                  TypeError("argument of return statement", Set(ty), exprType, lineInfo(expr.pos))
-                )
+                errors += TypeError.mkError("argument of return statement", Set(ty), exprType)
               }
             case (_, None) =>
-              errors += WaccError(returnExpr.pos, file, MisplacedReturnError(lineInfo(expr.pos)))
+              errors += MisplacedReturnError.mkError(returnExpr)
             case (None, Some(_)) =>
           }
         }
@@ -186,11 +150,7 @@ object semanticChecker {
           maybeExpr match {
             case Some(IntType()) =>
             case Some(ty) =>
-              errors += WaccError(
-                expr.pos,
-                file,
-                TypeError("argument of exit statement", Set(INT_TYPE), ty, lineInfo(expr.pos))
-              ) 
+              errors += TypeError.mkError("argument of exit statement", Set(INT_TYPE), ty)
             case _ =>
           }
         }
@@ -205,11 +165,7 @@ object semanticChecker {
           maybeExpr match {
             case Some(BoolType()) =>
             case Some(ty) =>
-              errors += WaccError(
-                expr.pos,
-                file,
-                TypeError("condition of if statement", Set(BOOL_TYPE), ty, lineInfo(expr.pos))
-              )
+              errors += TypeError.mkError("condition of if statement", Set(BOOL_TYPE), ty)
             case _ =>
           }
           errors ++= validateBlock(
@@ -230,12 +186,7 @@ object semanticChecker {
           maybeExpr match {
             case Some(BoolType()) =>
             case Some(ty) =>
-              errors += WaccError(
-                expr.pos,
-                file,
-                TypeError("condition of while statement", Set(BOOL_TYPE), ty, lineInfo(expr.pos))
-              )
-
+              errors += TypeError.mkError("condition of while statement", Set(BOOL_TYPE), ty)
             case _ =>
           }
           errors ++= validateBlock(
@@ -272,29 +223,17 @@ object semanticChecker {
         if (!argTypes.exists(xType coercesTo _))
           (
             None,
-            errors :+ WaccError(
-              x.pos,
-              file,
-              TypeError(s"first argument of $opName", argTypes, xType, lineInfo(x.pos))
-            )
+            errors :+ TypeError.mkError(s"first argument of $opName", argTypes, xType)
           )
         else if (!argTypes.exists(yType coercesTo _))
           (
             None,
-            errors :+ WaccError(
-              y.pos,
-              file,
-              TypeError(s"second argument of $opName", argTypes, yType, lineInfo(y.pos))
-            )
+            errors :+ TypeError.mkError(s"second argument of $opName", argTypes, yType)
           )
         else if (!((xType coercesTo yType) || (yType coercesTo xType)))
           (
             None,
-            errors :+ WaccError(
-              x.pos,
-              file,
-              TypeError(s"arguments of $opName", Set(xType), yType, lineInfo(x.pos))
-            )
+            errors :+ TypeError.mkError(s"arguments of $opName", Set(xType), yType)
           )
         else (Some(ret), errors)
       }
@@ -318,11 +257,7 @@ object semanticChecker {
         if (!argType.exists(xType coercesTo _))
           (
             None,
-            xErrors :+ WaccError(
-              x.pos,
-              file,
-              TypeError(s"argument of $opName", argType, xType, lineInfo(x.pos))
-            )
+            xErrors :+ TypeError.mkError(s"argument of $opName", argType, xType)
           )
         else (Some(ret), xErrors)
       }
@@ -482,11 +417,7 @@ object semanticChecker {
             (
               None,
               List(
-                WaccError(
-                  identExpr.pos,
-                  file,
-                  UndefinedVariableError(identExpr, lineInfo(identExpr.pos))
-                )
+                UndefinedVariableError.mkError(identExpr)
               )
             )
         }
@@ -506,11 +437,7 @@ object semanticChecker {
             else
               (
                 None,
-                errors :+ WaccError(
-                  arrayExpr.pos,
-                  file,
-                  TypeError("elements of array", Set(a), b, lineInfo(arrayExpr.pos))
-                )
+                errors :+ TypeError.mkError("elements of array", Set(a), b)
               )
           }
           case _ => (None, errors)
@@ -527,11 +454,7 @@ object semanticChecker {
               case Some(ty) =>
                 (
                   None,
-                  errors :+ WaccError(
-                    arrayElem.pos,
-                    file,
-                    TypeError("array", Set(ARRAY_TYPE), ty, lineInfo(arrayElem.pos))
-                  )
+                  errors :+ TypeError.mkError("array", Set(ARRAY_TYPE), ty)
                 )
               case None => (None, errors)
             }
@@ -539,11 +462,7 @@ object semanticChecker {
           case Some(ty) =>
             (
               None,
-              indexErrors :+ WaccError(
-                arrayElem.pos,
-                file,
-                TypeError("array index", Set(INT_TYPE), ty, lineInfo(arrayElem.pos))
-              )
+              indexErrors :+ TypeError.mkError("array index", Set(INT_TYPE), ty)
             )
           case None => (None, indexErrors)
         }
@@ -595,8 +514,7 @@ object semanticChecker {
           (
             None,
             List(
-              WaccError(expr.pos, file, NullExceptionError(s"argument of $rhs", lineInfo(expr.pos)))
-            )
+              NullExceptionError.mkError(s"argument of $rhs", expr))
           )
         else {
           val (maybeExprType, exprErrors) = typeOfExpr(expr)
@@ -606,11 +524,7 @@ object semanticChecker {
             case Some(ty) =>
               (
                 None,
-                exprErrors :+ WaccError(
-                  expr.pos,
-                  file,
-                  TypeError(s"argument of $rhs", Set(PAIR_TYPE), ty, lineInfo(expr.pos))
-                )
+                exprErrors :+ TypeError.mkError(s"argument of $rhs", Set(PAIR_TYPE), ty)
               )
             case None => (None, exprErrors)
           }
@@ -621,8 +535,7 @@ object semanticChecker {
           (
             None,
             List(
-              WaccError(expr.pos, file, NullExceptionError(s"argument of $rhs", lineInfo(expr.pos)))
-            )
+             NullExceptionError.mkError(s"argument of $rhs", expr))
           )
         else {
           val (maybeExprType, exprErrors) = typeOfExpr(expr)
@@ -632,11 +545,7 @@ object semanticChecker {
             case Some(ty) =>
               (
                 None,
-                exprErrors :+ WaccError(
-                  expr.pos,
-                  file,
-                  TypeError(s"argument of $rhs", Set(PAIR_TYPE), ty, lineInfo(expr.pos))
-                )
+                exprErrors :+ TypeError.mkError(s"argument of $rhs", Set(PAIR_TYPE), ty)
               )
             case None => (None, exprErrors)
           }
@@ -654,15 +563,11 @@ object semanticChecker {
               if (argTypes.length != paramTypes.length)
                 (
                   None,
-                  argErrors :+ WaccError(
-                    callExpr.pos,
-                    file,
-                    NumOfArgsError(
-                      s"arguments of ${id.id}",
+                  argErrors :+ NumOfArgsError.mkError(
+                      id,
                       paramTypes.length,
-                      argTypes.length, lineInfo(callExpr.pos)
+                      argTypes.length
                     )
-                  )
                 )
               else if (
                 argTypes.lazyZip(paramTypes).map(_ coercesTo _).forall(identity)
@@ -673,11 +578,7 @@ object semanticChecker {
                   argErrors ++ (argTypes zip paramTypes).collect {
                     case (argType, paramType)
                         if (!(argType coercesTo paramType)) =>
-                      WaccError(
-                        argType.pos,
-                        file,
-                        TypeError(s"argument of $id", Set(paramType), argType, lineInfo(argType.pos))
-                      )
+                      TypeError.mkError(s"argument of $id", Set(paramType), argType)
                   }
                 )
               }
@@ -685,11 +586,7 @@ object semanticChecker {
             case None =>
               (
                 None,
-                argErrors :+ WaccError(
-                  callExpr.pos,
-                  file,
-                  UndefinedFunctionError(id, lineInfo(callExpr.pos))
-                )
+                argErrors :+ UndefinedFunctionError.mkError(id)
               )
           }
         }

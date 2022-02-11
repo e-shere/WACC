@@ -18,6 +18,17 @@ object Errors {
     }
   }
 
+  object LineInfo{
+    def from(pos: (Int, Int))(implicit fileLines: Array[String]): LineInfo = pos match {
+      case (line, col) => LineInfo(
+        fileLines(line), 
+        if (line > 0) Seq(fileLines(line - 1)) else Nil,
+        if (line < fileLines.length - 1) Seq(fileLines(line + 1)) else Nil,
+        col
+      )
+    }
+  }
+
   sealed trait WaccErrorLines {
     val errorType: String
     val lines: Seq[String]
@@ -97,22 +108,116 @@ object Errors {
 
   case class NullExceptionError(place: String, lineInfo: LineInfo)
       extends SemanticError {
-    override val lines = Seq(s"Value must be non-null")
+    override val lines = Seq(s"Unexpected null in $place")
   }
 
   case class NumOfArgsError(
-      place: String,
+      funcId: Ident,
       expected: Int,
       found: Int,
       lineInfo: LineInfo
   ) extends SemanticError {
     override val lines = Seq(
-      s"Required $expected arguments, found $found arguments"
+      s"Incorrect number of arguments in call to ${funcId.id}",
+      s"Expected $expected, found $found"
     )
   }
 
   case class MisplacedReturnError(lineInfo: LineInfo) extends SemanticError {
     override val lines = Seq("Cannot return from outside a function")
+  }
+
+  object TypeError {
+    def mkError(
+      place: String,
+      expectedTypes: Set[Type],
+      foundType: Type,
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(foundType.pos, file, new TypeError(place, expectedTypes, foundType, LineInfo.from(foundType.pos)))
+    }
+  }
+
+  object UndefinedFunctionError {
+    def mkError(
+      id: Ident
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(id.pos, file, new UndefinedFunctionError(id, LineInfo.from(id.pos)))
+    }
+  }
+
+  object UndefinedVariableError {
+    def mkError(
+      id: Ident
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(id.pos, file, new UndefinedVariableError(id, LineInfo.from(id.pos)))
+    }
+  }
+
+  object RedefinedFunctionError {
+    def mkError(
+      id: Ident
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(id.pos, file, new RedefinedFunctionError(id, LineInfo.from(id.pos)))
+    }
+  }
+
+  object RedefinedVariableError {
+    def mkError(
+      id: Ident
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(id.pos, file, new RedefinedFunctionError(id, LineInfo.from(id.pos)))
+    }
+  }
+
+  object NullExceptionError {
+    def mkError(
+      place: String,
+      nullExpr: Expr,
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(nullExpr.pos, file, new NullExceptionError(place, LineInfo.from(nullExpr.pos)))
+    }
+  }
+
+  object NumOfArgsError {
+    def mkError(
+      funcId: Ident,
+      expected: Int,
+      found: Int
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(funcId.pos, file, new NumOfArgsError(funcId, expected, found, LineInfo.from(funcId.pos)))
+    }
+  }
+
+  object MisplacedReturnError {
+    def mkError(
+      returnStat: Stat
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(returnStat.pos, file, new MisplacedReturnError(LineInfo.from(returnStat.pos)))
+    }
   }
 
   class WaccErrorBuilder extends ErrorBuilder[WaccError] {
