@@ -69,6 +69,17 @@ object Errors {
     override val lines = Seq(s"Variable ${id.id} defined twice in same scope")
   }
 
+  case class NullExceptionError(place: String) extends SemanticError {
+    override val lines = Seq(s"Value must be non-null")
+  }
+
+  case class NumOfArgsError(place: String, expected: Int, found: Int) extends SemanticError {
+    override val lines = Seq(s"Required $expected arguments, found $found arguments")
+  }
+
+  case class MisplacedReturnError() extends SemanticError {
+    override val lines = Seq("Cannot return from outside a function")
+  }
 
   class WaccErrorBuilder extends ErrorBuilder[WaccError] {
     override def format(pos: Position, source: Source, lines: ErrorInfoLines): WaccError = WaccError(pos, source, lines)
@@ -82,7 +93,7 @@ object Errors {
 
     override type ErrorInfoLines = WaccErrorLines
 
-    override def vanillaError(unexpected: UnexpectedLine, expected: ExpectedLine, reasons: Messages, line: LineInfo): ErrorInfoLines = SyntaxError(unexpected.getOrElse(""), expected.getOrElse(""), reasons)
+    override def vanillaError(unexpected: UnexpectedLine, expected: ExpectedLine, reasons: Messages, line: LineInfo): ErrorInfoLines = SyntaxError(unexpected.getOrElse(""), expected.getOrElse(""), reasons ++ line)
 
     override def specialisedError(msgs: Messages, line: LineInfo): ErrorInfoLines = SyntaxError("", "", msgs)
 
@@ -108,7 +119,7 @@ object Errors {
 
     override def lineInfo(line: String, linesBefore: Seq[String], linesAfter: Seq[String], errorPointsAt: Int): LineInfo = {
         linesBefore.map(line => s">$line") ++:
-          Seq(s">$line", s" ${" " * errorPointsAt}") ++:
+          Seq(s">$line", s" ${" " * errorPointsAt}^") ++:
           linesAfter.map(line => s">$line")
     }
 

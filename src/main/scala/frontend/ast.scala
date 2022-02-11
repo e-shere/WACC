@@ -26,9 +26,12 @@ object ast {
 
   // Top level
   case class WaccProgram(funcs: List[Func], stats: List[Stat])(val pos: (Int, Int)) extends NodeWithPosition
-  // todo: represent program arguments as something optional
-  case class Func(ty: Type, id: Ident, args: List[Param], body: List[Stat])(val pos: (Int, Int)) extends NodeWithPosition
-  case class Param(ty: Type, id: Ident)(val pos: (Int, Int)) extends NodeWithPosition
+  case class Func(ty: Type, id: Ident, args: List[Param], body: List[Stat])(val pos: (Int, Int)) extends NodeWithPosition {
+    override def toString(): String = id.toString()
+  }
+  case class Param(ty: Type, id: Ident)(val pos: (Int, Int)) extends NodeWithPosition {
+    override def toString(): String = id.toString()
+  }
 
 
   // Statements
@@ -51,7 +54,9 @@ object ast {
 
   sealed trait AssignRhs extends NodeWithPosition
 
-  case class NewPair(fst: Expr, snd: Expr)(val pos: (Int, Int)) extends AssignRhs
+  case class NewPair(fst: Expr, snd: Expr)(val pos: (Int, Int)) extends AssignRhs {
+    override def toString(): String = "pair"
+  }
 
   case class Call(id: Ident, args: List[Expr])(val pos: (Int, Int)) extends AssignRhs
 
@@ -176,7 +181,9 @@ object ast {
   case class ArrayLiter(xs: List[Expr])(val pos: (Int, Int)) extends Expr0
 
   // Identifiers
-  case class Ident(id: String)(val pos: (Int, Int)) extends ArrayIdent
+  case class Ident(id: String)(val pos: (Int, Int)) extends ArrayIdent {
+    override def toString(): String = id.toString
+  }
 
   // Array accesses
   case class ArrayElem(id: ArrayIdent, index: Expr)(val pos: (Int, Int)) extends ArrayIdent
@@ -192,9 +199,6 @@ object ast {
 
   // Parentheses
   case class Paren(expr: Expr)(val pos: (Int, Int)) extends Expr0
-
-  //todo: use regex??
-
   // Begin builders/companion objects
 
   trait ParserBuilder[T] {

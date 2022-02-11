@@ -21,7 +21,7 @@ object Compiler {
         sys.exit(100);
       }
       case Success(ast) => {
-        semanticChecker.validateProgram(ast) match {
+        semanticChecker.validateProgram(ast, args(0)) match {
           case Nil => {
             println(ast)
             sys.exit(0)
