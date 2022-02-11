@@ -83,7 +83,8 @@ object lexer {
   private val plus: Parsley[BigInt => BigInt] = optionally('+', identity)
 
   private val checkOverflow: PartialFunction[BigInt, String] = {
-    case x if !x.isValidInt => "Integer overflow occurred"
+    case x if !x.isValidInt =>
+      "Integer overflow occurred, A valid integer is in the range [-2^31, 2^31 - 1]"
   }
 
   private val nat = digit.foldLeft1[BigInt](0)((n, d) => n * 10 + d.asDigit)
@@ -91,7 +92,6 @@ object lexer {
   val INT: Parsley[Int] = bigInt
     .map(_.intValue)
     .label("integer")
-    .explain("A valid integer is in the range [-2^31, 2^31 - 1]")
 
   val BOOL: Parsley[Boolean] =
     token("true" #> true <|> "false" #> false).label("boolean")
@@ -110,16 +110,17 @@ object lexer {
     )
       .label("end of escape sequence")
       .explain(
-        "valid escape characters include 0, b, t, n, f, r, \\, \" and \'"
+        "valid escape characters include \\0, \\b, \\t, \\n, \\f, \\r, \\\\,\\\" and \\\'"
       )
   private val charLetter = noneOf('\\', '\'', '\"').label(
     "string character"
   ) <|> ('\\' *> escapeChar).label("escape character")
-  val CHAR: Parsley[Char] = token('\'' *> charLetter <* '\'')
+  val CHAR: Parsley[Char] =
+    token('\'' *> charLetter <* '\'').label("character literal")
 
   val STRING: Parsley[String] = token(
     '\"' *> many(charLetter).map(_.mkString) <* '\"'
-  )
+  ).label("string literal")
 
   def fully[A](p: Parsley[A]): Parsley[A] = lexer.whiteSpace ~> p <~ eof
 

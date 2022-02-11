@@ -23,7 +23,7 @@ object parser {
   private lazy val `<program>` = fully(
     "begin" *> WaccProgram(
       many(`<func>`),
-      sepBy1(`<stat>`, ";".label("new statement")) <* "end"
+      sepBy1(`<stat>`, ";") <* "end"
     )
   )
 
@@ -32,7 +32,7 @@ object parser {
       `<type>`,
       `<ident>`,
       "(" *> sepBy(`<param>`, ",") <* ")",
-      "is" *> sepBy1(`<stat>`, ";".label("new statement"))
+      "is" *> sepBy1(`<stat>`, ";")
         .filterOut(functions_return) <* "end"
     )
   )
@@ -51,15 +51,15 @@ object parser {
       <|> Println("println" *> `<expr>`)
       <|> If(
         "if" *> `<expr>`,
-        "then" *> sepBy1(`<stat>`, ";".label("new statement")),
-        "else" *> sepBy1(`<stat>`, ";".label("new statement")) <* "fi"
+        "then" *> sepBy1(`<stat>`, ";"),
+        "else" *> sepBy1(`<stat>`, ";") <* "fi"
       )
       <|> While(
         "while" *> `<expr>`,
-        "do" *> sepBy1(`<stat>`, ";".label("new statement")) <* "done"
+        "do" *> sepBy1(`<stat>`, ";") <* "done"
       )
       <|> Scope(
-        "begin" *> sepBy1(`<stat>`, ";".label("new statement")) <* "end"
+        "begin" *> sepBy1(`<stat>`, ";") <* "end"
       ))
       .label("statement")
       .explain(
@@ -128,7 +128,7 @@ object parser {
           Chr <# "chr".label("operator")
         ) +:
         `<expr0>`
-    )
+    ).label("expression").explain("Examples of expressions are integers, booleans, characters, strings and applications of operators")
 
   private lazy val `<expr0>` = Atoms(
     IntLiter(INT),
@@ -141,7 +141,7 @@ object parser {
   )
 
   private lazy val `<array-liter>` = ArrayLiter(
-    "[" *> sepBy(`<expr>`, ",") <* "]"
+    ("[" *> sepBy(`<expr>`, ",") <* "]").label("array literal")
   )
 
   private lazy val `<ident>` = Ident(ID)

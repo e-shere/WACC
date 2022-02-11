@@ -5,37 +5,34 @@ import parsley.errors.ErrorBuilder
 
 object Errors {
 
-  def format(
-      pos: String,
-      source: Option[String],
-      lines: Seq[String],
-      error: WaccError
-  ): String = {
-    s"$error error \n${source.fold("")(name => s"In $name ")}$pos:\n${lines
-      .mkString("  ", "\n  ", "")}"
+  case class LineInfo(
+      line: String,
+      linesBefore: Seq[String],
+      linesAfter: Seq[String],
+      errorPointsAt: Int
+  ) {
+    def toSeq: Seq[String] = {
+      linesBefore.map(line => s">$line") ++:
+        Seq(s">$line", s"${" " * errorPointsAt}^") ++:
+        linesAfter.map(line => s">$line")
+    }
   }
 
-  def vanillaError(
-      unexpected: Option[String],
-      expected: Option[String],
-      reasons: Seq[String],
-      lines: Seq[String]
-  ): Seq[String] = {
-    Seq(
-      s"${unexpected.getOrElse("")}, ${expected.getOrElse("")}",
-      s"${reasons}",
-      s"${lines}"
-    )
-  }
-
-  def specialisedError(msgs: Seq[String], lines: Seq[String]): Seq[String] = {
-    Seq(s"${msgs.mkString("\n")}", s"${lines.mkString("\n")}")
+  object LineInfo{
+    def from(pos: (Int, Int))(implicit fileLines: Array[String]): LineInfo = pos match {
+      case (line, col) => LineInfo(
+        fileLines(line - 1),
+        if (line > 1) Seq(fileLines(line - 2)) else Nil,
+        if (line < fileLines.length) Seq(fileLines(line)) else Nil,
+        col
+      )
+    }
   }
 
   sealed trait WaccErrorLines {
     val errorType: String
     val lines: Seq[String]
-
+    val lineInfo: LineInfo
   }
 
   case class WaccError(
@@ -47,26 +44,36 @@ object Errors {
       s"""${errorLines.errorType}:
         |in file $file at line ${pos._1}, column ${pos._2}
         |${errorLines.lines.mkString("\n")}
+        |${errorLines.lineInfo.toSeq.mkString("\n")}
       """.stripMargin
     }
   }
 
   case class SyntaxError(
-      unexpected: String,
-      expected: String,
-      reasons: Seq[String]
+      unexpected: Option[String],
+      expected: Option[String],
+      reasons: Seq[String],
+      lineInfo: LineInfo
   ) extends WaccErrorLines {
     override val errorType = "Syntax Error"
-    override val lines: Seq[String] =
-      "unexpected: " + unexpected :: "expected: " + expected :: reasons.toList
+    override val lines: Seq[String] = (unexpected, expected) match {
+      case (None, None) => reasons.toList
+      case _ =>
+        "unexpected: " + unexpected.getOrElse("") :: "expected: " + expected
+          .getOrElse("") :: reasons.toList
+    }
   }
 
   sealed trait SemanticError extends WaccErrorLines {
     override val errorType = "Semantic Error"
   }
 
-  case class TypeError(place: String, expectedTypes: Set[Type], foundType: Type)
-      extends SemanticError {
+  case class TypeError(
+      place: String,
+      expectedTypes: Set[Type],
+      foundType: Type,
+      lineInfo: LineInfo
+  ) extends SemanticError {
     private val expectedString = expectedTypes.toList match {
       case List(ty)  => ty.toTypeName
       case types @ _ => "one of " + types.map(_.toTypeName).mkString(", ")
@@ -79,35 +86,138 @@ object Errors {
     )
   }
 
-  case class UndefinedFunctionError(id: Ident) extends SemanticError {
+  case class UndefinedFunctionError(id: Ident, lineInfo: LineInfo)
+      extends SemanticError {
     override val lines = Seq(s"Undefined function ${id.id}")
   }
 
-  case class UndefinedVariableError(id: Ident) extends SemanticError {
+  case class UndefinedVariableError(id: Ident, lineInfo: LineInfo)
+      extends SemanticError {
     override val lines = Seq(s"Undefined variable ${id.id}")
   }
 
-  case class RedefinedFunctionError(id: Ident) extends SemanticError {
+  case class RedefinedFunctionError(id: Ident, lineInfo: LineInfo)
+      extends SemanticError {
     override val lines = Seq(s"Duplicate function declaration ${id.id}")
   }
 
-  case class RedefinedVariableError(id: Ident) extends SemanticError {
+  case class RedefinedVariableError(id: Ident, lineInfo: LineInfo)
+      extends SemanticError {
     override val lines = Seq(s"Variable ${id.id} defined twice in same scope")
   }
 
-  case class NullExceptionError(place: String) extends SemanticError {
-    override val lines = Seq(s"Value must be non-null")
+  case class NullExceptionError(place: String, lineInfo: LineInfo)
+      extends SemanticError {
+    override val lines = Seq(s"Unexpected null in $place")
   }
 
-  case class NumOfArgsError(place: String, expected: Int, found: Int)
-      extends SemanticError {
+  case class NumOfArgsError(
+      funcId: Ident,
+      expected: Int,
+      found: Int,
+      lineInfo: LineInfo
+  ) extends SemanticError {
     override val lines = Seq(
-      s"Required $expected arguments, found $found arguments"
+      s"Incorrect number of arguments in call to ${funcId.id}",
+      s"Expected $expected, found $found"
     )
   }
 
-  case class MisplacedReturnError() extends SemanticError {
+  case class MisplacedReturnError(lineInfo: LineInfo) extends SemanticError {
     override val lines = Seq("Cannot return from outside a function")
+  }
+
+  object TypeError {
+    def mkError(
+      place: String,
+      expectedTypes: Set[Type],
+      foundType: Type,
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(foundType.pos, file, new TypeError(place, expectedTypes, foundType, LineInfo.from(foundType.pos)))
+    }
+  }
+
+  object UndefinedFunctionError {
+    def mkError(
+      id: Ident
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(id.pos, file, new UndefinedFunctionError(id, LineInfo.from(id.pos)))
+    }
+  }
+
+  object UndefinedVariableError {
+    def mkError(
+      id: Ident
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(id.pos, file, new UndefinedVariableError(id, LineInfo.from(id.pos)))
+    }
+  }
+
+  object RedefinedFunctionError {
+    def mkError(
+      id: Ident
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(id.pos, file, new RedefinedFunctionError(id, LineInfo.from(id.pos)))
+    }
+  }
+
+  object RedefinedVariableError {
+    def mkError(
+      id: Ident
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(id.pos, file, new RedefinedFunctionError(id, LineInfo.from(id.pos)))
+    }
+  }
+
+  object NullExceptionError {
+    def mkError(
+      place: String,
+      nullExpr: Expr,
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(nullExpr.pos, file, new NullExceptionError(place, LineInfo.from(nullExpr.pos)))
+    }
+  }
+
+  object NumOfArgsError {
+    def mkError(
+      funcId: Ident,
+      expected: Int,
+      found: Int
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(funcId.pos, file, new NumOfArgsError(funcId, expected, found, LineInfo.from(funcId.pos)))
+    }
+  }
+
+  object MisplacedReturnError {
+    def mkError(
+      returnStat: Stat
+    )(implicit
+      file: String,
+      fileLines: Array[String]
+    ): WaccError = {
+      WaccError(returnStat.pos, file, new MisplacedReturnError(LineInfo.from(returnStat.pos)))
+    }
   }
 
   class WaccErrorBuilder extends ErrorBuilder[WaccError] {
@@ -133,15 +243,16 @@ object Errors {
         reasons: Messages,
         line: LineInfo
     ): ErrorInfoLines = SyntaxError(
-      unexpected.getOrElse(""),
-      expected.getOrElse(""),
-      reasons ++ line
+      unexpected,
+      expected,
+      reasons,
+      line
     )
 
     override def specialisedError(
         msgs: Messages,
         line: LineInfo
-    ): ErrorInfoLines = SyntaxError("", "", msgs)
+    ): ErrorInfoLines = SyntaxError(None, None, msgs, line)
 
     override type ExpectedItems = Option[String]
     override type Messages = Seq[Message]
@@ -154,7 +265,7 @@ object Errors {
     override type UnexpectedLine = Option[String]
     override type ExpectedLine = Option[String]
     override type Message = String
-    override type LineInfo = Seq[String]
+    override type LineInfo = Errors.LineInfo
 
     override def unexpected(item: Option[Item]): UnexpectedLine = item
 
@@ -169,11 +280,7 @@ object Errors {
         linesBefore: Seq[String],
         linesAfter: Seq[String],
         errorPointsAt: Int
-    ): LineInfo = {
-      linesBefore.map(line => s">$line") ++:
-        Seq(s">$line", s" ${" " * errorPointsAt}^") ++:
-        linesAfter.map(line => s">$line")
-    }
+    ): LineInfo = LineInfo(line, linesBefore, linesAfter, errorPointsAt)
 
     override val numLinesBefore: Int = 1
     override val numLinesAfter: Int = 1

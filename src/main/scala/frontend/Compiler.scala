@@ -4,6 +4,7 @@ import frontend.parser._
 import parsley.{Failure, Success}
 
 import java.io.File
+import scala.io.Source
 
 object Compiler {
   def main(args: Array[String]): Unit = {
