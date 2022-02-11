@@ -57,8 +57,10 @@ object Errors {
       reasons: Seq[String]
   ) extends WaccErrorLines {
     override val errorType = "Syntax Error"
-    override val lines: Seq[String] =
-      "unexpected: " + unexpected :: "expected: " + expected :: reasons.toList
+    override val lines: Seq[String] = {
+      if (unexpected.isEmpty && expected.isEmpty) reasons.toList
+      else "unexpected: " + unexpected :: "expected: " + expected :: reasons.toList
+    }
   }
 
   sealed trait SemanticError extends WaccErrorLines {
