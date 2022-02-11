@@ -57,7 +57,6 @@ object semanticChecker {
       returnType: Option[Type]
   )(implicit file: String): List[WaccError] = {
     val errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer.empty
-
     val localSymbols: mutable.Map[Ident, Type] = mutable.Map.empty[Ident, Type]
     for (stat <- stats) {
       // match on different types of statements
