@@ -4,6 +4,8 @@ import frontend.Errors._
 import frontend.ast._
 
 import scala.collection.mutable
+import scala.io.Source
+import java.io.File
 
 object semanticChecker {
 
@@ -18,8 +20,20 @@ object semanticChecker {
   private val EQ_ARG_TYPES: Set[Type] =
     Set(INT_TYPE, BOOL_TYPE, CHAR_TYPE, STRING_TYPE, PAIR_TYPE, ARRAY_TYPE)
 
+  private def lineInfo(pos: (Int, Int))(implicit fileLines: Array[String]): LineInfo = pos match {
+    case (line, col) => {
+      LineInfo(
+        fileLines(line), 
+        if (line > 0) Seq(fileLines(line - 1)) else Nil,
+        if (line < fileLines.length - 1) Seq(fileLines(line + 1)) else Nil,
+        col
+      )
+    }
+  }
+
   def validateProgram(program: WaccProgram, file: String): List[WaccError] = {
     implicit val fileImplicit: String = file
+    implicit val fileLines: Array[String] = Source.fromFile(new File(file)).getLines().toArray
     val errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer.empty
     program match {
       case WaccProgram(funcs, stats) => {
@@ -27,32 +41,35 @@ object semanticChecker {
         val funcTableMut: mutable.Map[Ident, FuncType] = mutable.Map.empty
         for (f @ Func(ty, id, args, _) <- funcs) {
           if (funcTableMut contains id)
-            errors += WaccError(f.pos, file, RedefinedFunctionError(id))
+            errors += WaccError(f.pos, file, RedefinedFunctionError(id, lineInfo(f.pos)))
           funcTableMut += (id -> FuncType(
             ty,
             args.map { case Param(ty, _) => ty }
           ))
         }
 
-        val funcTable: Map[Ident, FuncType] = funcTableMut.toMap
+        implicit val funcTable: Map[Ident, FuncType] = funcTableMut.toMap
         for (Func(ty, _, args, body) <- funcs) {
           val argsTable: Map[Ident, Type] = args.map { case Param(ty, id) =>
             id -> ty
           }.toMap
-          errors ++= validateBlock(funcTable, argsTable, body, Some(ty))
+          errors ++= validateBlock(argsTable, body, Some(ty))
         }
-        errors ++= validateBlock(funcTable, Map.empty[Ident, Type], stats, None)
+        errors ++= validateBlock(Map.empty[Ident, Type], stats, None)
       }
     }
     errors.toList
   }
 
   def validateBlock(
-      funcTable: Map[Ident, FuncType],
       parentSymbols: Map[Ident, Type],
       stats: List[Stat],
       returnType: Option[Type]
-  )(implicit file: String): List[WaccError] = {
+  )(
+    implicit file: String,
+    fileLines: Array[String],
+    funcTable: Map[Ident, FuncType]
+  ): List[WaccError] = {
     val errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer.empty
     val localSymbols: mutable.Map[Ident, Type] = mutable.Map.empty[Ident, Type]
     for (stat <- stats) {
@@ -68,13 +85,13 @@ object semanticChecker {
                 errors += WaccError(
                   rhs.pos,
                   file,
-                  TypeError("rhs of declaration statement", Set(ty), rhsType)
+                  TypeError("rhs of declaration statement", Set(ty), rhsType, lineInfo(rhs.pos))
                 )
               }
             case _ =>
           }
           if (localSymbols contains id) {
-            errors += WaccError(rhs.pos, file, RedefinedVariableError(id))
+            errors += WaccError(rhs.pos, file, RedefinedVariableError(id, lineInfo(rhs.pos)))
           } else {
             localSymbols += (id -> ty)
           }
@@ -95,7 +112,8 @@ object semanticChecker {
                   TypeError(
                     "rhs of assignment statement",
                     Set(lhsType),
-                    rhsType
+                    rhsType,
+                    lineInfo(rhs.pos)
                   )
                 )
               }
@@ -115,7 +133,7 @@ object semanticChecker {
                 TypeError(
                   "argument of read statement",
                   Set(INT_TYPE, CHAR_TYPE),
-                  ty
+                  ty, lineInfo(lhs.pos)
                 )
               )
             case None =>
@@ -135,7 +153,7 @@ object semanticChecker {
                 TypeError(
                   "argument of free statement",
                   Set(PAIR_TYPE, ARRAY_TYPE),
-                  ty
+                  ty, lineInfo(expr.pos)
                 )
               )
             case _ =>
@@ -151,11 +169,11 @@ object semanticChecker {
                 errors += WaccError(
                   expr.pos,
                   file,
-                  TypeError("argument of return statement", Set(ty), exprType)
+                  TypeError("argument of return statement", Set(ty), exprType, lineInfo(expr.pos))
                 )
               }
             case (_, None) =>
-              errors += WaccError(returnExpr.pos, file, MisplacedReturnError())
+              errors += WaccError(returnExpr.pos, file, MisplacedReturnError(lineInfo(expr.pos)))
             case (None, Some(_)) =>
           }
         }
@@ -169,8 +187,8 @@ object semanticChecker {
               errors += WaccError(
                 expr.pos,
                 file,
-                TypeError("argument of exit statement", Set(INT_TYPE), ty)
-              )
+                TypeError("argument of exit statement", Set(INT_TYPE), ty, lineInfo(expr.pos))
+              ) 
             case _ =>
           }
         }
@@ -188,18 +206,16 @@ object semanticChecker {
               errors += WaccError(
                 expr.pos,
                 file,
-                TypeError("condition of if statement", Set(BOOL_TYPE), ty)
+                TypeError("condition of if statement", Set(BOOL_TYPE), ty, lineInfo(expr.pos))
               )
             case _ =>
           }
           errors ++= validateBlock(
-            funcTable,
             parentSymbols ++ localSymbols.toMap,
             thenStats,
             returnType
           )
           errors ++= validateBlock(
-            funcTable,
             parentSymbols ++ localSymbols.toMap,
             elseStats,
             returnType
@@ -215,13 +231,12 @@ object semanticChecker {
               errors += WaccError(
                 expr.pos,
                 file,
-                TypeError("condition of while statement", Set(BOOL_TYPE), ty)
+                TypeError("condition of while statement", Set(BOOL_TYPE), ty, lineInfo(expr.pos))
               )
 
             case _ =>
           }
           errors ++= validateBlock(
-            funcTable,
             parentSymbols ++ localSymbols.toMap,
             doStats,
             returnType
@@ -229,7 +244,6 @@ object semanticChecker {
         }
         case Scope(innerStats) =>
           errors ++= validateBlock(
-            funcTable,
             parentSymbols ++ localSymbols.toMap,
             innerStats,
             returnType
@@ -246,7 +260,10 @@ object semanticChecker {
       y: Expr,
       ret: Type,
       opName: String
-  )(implicit file: String): (Option[Type], List[WaccError]) = {
+  )(
+    implicit file: String,
+    fileLines: Array[String]
+  ): (Option[Type], List[WaccError]) = {
     val (maybeTypes, errors) = typeOfExpr2(symbolTable, x, y)
     maybeTypes match {
       case Some((xType, yType)) => {
@@ -256,7 +273,7 @@ object semanticChecker {
             errors :+ WaccError(
               x.pos,
               file,
-              TypeError(s"first argument of $opName", argTypes, xType)
+              TypeError(s"first argument of $opName", argTypes, xType, lineInfo(x.pos))
             )
           )
         else if (!argTypes.exists(yType coercesTo _))
@@ -265,7 +282,7 @@ object semanticChecker {
             errors :+ WaccError(
               y.pos,
               file,
-              TypeError(s"second argument of $opName", argTypes, yType)
+              TypeError(s"second argument of $opName", argTypes, yType, lineInfo(y.pos))
             )
           )
         else if (!((xType coercesTo yType) || (yType coercesTo xType)))
@@ -274,7 +291,7 @@ object semanticChecker {
             errors :+ WaccError(
               x.pos,
               file,
-              TypeError(s"arguments of $opName", Set(xType), yType)
+              TypeError(s"arguments of $opName", Set(xType), yType, lineInfo(x.pos))
             )
           )
         else (Some(ret), errors)
@@ -289,7 +306,7 @@ object semanticChecker {
       x: Expr,
       ret: Type,
       opName: String
-  )(implicit file: String): (Option[Type], List[WaccError]) = {
+  )(implicit file: String, fileLines: Array[String]): (Option[Type], List[WaccError]) = {
     val (maybeXType, xErrors) = typeOfExpr(symbolTable, x)
     maybeXType match {
       case Some(xType) => {
@@ -299,7 +316,7 @@ object semanticChecker {
             xErrors :+ WaccError(
               x.pos,
               file,
-              TypeError(s"argument of $opName", argType, xType)
+              TypeError(s"argument of $opName", argType, xType, lineInfo(x.pos))
             )
           )
         else (Some(ret), xErrors)
@@ -309,7 +326,8 @@ object semanticChecker {
   }
 
   def typeOfExpr(symbolTable: Map[Ident, Type], expr: Expr)(implicit
-      file: String
+    file: String,
+    fileLines: Array[String]
   ): (Option[Type], List[WaccError]) = {
     expr match {
       case orExpr @ Or(x, y) =>
@@ -477,7 +495,7 @@ object semanticChecker {
                 WaccError(
                   identExpr.pos,
                   file,
-                  UndefinedVariableError(identExpr)
+                  UndefinedVariableError(identExpr, lineInfo(identExpr.pos))
                 )
               )
             )
@@ -501,7 +519,7 @@ object semanticChecker {
                 errors :+ WaccError(
                   arrayExpr.pos,
                   file,
-                  TypeError("elements of array", Set(a), b)
+                  TypeError("elements of array", Set(a), b, lineInfo(arrayExpr.pos))
                 )
               )
           }
@@ -522,7 +540,7 @@ object semanticChecker {
                   errors :+ WaccError(
                     arrayElem.pos,
                     file,
-                    TypeError("array", Set(ARRAY_TYPE), ty)
+                    TypeError("array", Set(ARRAY_TYPE), ty, lineInfo(arrayElem.pos))
                   )
                 )
               case None => (None, errors)
@@ -534,7 +552,7 @@ object semanticChecker {
               indexErrors :+ WaccError(
                 arrayElem.pos,
                 file,
-                TypeError("array index", Set(INT_TYPE), ty)
+                TypeError("array index", Set(INT_TYPE), ty, lineInfo(arrayElem.pos))
               )
             )
           case None => (None, indexErrors)
@@ -544,7 +562,8 @@ object semanticChecker {
   }
 
   def typeOfExpr2(symbolTable: Map[Ident, Type], x: Expr, y: Expr)(implicit
-      file: String
+    file: String,
+    fileLines: Array[String]
   ): (Option[(Type, Type)], List[WaccError]) = {
     val (maybeXType, xErrors) = typeOfExpr(symbolTable, x)
     val (maybeYType, yErrors) = typeOfExpr(symbolTable, y)
@@ -560,7 +579,7 @@ object semanticChecker {
       funcTable: Map[Ident, FuncType],
       symbolTable: Map[Ident, Type],
       rhs: AssignRhs
-  )(implicit file: String): (Option[Type], List[WaccError]) = {
+  )(implicit file: String, fileLines: Array[String]): (Option[Type], List[WaccError]) = {
     rhs match {
       case rhs @ NewPair(fst, snd) => {
         val (maybeTypes, errors) = typeOfExpr2(symbolTable, fst, snd)
@@ -582,7 +601,7 @@ object semanticChecker {
           (
             None,
             List(
-              WaccError(expr.pos, file, NullExceptionError(s"argument of $rhs"))
+              WaccError(expr.pos, file, NullExceptionError(s"argument of $rhs", lineInfo(expr.pos)))
             )
           )
         else {
@@ -596,7 +615,7 @@ object semanticChecker {
                 exprErrors :+ WaccError(
                   expr.pos,
                   file,
-                  TypeError(s"argument of $rhs", Set(PAIR_TYPE), ty)
+                  TypeError(s"argument of $rhs", Set(PAIR_TYPE), ty, lineInfo(expr.pos))
                 )
               )
             case None => (None, exprErrors)
@@ -608,7 +627,7 @@ object semanticChecker {
           (
             None,
             List(
-              WaccError(expr.pos, file, NullExceptionError(s"argument of $rhs"))
+              WaccError(expr.pos, file, NullExceptionError(s"argument of $rhs", lineInfo(expr.pos)))
             )
           )
         else {
@@ -622,7 +641,7 @@ object semanticChecker {
                 exprErrors :+ WaccError(
                   expr.pos,
                   file,
-                  TypeError(s"argument of $rhs", Set(PAIR_TYPE), ty)
+                  TypeError(s"argument of $rhs", Set(PAIR_TYPE), ty, lineInfo(expr.pos))
                 )
               )
             case None => (None, exprErrors)
@@ -647,7 +666,7 @@ object semanticChecker {
                     NumOfArgsError(
                       s"arguments of ${id.id}",
                       paramTypes.length,
-                      argTypes.length
+                      argTypes.length, lineInfo(callExpr.pos)
                     )
                   )
                 )
@@ -663,7 +682,7 @@ object semanticChecker {
                       WaccError(
                         argType.pos,
                         file,
-                        TypeError(s"argument of $id", Set(paramType), argType)
+                        TypeError(s"argument of $id", Set(paramType), argType, lineInfo(argType.pos))
                       )
                   }
                 )
@@ -675,7 +694,7 @@ object semanticChecker {
                 argErrors :+ WaccError(
                   callExpr.pos,
                   file,
-                  UndefinedFunctionError(id)
+                  UndefinedFunctionError(id, lineInfo(callExpr.pos))
                 )
               )
           }
@@ -695,7 +714,7 @@ object semanticChecker {
       funcTable: Map[Ident, FuncType],
       symbolTable: Map[Ident, Type],
       lhs: AssignLhs
-  )(implicit file: String): (Option[Type], List[WaccError]) = {
+  )(implicit file: String, fileLines: Array[String]): (Option[Type], List[WaccError]) = {
     // Every subtype of AssignLhs is also a subtype of AssignRhs. This method
     // exists anyway for easier extensibility if this were to change
     lhs match {

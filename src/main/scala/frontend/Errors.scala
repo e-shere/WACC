@@ -5,37 +5,23 @@ import parsley.errors.ErrorBuilder
 
 object Errors {
 
-  def format(
-      pos: String,
-      source: Option[String],
-      lines: Seq[String],
-      error: WaccError
-  ): String = {
-    s"$error error \n${source.fold("")(name => s"In $name ")}$pos:\n${lines
-      .mkString("  ", "\n  ", "")}"
-  }
-
-  def vanillaError(
-      unexpected: Option[String],
-      expected: Option[String],
-      reasons: Seq[String],
-      lines: Seq[String]
-  ): Seq[String] = {
-    Seq(
-      s"${unexpected.getOrElse("")}, ${expected.getOrElse("")}",
-      s"${reasons}",
-      s"${lines}"
-    )
-  }
-
-  def specialisedError(msgs: Seq[String], lines: Seq[String]): Seq[String] = {
-    Seq(s"${msgs.mkString("\n")}", s"${lines.mkString("\n")}")
+  case class LineInfo(
+    line: String,
+    linesBefore: Seq[String],
+    linesAfter: Seq[String],
+    errorPointsAt: Int
+  ) {
+    def toSeq: Seq[String] = {
+      linesBefore.map(line => s">$line") ++:
+      Seq(s">$line", s" ${" " * errorPointsAt}^") ++:
+      linesAfter.map(line => s">$line")
+    }
   }
 
   sealed trait WaccErrorLines {
     val errorType: String
     val lines: Seq[String]
-
+    val lineInfo: LineInfo
   }
 
   case class WaccError(
@@ -47,19 +33,21 @@ object Errors {
       s"""${errorLines.errorType}:
         |in file $file at line ${pos._1}, column ${pos._2}
         |${errorLines.lines.mkString("\n")}
+        |${errorLines.lineInfo.toSeq.mkString("\n")}
       """.stripMargin
     }
   }
 
   case class SyntaxError(
-      unexpected: String,
-      expected: String,
-      reasons: Seq[String]
+      unexpected: Option[String],
+      expected: Option[String],
+      reasons: Seq[String],
+      lineInfo: LineInfo
   ) extends WaccErrorLines {
     override val errorType = "Syntax Error"
-    override val lines: Seq[String] = {
-      if (unexpected.isEmpty && expected.isEmpty) reasons.toList
-      else "unexpected: " + unexpected :: "expected: " + expected :: reasons.toList
+    override val lines: Seq[String] = (unexpected, expected) match {
+      case (None, None) => reasons.toList
+      case _ => "unexpected: " + unexpected.getOrElse("") :: "expected: " + expected.getOrElse("") :: reasons.toList
     }
   }
 
@@ -67,7 +55,7 @@ object Errors {
     override val errorType = "Semantic Error"
   }
 
-  case class TypeError(place: String, expectedTypes: Set[Type], foundType: Type)
+  case class TypeError(place: String, expectedTypes: Set[Type], foundType: Type, lineInfo: LineInfo)
       extends SemanticError {
     private val expectedString = expectedTypes.toList match {
       case List(ty)  => ty.toTypeName
@@ -81,34 +69,34 @@ object Errors {
     )
   }
 
-  case class UndefinedFunctionError(id: Ident) extends SemanticError {
+  case class UndefinedFunctionError(id: Ident, lineInfo: LineInfo) extends SemanticError {
     override val lines = Seq(s"Undefined function ${id.id}")
   }
 
-  case class UndefinedVariableError(id: Ident) extends SemanticError {
+  case class UndefinedVariableError(id: Ident, lineInfo: LineInfo) extends SemanticError {
     override val lines = Seq(s"Undefined variable ${id.id}")
   }
 
-  case class RedefinedFunctionError(id: Ident) extends SemanticError {
+  case class RedefinedFunctionError(id: Ident, lineInfo: LineInfo) extends SemanticError {
     override val lines = Seq(s"Duplicate function declaration ${id.id}")
   }
 
-  case class RedefinedVariableError(id: Ident) extends SemanticError {
+  case class RedefinedVariableError(id: Ident, lineInfo: LineInfo) extends SemanticError {
     override val lines = Seq(s"Variable ${id.id} defined twice in same scope")
   }
 
-  case class NullExceptionError(place: String) extends SemanticError {
+  case class NullExceptionError(place: String, lineInfo: LineInfo) extends SemanticError {
     override val lines = Seq(s"Value must be non-null")
   }
 
-  case class NumOfArgsError(place: String, expected: Int, found: Int)
+  case class NumOfArgsError(place: String, expected: Int, found: Int, lineInfo: LineInfo)
       extends SemanticError {
     override val lines = Seq(
       s"Required $expected arguments, found $found arguments"
     )
   }
 
-  case class MisplacedReturnError() extends SemanticError {
+  case class MisplacedReturnError(lineInfo: LineInfo) extends SemanticError {
     override val lines = Seq("Cannot return from outside a function")
   }
 
@@ -135,15 +123,16 @@ object Errors {
         reasons: Messages,
         line: LineInfo
     ): ErrorInfoLines = SyntaxError(
-      unexpected.getOrElse(""),
-      expected.getOrElse(""),
-      reasons ++ line
+      unexpected,
+      expected,
+      reasons,
+      line
     )
 
     override def specialisedError(
         msgs: Messages,
         line: LineInfo
-    ): ErrorInfoLines = SyntaxError("", "", msgs)
+    ): ErrorInfoLines = SyntaxError(None, None, msgs, line)
 
     override type ExpectedItems = Option[String]
     override type Messages = Seq[Message]
@@ -156,7 +145,7 @@ object Errors {
     override type UnexpectedLine = Option[String]
     override type ExpectedLine = Option[String]
     override type Message = String
-    override type LineInfo = Seq[String]
+    override type LineInfo = Errors.LineInfo
 
     override def unexpected(item: Option[Item]): UnexpectedLine = item
 
@@ -171,11 +160,7 @@ object Errors {
         linesBefore: Seq[String],
         linesAfter: Seq[String],
         errorPointsAt: Int
-    ): LineInfo = {
-      linesBefore.map(line => s">$line") ++:
-        Seq(s">$line", s" ${" " * errorPointsAt}^") ++:
-        linesAfter.map(line => s">$line")
-    }
+    ): LineInfo = LineInfo(line, linesBefore, linesAfter, errorPointsAt)
 
     override val numLinesBefore: Int = 1
     override val numLinesAfter: Int = 1
