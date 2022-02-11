@@ -250,7 +250,6 @@ object semanticChecker {
     val (maybeTypes, errors) = typeOfExpr2(symbolTable, x, y)
     maybeTypes match {
       case Some((xType, yType)) => {
-        // TODO: account for one way coercion
         if (!argTypes.exists(xType coercesTo _))
           (
             None,
@@ -269,7 +268,6 @@ object semanticChecker {
               TypeError(s"second argument of $opName", argTypes, yType)
             )
           )
-        // TODO: account for one way coercion
         else if (!((xType coercesTo yType) || (yType coercesTo xType)))
           (
             None,

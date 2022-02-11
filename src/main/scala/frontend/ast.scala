@@ -427,9 +427,7 @@ object ast {
   }
 
   object ArrayElem
-      extends ParserBuilderCurriedFlippedPos2[ArrayIdent, Expr, ArrayElem] // {
-//    def apply(id: Parsley[Ident], indexes: Parsley[List[Expr]]): Parsley[Arr/ayElem] = pos <**> (id, indexes).zipped(ArrayElem(_, _) _)
-//  }
+      extends ParserBuilderCurriedFlippedPos2[ArrayIdent, Expr, ArrayElem]
 
   // Unary operators
   object Not extends ParserBuilderPos1[Expr0, Expr0]

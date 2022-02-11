@@ -146,11 +146,8 @@ object parser {
 
   private lazy val `<ident>` = Ident(ID)
 
-  // ???: parsley[ident => array_elem]
   private lazy val `<array-ident>` =
     chain.postfix(`<ident>`, ArrayElem <# "[" <*> `<expr>` <* "]")
-
-//    private lazy val `<array-elem>` = ArrayElem(`<ident>`, some("[" *> `<expr>` <* "]"))
 
   private lazy val `<pair-elem-type>` : Parsley[PairElemType] = attempt(
     chain.postfix1(`<base-type>` <|> `<pair-type>`, ArrayType <# ("[" <* "]"))
