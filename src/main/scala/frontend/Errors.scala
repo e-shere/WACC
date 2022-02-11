@@ -81,8 +81,7 @@ object Errors {
 
     override val lines = Seq(
       s"Type mismatch in $place : ",
-      s"Expected $expectedString",
-      s"found $foundType"
+      s"Expected $expectedString, found $foundType"
     )
   }
 
