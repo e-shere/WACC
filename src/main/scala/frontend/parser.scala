@@ -97,6 +97,7 @@ object parser {
     `<pair-elem-type>` <* ")"
   )
 
+  // format: off
   private lazy val `<expr>` : Parsley[Expr] =
     precedence(
       SOps(InfixL)(Or <# "||".label("operator")) +:
@@ -129,6 +130,7 @@ object parser {
         ) +:
         `<expr0>`
     ).label("expression").explain("Examples of expressions are integers, booleans, characters, strings and applications of operators")
+  // format: on
 
   private lazy val `<expr0>` = Atoms(
     IntLiter(INT),
