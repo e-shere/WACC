@@ -5,11 +5,11 @@ import frontend.ast._
 import frontend.lexer._
 import frontend.lexer.implicits.implicitToken
 import parsley.Parsley._
-import parsley.{Parsley, Result}
 import parsley.combinator.{many, sepBy, sepBy1}
 import parsley.errors.combinator.ErrorMethods
 import parsley.expr._
 import parsley.io.ParseFromIO
+import parsley.{Parsley, Result}
 
 import java.io.File
 import scala.language.implicitConversions

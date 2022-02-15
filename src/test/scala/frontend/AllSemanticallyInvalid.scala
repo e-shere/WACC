@@ -2,20 +2,24 @@ package frontend
 
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
+
 import java.io.File
 
 class AllSemanticallyInvalid extends AnyFlatSpec {
   import parser._
+  import parsley.Success
+
   import scala.io.Source
-  import parsley.{Success, Failure}
 
   behavior of "all semantically invalid programs"
 
   def getListOfFilesRecursively(dir: String): Array[String] = {
     val d = new File(dir)
     if (d.exists && d.isDirectory) {
-      val result : List[String] = d.listFiles.filter(_.isDirectory)
-        .toList.flatMap(x => getListOfFilesRecursively(x.toString()))
+      val result: List[String] = d.listFiles
+        .filter(_.isDirectory)
+        .toList
+        .flatMap(x => getListOfFilesRecursively(x.toString()))
       d.listFiles.filter(_.isFile).map(_.toString()).concat(result)
     } else {
       Array[String]()
@@ -28,8 +32,10 @@ class AllSemanticallyInvalid extends AnyFlatSpec {
       val source = Source.fromFile(path).mkString
       val maybeAst = parse(new File(path))
       maybeAst should matchPattern { case Success(_) => }
-      semanticChecker.validateProgram(maybeAst.get, path) should not matchPattern {
-            case Nil =>
+      semanticChecker.validateProgram(
+        maybeAst.get,
+        path
+      ) should not matchPattern { case Nil =>
       }
     }
   }

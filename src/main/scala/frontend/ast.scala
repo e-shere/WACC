@@ -8,74 +8,18 @@ import scala.runtime.ScalaRunTime
 
 object ast {
 
-  trait NodeWithPosition extends Product {
-    val pos: (Int, Int)
-
-    // This causes all positions to be shown in the printed AST
-    // Otherwise, only the first argument set is shown
-    override def toString(): String = (
-      ScalaRunTime._toString(
-        this
-      ) // The usual string representation of a case class
-        + pos.toString // Comment out this line to disable position printing
-    )
-  }
-
   // used as the pos of a synthetic NodeWithPosition whose pos carries no meaning
   val NO_POS = (-1, -1)
 
-  // Top level
-  case class WaccProgram(funcs: List[Func], stats: List[Stat])(
-      val pos: (Int, Int)
-  ) extends NodeWithPosition
-  case class Func(ty: Type, id: Ident, args: List[Param], body: List[Stat])(
-      val pos: (Int, Int)
-  ) extends NodeWithPosition {
-    override def toString(): String = id.toString()
-  }
-  case class Param(ty: Type, id: Ident)(val pos: (Int, Int))
-      extends NodeWithPosition {
-    override def toString(): String = id.toString()
-  }
-
   // Statements
   sealed trait Stat extends NodeWithPosition
-  case class Skip()(val pos: (Int, Int)) extends Stat
-  case class Declare(ty: Type, id: Ident, rhs: AssignRhs)(val pos: (Int, Int))
-      extends Stat
-  case class Assign(lhs: AssignLhs, rhs: AssignRhs)(val pos: (Int, Int))
-      extends Stat
-  case class Read(lhs: AssignLhs)(val pos: (Int, Int)) extends Stat
-  case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat
-  case class Return(expr: Expr)(val pos: (Int, Int)) extends Stat
-  case class Exit(expr: Expr)(val pos: (Int, Int)) extends Stat
-  case class Print(expr: Expr)(val pos: (Int, Int)) extends Stat
-  case class Println(expr: Expr)(val pos: (Int, Int)) extends Stat
-  case class If(expr: Expr, thenStats: List[Stat], elseStats: List[Stat])(
-      val pos: (Int, Int)
-  ) extends Stat
-  case class While(expr: Expr, doStats: List[Stat])(val pos: (Int, Int))
-      extends Stat
-  case class Scope(stats: List[Stat])(val pos: (Int, Int)) extends Stat
 
   // Assignments
   sealed trait AssignLhs extends NodeWithPosition
 
   sealed trait AssignRhs extends NodeWithPosition
 
-  case class NewPair(fst: Expr, snd: Expr)(val pos: (Int, Int))
-      extends AssignRhs {
-    override def toString(): String = "pair"
-  }
-
-  case class Call(id: Ident, args: List[Expr])(val pos: (Int, Int))
-      extends AssignRhs
-
   sealed trait PairElem extends AssignLhs with AssignRhs
-  case class Fst(expr: Expr)(val pos: (Int, Int)) extends PairElem
-  case class Snd(expr: Expr)(val pos: (Int, Int)) extends PairElem
-
-  // Types
 
   // The union of Type and PairElemType
   sealed trait TypeOrPairElemType extends NodeWithPosition {
@@ -104,25 +48,165 @@ object ast {
     def withPos(pos: (Int, Int)): Type
   }
 
+  sealed trait BaseType extends TypeAndPairElemType
+
+  sealed trait PairElemType extends TypeOrPairElemType {
+    def toType: Type
+  }
+
+  // Exprs
+  sealed trait Expr extends AssignRhs
+
+  // Precedence 6
+  sealed trait Expr6 extends Expr
+
+  // Precedence 5
+  sealed trait Expr5 extends Expr6
+
+  // Precedence 4
+  sealed trait Expr4 extends Expr5
+
+  // Precedence 3
+  sealed trait Expr3 extends Expr4
+
+  // Precedence 2
+  sealed trait Expr2 extends Expr3
+
+  // Precedence 1
+  sealed trait Expr1 extends Expr2
+
+  // Other expression types
+  sealed trait Expr0 extends Expr1
+
+  // Pairs
+  sealed trait PairLiter extends Expr0
+
+  sealed trait ArrayIdent extends AssignLhs with Expr0
+
+  trait NodeWithPosition extends Product {
+    val pos: (Int, Int)
+
+    // This causes all positions to be shown in the printed AST
+    // Otherwise, only the first argument set is shown
+    override def toString(): String = (
+      ScalaRunTime._toString(
+        this
+      ) // The usual string representation of a case class
+        + pos.toString // Comment out this line to disable position printing
+    )
+  }
+
+  trait ParserBuilder[T] {
+    val parser: Parsley[T]
+    final def <#(p: Parsley[_]): Parsley[T] = parser <* p
+  }
+
+  trait ParserBuilderPos0[R] extends ParserBuilder[R] {
+    val parser: Parsley[R] = pos.map(p => apply()(p))
+
+    def apply()(pos: (Int, Int)): R
+  }
+
+  trait ParserBuilderPos1[T1, R] extends ParserBuilder[T1 => R] {
+    val parser: Parsley[T1 => R] = pos.map(p => apply(_)(p))
+
+    def apply(x: T1)(pos: (Int, Int)): R
+  }
+
+  trait ParserBuilderPos2[T1, T2, R] extends ParserBuilder[(T1, T2) => R] {
+    val parser: Parsley[(T1, T2) => R] = pos.map(p => apply(_, _)(p))
+
+    def apply(x: T1, y: T2)(pos: (Int, Int)): R
+  }
+
+  // Types
+
+  trait ParserBuilderCurriedFlippedPos2[T1, T2, R]
+      extends ParserBuilder[T2 => T1 => R] {
+    val parser: Parsley[T2 => T1 => R] = pos.map(p => y => apply(_, y)(p))
+
+    def apply(x: T1, y: T2)(pos: (Int, Int)): R
+  }
+
+  // Top level
+  case class WaccProgram(funcs: List[Func], stats: List[Stat])(
+      val pos: (Int, Int)
+  ) extends NodeWithPosition
+
+  case class Func(ty: Type, id: Ident, args: List[Param], body: List[Stat])(
+      val pos: (Int, Int)
+  ) extends NodeWithPosition {
+    override def toString(): String = id.toString()
+  }
+
+  case class Param(ty: Type, id: Ident)(val pos: (Int, Int))
+      extends NodeWithPosition {
+    override def toString(): String = id.toString()
+  }
+
+  case class Skip()(val pos: (Int, Int)) extends Stat
+
+  case class Declare(ty: Type, id: Ident, rhs: AssignRhs)(val pos: (Int, Int))
+      extends Stat
+
+  case class Assign(lhs: AssignLhs, rhs: AssignRhs)(val pos: (Int, Int))
+      extends Stat
+
+  case class Read(lhs: AssignLhs)(val pos: (Int, Int)) extends Stat
+
+  case class Free(expr: Expr)(val pos: (Int, Int)) extends Stat
+
+  case class Return(expr: Expr)(val pos: (Int, Int)) extends Stat
+
+  case class Exit(expr: Expr)(val pos: (Int, Int)) extends Stat
+
+  case class Print(expr: Expr)(val pos: (Int, Int)) extends Stat
+
+  case class Println(expr: Expr)(val pos: (Int, Int)) extends Stat
+
+  case class If(expr: Expr, thenStats: List[Stat], elseStats: List[Stat])(
+      val pos: (Int, Int)
+  ) extends Stat
+
+  // Binary operators
+
+  case class While(expr: Expr, doStats: List[Stat])(val pos: (Int, Int))
+      extends Stat
+
+  case class Scope(stats: List[Stat])(val pos: (Int, Int)) extends Stat
+
+  case class NewPair(fst: Expr, snd: Expr)(val pos: (Int, Int))
+      extends AssignRhs {
+    override def toString(): String = "pair"
+  }
+
+  case class Call(id: Ident, args: List[Expr])(val pos: (Int, Int))
+      extends AssignRhs
+
+  case class Fst(expr: Expr)(val pos: (Int, Int)) extends PairElem
+
+  case class Snd(expr: Expr)(val pos: (Int, Int)) extends PairElem
+
   case class AnyType()(val pos: (Int, Int)) extends TypeAndPairElemType {
     def toTypeName: String = "any"
     def withPos(pos: (Int, Int)): AnyType = AnyType()(pos)
   }
 
-  sealed trait BaseType extends TypeAndPairElemType
-
   case class IntType()(val pos: (Int, Int)) extends BaseType {
     def toTypeName: String = "int"
     def withPos(pos: (Int, Int)): IntType = IntType()(pos)
   }
+
   case class BoolType()(val pos: (Int, Int)) extends BaseType {
     def toTypeName: String = "bool"
     def withPos(pos: (Int, Int)): BoolType = BoolType()(pos)
   }
+
   case class CharType()(val pos: (Int, Int)) extends BaseType {
     def toTypeName: String = "char"
     def withPos(pos: (Int, Int)): CharType = CharType()(pos)
   }
+
   case class StringType()(val pos: (Int, Int)) extends BaseType {
     def toTypeName: String = "string"
     def withPos(pos: (Int, Int)): StringType = StringType()(pos)
@@ -142,63 +226,48 @@ object ast {
     def withPos(pos: (Int, Int)): PairType = PairType(ty1, ty2)(pos)
   }
 
-  sealed trait PairElemType extends TypeOrPairElemType {
-    def toType: Type
-  }
   case class NestedPairType()(val pos: (Int, Int)) extends PairElemType {
     def toTypeName: String = "pair"
     def toType: Type = PairType(AnyType()(NO_POS), AnyType()(NO_POS))(pos)
   }
 
-  // Exprs
-  sealed trait Expr extends AssignRhs
-
-  // Binary operators
-
-  // Precedence 6
-  sealed trait Expr6 extends Expr
   case class Or(x: Expr6, y: Expr5)(val pos: (Int, Int)) extends Expr6
 
-  // Precedence 5
-  sealed trait Expr5 extends Expr6
   case class And(x: Expr5, y: Expr4)(val pos: (Int, Int)) extends Expr5
 
-  // Precedence 4
-  sealed trait Expr4 extends Expr5
   case class Eq(x: Expr4, y: Expr3)(val pos: (Int, Int)) extends Expr4
+
   case class Neq(x: Expr4, y: Expr3)(val pos: (Int, Int)) extends Expr4
 
-  // Precedence 3
-  sealed trait Expr3 extends Expr4
   case class Leq(x: Expr3, y: Expr2)(val pos: (Int, Int)) extends Expr3
+
   case class Lt(x: Expr3, y: Expr2)(val pos: (Int, Int)) extends Expr3
-  case class Geq(x: Expr3, y: Expr2)(val pos: (Int, Int)) extends Expr3
-  case class Gt(x: Expr3, y: Expr2)(val pos: (Int, Int)) extends Expr3
-
-  // Precedence 2
-  sealed trait Expr2 extends Expr3
-  case class Add(x: Expr2, y: Expr1)(val pos: (Int, Int)) extends Expr2
-  case class Sub(x: Expr2, y: Expr1)(val pos: (Int, Int)) extends Expr2
-
-  // Precedence 1
-  sealed trait Expr1 extends Expr2
-  case class Mul(x: Expr1, y: Expr0)(val pos: (Int, Int)) extends Expr1
-  case class Div(x: Expr1, y: Expr0)(val pos: (Int, Int)) extends Expr1
-  case class Mod(x: Expr1, y: Expr0)(val pos: (Int, Int)) extends Expr1
-
-  // Other expression types
-  sealed trait Expr0 extends Expr1
 
   // Literals
 
+  case class Geq(x: Expr3, y: Expr2)(val pos: (Int, Int)) extends Expr3
+
+  case class Gt(x: Expr3, y: Expr2)(val pos: (Int, Int)) extends Expr3
+
+  case class Add(x: Expr2, y: Expr1)(val pos: (Int, Int)) extends Expr2
+
+  case class Sub(x: Expr2, y: Expr1)(val pos: (Int, Int)) extends Expr2
+
+  case class Mul(x: Expr1, y: Expr0)(val pos: (Int, Int)) extends Expr1
+
+  case class Div(x: Expr1, y: Expr0)(val pos: (Int, Int)) extends Expr1
+
+  case class Mod(x: Expr1, y: Expr0)(val pos: (Int, Int)) extends Expr1
+
   // Primitives
   case class IntLiter(x: Int)(val pos: (Int, Int)) extends Expr0
+
   case class BoolLiter(b: Boolean)(val pos: (Int, Int)) extends Expr0
+
   case class CharLiter(c: Char)(val pos: (Int, Int)) extends Expr0
+
   case class StrLiter(s: String)(val pos: (Int, Int)) extends Expr0
 
-  // Pairs
-  sealed trait PairLiter extends Expr0
   case class Null()(val pos: (Int, Int)) extends PairLiter
 
   // Arrays
@@ -213,44 +282,20 @@ object ast {
   case class ArrayElem(id: ArrayIdent, index: Expr)(val pos: (Int, Int))
       extends ArrayIdent
 
-  sealed trait ArrayIdent extends AssignLhs with Expr0
-
   // Unary operators
   case class Not(x: Expr0)(val pos: (Int, Int)) extends Expr0
+  // Begin builders/companion objects
+
   case class Neg(x: Expr0)(val pos: (Int, Int)) extends Expr0
+
   case class Len(x: Expr0)(val pos: (Int, Int)) extends Expr0
+
   case class Ord(x: Expr0)(val pos: (Int, Int)) extends Expr0
+
   case class Chr(x: Expr0)(val pos: (Int, Int)) extends Expr0
 
   // Parentheses
   case class Paren(expr: Expr)(val pos: (Int, Int)) extends Expr0
-  // Begin builders/companion objects
-
-  trait ParserBuilder[T] {
-    val parser: Parsley[T]
-    final def <#(p: Parsley[_]): Parsley[T] = parser <* p
-  }
-
-  trait ParserBuilderPos0[R] extends ParserBuilder[R] {
-    def apply()(pos: (Int, Int)): R
-    val parser: Parsley[R] = pos.map(p => apply()(p))
-  }
-
-  trait ParserBuilderPos1[T1, R] extends ParserBuilder[T1 => R] {
-    def apply(x: T1)(pos: (Int, Int)): R
-    val parser: Parsley[T1 => R] = pos.map(p => apply(_)(p))
-  }
-
-  trait ParserBuilderPos2[T1, T2, R] extends ParserBuilder[(T1, T2) => R] {
-    def apply(x: T1, y: T2)(pos: (Int, Int)): R
-    val parser: Parsley[(T1, T2) => R] = pos.map(p => apply(_, _)(p))
-  }
-
-  trait ParserBuilderCurriedFlippedPos2[T1, T2, R]
-      extends ParserBuilder[T2 => T1 => R] {
-    def apply(x: T1, y: T2)(pos: (Int, Int)): R
-    val parser: Parsley[T2 => T1 => R] = pos.map(p => y => apply(_, y)(p))
-  }
 
   object WaccProgram {
     def apply(
