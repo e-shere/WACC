@@ -35,7 +35,7 @@ class AllSemanticallyInvalid extends AnyFlatSpec {
       semanticChecker.validateProgram(
         maybeAst.get,
         path
-      ) should not matchPattern { case Nil =>
+      ) should not matchPattern { case (_, Nil) =>
       }
     }
   }

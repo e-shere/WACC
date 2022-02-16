@@ -36,7 +36,7 @@ class AllValid extends AnyFlatSpec {
       ) // should matchPattern { case Success(_) => }
       maybeAst should matchPattern { case Success(_) => }
       semanticChecker.validateProgram(maybeAst.get, path) should matchPattern {
-        case Nil =>
+        case (_, Nil) =>
       }
     }
   }

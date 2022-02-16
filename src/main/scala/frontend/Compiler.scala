@@ -19,11 +19,11 @@ object Compiler {
       }
       case Success(ast) => {
         semanticChecker.validateProgram(ast, args(0)) match {
-          case Nil => {
-            println(ast)
+          case (typeTree, Nil) => {
+            println(typeTree)
             sys.exit(0)
           }
-          case errors => {
+          case (_, errors) => {
             println(errors.mkString("\n"))
             sys.exit(200)
           }
