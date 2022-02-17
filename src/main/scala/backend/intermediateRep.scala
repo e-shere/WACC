@@ -10,5 +10,4 @@ class intermediateRep {
 
   case class SymbolEntry(ty: Type, start: Int, end: Int)
 
-
 }
