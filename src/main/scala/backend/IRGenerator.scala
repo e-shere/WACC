@@ -24,14 +24,23 @@ object IRGenerator {
         // TODO: generate assembly needed to evaluate expr, then insert something referring to that
         // into the return IR node- perhaps an intermediate value with register in the symbol table
       case Nil => List.empty
-      case Skip() :: tail => generateBlock(tail)
-      case stat :: tail => generateStat(stat) +: generateBlock(tail)
+      case stat :: tail => generateStat(stat) ++: generateBlock(tail)
     }
   }
 
-  def generateStat(stat: Stat): IRNode = {
+  def generateStat(stat: Stat): Option[IRNode] = {
     stat match {
-      case Return(_) => RETURN(0)
+      case Skip() => None
+      case Declare(ty, id, rhs) => ???
+      case Assign(lhs, rhs) => ???
+      case Read(lhs) => ???
+      case Free(expr) => ???
+      case Return(_) => Some(RETURN(0))
+      case Exit(_) => Some(RETURN(0))
+      case Print(expr) => ???
+      case Println(expr) => ???
+      case If(expr, thenStats, elseStats) => ???
+      case While(expr, doStats) => ???
     }
   }
 
