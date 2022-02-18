@@ -7,7 +7,11 @@ import java.io._
 object IRGenerator {
 
   def generateIR(ast: WaccProgram): List[function] = {
-    List(function("main", Nil))
+    ast.funcs.map(f => function(f.id.id, generateBody(f.body))) :+ function("main", generateBody(ast.stats))
+  }
+
+  def generateBody(stats: List[Stat]): List[IRNode] = {
+    Nil
   }
 
   def generateCode(ast: WaccProgram, outputPath: String): Unit = {
@@ -16,7 +20,7 @@ object IRGenerator {
     val pw = new PrintWriter(new File(outputPath + ".s"))
     pw.write(".text\n\n.global main\n")
 
-    pw.write(rep.mkString("\n"))
+    pw.write(rep.mkString("\n") + "\n")
     pw.close
 
   }
