@@ -8,6 +8,7 @@ object IRGenerator {
   type IRFunc = List[IRNode]
 
   def generateIR(ast: WaccProgram): List[IRFunc] = {
+    List(DIRECTIVE("text\n"), DIRECTIVE("global main")) +:
     ast.funcs.map(f => generateFunc(f.id.id, f.body)) :+ generateFunc("main", ast.stats)
   }
 
@@ -16,7 +17,8 @@ object IRGenerator {
     START_FUNC() +:
     generateBlock(body) :+
     RETURN(0) :+
-    EXIT_FUNC()
+    EXIT_FUNC() :+
+    DIRECTIVE("ltorg")
   }
 
   def generateBlock(stats: List[Stat]): List[IRNode] = {
@@ -48,7 +50,6 @@ object IRGenerator {
     val rep = generateIR(ast)
 
     val pw = new PrintWriter(new File(outputPath + ".s"))
-    pw.write(".text\n\n.global main\n")
     rep.foreach(f => pw.write(f.mkString("\n") + "\n"))
     pw.close()
 
