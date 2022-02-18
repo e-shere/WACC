@@ -36,17 +36,15 @@ class AllValid extends AnyFlatSpec {
       ) // should matchPattern { case Success(_) => }
       maybeAst should matchPattern { case Success(_) => }
       semanticChecker.validateProgram(maybeAst.get, path) should matchPattern {
-        case (_, Nil) =>
+        case Nil =>
       }
     }
   }
 
-  // TODO: ISSUE WITH PAIRS
   "All valid advanced programs" should "return success" in {
     allSucceed("src/examples/valid/advanced")
   }
 
-  // TODO: DOESN'T RECOGNISE []
   "All valid array programs" should "return success" in {
     allSucceed("src/examples/valid/array")
   }
@@ -59,7 +57,6 @@ class AllValid extends AnyFlatSpec {
     allSucceed("src/examples/valid/expressions")
   }
 
-  // TODO: DOESN'T RECOGNISE '('
   "All valid function programs" should "return success" in {
     allSucceed("src/examples/valid/function")
   }
@@ -68,7 +65,6 @@ class AllValid extends AnyFlatSpec {
     allSucceed("src/examples/valid/if")
   }
 
-  // TODO: DOESN'T RECOGNISE \n
   "All valid IO programs" should "return success" in {
     allSucceed("src/examples/valid/IO")
   }

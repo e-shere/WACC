@@ -24,11 +24,10 @@ object semanticChecker {
   def validateProgram(
       program: WaccProgram,
       file: String
-  ): (TypeTree, List[WaccError]) = {
+  ): List[WaccError] = {
     implicit val fileImplicit: String = file
     implicit val fileLines: Array[String] =
       Source.fromFile(new File(file)).getLines().toArray
-    var typeTree: TypeTree = Map.empty
     val errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer.empty
     program match {
       case WaccProgram(funcs, stats) => {
@@ -44,6 +43,7 @@ object semanticChecker {
         }
 
         implicit val funcTable: Map[Ident, FuncType] = funcTableMut.toMap
+        program.funcSymbols = Some(funcTable)
         for (f @ Func(ty, _, args, body) <- funcs) {
           val argsTable: TypeTable = TypeTable(
             args.map { case Param(ty, id) =>
@@ -51,18 +51,16 @@ object semanticChecker {
             }.toMap,
             None
           )
-          val (newTypeTree, newErrors) =
-            validateBlock(Some(argsTable), body, Some(ty), f.pos, typeTree)
-          typeTree = newTypeTree
+          val (typeTable, newErrors) = validateBlock(Some(argsTable), body, Some(ty))
+          f.symbols = Some(typeTable)
           errors ++= newErrors
         }
-        val (newTypeTree, newErrors) =
-          validateBlock(None, stats, None, NO_POS, typeTree)
-        typeTree = newTypeTree
+        val (typeTable, newErrors) = validateBlock(None, stats, None)
+        program.mainSymbols = Some(typeTable)
         errors ++= newErrors
       }
     }
-    (typeTree, errors.toList)
+    errors.toList
   }
 
   // validate stats. This function may be called recursively to validate
@@ -70,17 +68,14 @@ object semanticChecker {
   def validateBlock(
       parentSymbols: Option[TypeTable],
       stats: List[Stat],
-      returnType: Option[Type],
-      scopeId: ScopeId,
-      oldTypeTree: TypeTree
+      returnType: Option[Type]
   )(implicit
       file: String,
       fileLines: Array[String],
       funcTable: Map[Ident, FuncType]
-  ): (TypeTree, List[WaccError]) = {
+  ): (TypeTable, List[WaccError]) = {
     val errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer.empty
     implicit var localSymbols: TypeTable = TypeTable(Map.empty, parentSymbols)
-    var typeTree: TypeTree = oldTypeTree
     for (stat <- stats) {
       // match on different types of statements
       stat match {
@@ -193,7 +188,7 @@ object semanticChecker {
           errors ++= typeOfExpr(expr)._2
         case Println(expr) =>
           errors ++= typeOfExpr(expr)._2
-        case If(expr, thenStats, elseStats) => {
+        case s@If(expr, thenStats, elseStats) => {
           val (maybeExpr, exprErrors) =
             typeOfExpr(expr)
           errors ++= exprErrors
@@ -207,27 +202,14 @@ object semanticChecker {
               )
             case _ =>
           }
-          val (thenTypeTree, thenErrors) = validateBlock(
-            Some(localSymbols),
-            thenStats,
-            returnType,
-            thenStats.head.pos,
-            typeTree
-          )
+          val (thenTypeTable, thenErrors) = validateBlock(Some(localSymbols), thenStats, returnType)
           errors ++= thenErrors
-          typeTree = thenTypeTree
-
-          val (elseTypeTree, elseErrors) = validateBlock(
-            Some(localSymbols),
-            elseStats,
-            returnType,
-            elseStats.head.pos,
-            typeTree
-          )
+          s.thenTypeTable = Some(thenTypeTable)
+          val (elseTypeTable, elseErrors) = validateBlock(Some(localSymbols), elseStats, returnType)
           errors ++= elseErrors
-          typeTree = elseTypeTree
+          s.elseTypeTable = Some(elseTypeTable)
         }
-        case While(expr, doStats) => {
+        case s@While(expr, doStats) => {
           val (maybeExpr, exprErrors) =
             typeOfExpr(expr)
           errors ++= exprErrors
@@ -241,29 +223,17 @@ object semanticChecker {
               )
             case _ =>
           }
-          val (newTypeTree, newErrors) = validateBlock(
-            Some(localSymbols),
-            doStats,
-            returnType,
-            doStats.head.pos,
-            typeTree
-          )
-          errors ++= newErrors
-          typeTree = newTypeTree
+          val (doTypeTable, doErrors) = validateBlock(Some(localSymbols), doStats, returnType)
+          errors ++= doErrors
+          s.doTypeTable = Some(doTypeTable)
         }
-        case Scope(innerStats) =>
-          val (newTypeTree, newErrors) = validateBlock(
-            Some(localSymbols),
-            innerStats,
-            returnType,
-            innerStats.head.pos,
-            typeTree
-          )
-          errors ++= newErrors
-          typeTree = newTypeTree
+        case s@Scope(innerStats) =>
+          val (statsTypeTable, statsErrors) = validateBlock(Some(localSymbols), innerStats, returnType)
+          errors ++= statsErrors
+          s.typeTable = Some(statsTypeTable)
       }
     }
-    (typeTree + (scopeId -> localSymbols), errors.toList)
+    (localSymbols, errors.toList)
   }
 
   // validate arguments for a given binary operator, returning type ret if arguments type-check
