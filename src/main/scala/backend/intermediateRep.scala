@@ -6,6 +6,9 @@ object intermediateRep {
 
   type SymbolTable = Map[Ident, SymbolEntry]
 
+  // As some registers are r0 and some are lr/pc
+  type Register = String
+
   case class SymbolEntry(ty: Type, start: Int, end: Int)
 
   sealed trait IRNode
@@ -21,21 +24,36 @@ object intermediateRep {
   }
 
   case class START_FUNC() extends IRNode {
-    override def toString = "PUSH {lr}"
+    override def toString = PUSH("lr").toString
   }
   case class EXIT_FUNC() extends IRNode {
-    override def toString = "POP {pc}"
+    override def toString = POP("pc").toString
   }
   case class LOAD_ARG() extends IRNode {
     override def toString = ""
   }
 
-  case class RETURN(exitCode: Int) extends IRNode {
-    override def toString = s"LDR r0, =${exitCode}"
+  case class RETURNVALUE(exitCode: Int) extends IRNode {
+    override def toString = LOAD("r0", exitCode).toString
   }
 
-  case class MOVE() extends IRNode
-  case class LOAD() extends IRNode
-  case class PUSH() extends IRNode
-  case class POP() extends IRNode
+  case class RETURNREG(name: String) extends IRNode {
+    override def toString = MOVE("r0", name).toString
+  }
+
+  case class MOVE(to: Register, from: Register) extends IRNode {
+    override def toString = s"MOV $to, $from"
+  }
+
+  case class LOAD(num: Register, value: Int) extends IRNode {
+    override def toString = s"LDR $num, =$value"
+  }
+
+  case class PUSH(num: Register) extends IRNode {
+    override def toString = s"PUSH {$num}"
+  }
+
+  case class POP(num: Register) extends IRNode {
+    override def toString = s"POP {$num}"
+  }
 }
