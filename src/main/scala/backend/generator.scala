@@ -10,15 +10,20 @@ object generator {
   val PLACEHOLDER_START = 10
   val PLACEHOLDER_END = 11
 
+  /*
+  Reg documents the highest register of 4-9 which is not in use
+  Placeholder documents the lowest register of 10-11 which is not in use
+  If reg > 9, reg documents the number of things in the stack + REG_END + 1
+   */
   case class RegState(reg: Int, placeholder: Int) {
-    def isReg: Boolean = reg >= REG_START && reg <= REG_END
+    def isReg: Boolean = reg >= REG_START && reg <= REG_END + 1
     def isStack: Boolean = reg > REG_END
     def prev: RegState = RegState(reg - 1, placeholder)
     def next: RegState = RegState(reg + 1, placeholder)
     def read: (RegState, String, List[Asm]) = if (isReg) (prev, "r" + reg, Nil) else {
       (RegState(reg + 1, placeholder - 1), "r" + placeholder, List(/* pop into rplaceholder */))
     }
-    def write: (RegState, String, List[Asm]) = if (isReg) (next, "r" + (reg + 1), Nil) else {
+    def write: (RegState, String, List[Asm]) = if (isReg) (next, "r" + reg, Nil) else {
       (RegState(reg - 1, PLACEHOLDER_END), "r" + PLACEHOLDER_END, List(/* push from r11 */))
     }
   }
