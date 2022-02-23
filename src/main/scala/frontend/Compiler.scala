@@ -20,7 +20,7 @@ object Compiler {
       case Success(ast) => {
         semanticChecker.validateProgram(ast, args(0)) match {
           case Nil => {
-            println(ast)
+            backend.IRGenerator.generateCode(ast, args(0).split("/").last.split("\\.").head)
             sys.exit(0)
           }
           case errors => {
