@@ -46,10 +46,11 @@ object semanticChecker {
         program.funcSymbols = Some(funcTable)
         for (f @ Func(ty, _, args, body) <- funcs) {
           val argsTable: TypeTable = TypeTable(
-            args.map { case Param(ty, id) =>
-              id -> ty
+            args.zipWithIndex.map { case (Param(ty, id), index) =>
+              id -> (ty, index)
             }.toMap,
-            None
+            None,
+            args.length
           )
           val (typeTable, newErrors) = validateBlock(Some(argsTable), body, Some(ty))
           f.symbols = Some(typeTable)
@@ -75,7 +76,7 @@ object semanticChecker {
       funcTable: Map[Ident, FuncType]
   ): (TypeTable, List[WaccError]) = {
     val errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer.empty
-    implicit var localSymbols: TypeTable = TypeTable(Map.empty, parentSymbols)
+    implicit var localSymbols: TypeTable = TypeTable(Map.empty, parentSymbols, if (parentSymbols.isEmpty) 0 else parentSymbols.get.counter + 1)
     for (stat <- stats) {
       // match on different types of statements
       stat match {
