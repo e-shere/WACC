@@ -3,12 +3,25 @@ package backend
 object asm {
   sealed trait Asm
 
+  val SEP = "\n\t"
+
   case class Directive(value: String) extends Asm {
     override def toString = "." + value
   }
 
   case class Label(value: String) extends Asm {
     override def toString = value + ":"
+  }
+
+  // length of argRegs <= 4
+  case class CallAssembly(argRegs: List[String], funcName: String) extends Asm {
+    // replace with a call to to register
+    override def toString = argRegs.zipWithIndex.map(x => Move(s"r${x._2}", x._1)).mkString(SEP) +
+                              s"BL $funcName"
+  }
+
+  case class Move(target: String, dest: String) extends Asm {
+    override def toString = s"MOV $target, $dest"
   }
 
   case class Push(reg: String) extends Asm {
@@ -73,14 +86,19 @@ object asm {
 
   case class Div(target: String, x: String, y: String) extends Asm {
     def this(x: String, y: String) = this(x, x, y)
+    override def toString = CallAssembly(List(x, y), "p_check_divide_by_zero") + SEP +
+      CallAssembly(List.empty, "__aeabi_idiv") + Move(target, "r0")
   }
 
   case class Mod(target: String, x: String, y: String) extends Asm {
     def this(x: String, y: String) = this(x, x, y)
+    override def toString = CallAssembly(List(x, y), "p_check_divide_by_zero") + SEP +
+      CallAssembly(List.empty, "__aeabi_idivmod") // + put result in correct register
   }
 
   case class Not(target: String, x: String) extends Asm {
     def this(x: String) = this(x, x)
+    override def toString = s"EOR $target, $x, #1"
   }
 
   case class Neg(target: String, x: String) extends Asm {
