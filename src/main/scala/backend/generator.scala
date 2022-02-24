@@ -143,35 +143,35 @@ object generator {
   }
 
   def genExpr(expr: Expr)(implicit state: RegState): (List[Asm], RegState) = expr match {
-    case ast.Or(x, y)  => genBinOp(x, y, new asm.Or(_, _))
-    case ast.And(x, y) => genBinOp(x, y, new asm.And(_, _)) 
-    case ast.Eq(x, y)  => genBinOp(x, y, new asm.Eq(_, _)) 
-    case ast.Neq(x, y) => genBinOp(x, y, new asm.Neq(_, _)) 
-    case ast.Leq(x, y) => genBinOp(x, y, new asm.Leq(_, _)) 
-    case ast.Lt(x, y)  => genBinOp(x, y, new asm.Lt(_, _)) 
-    case ast.Geq(x, y) => genBinOp(x, y, new asm.Geq(_, _)) 
-    case ast.Gt(x, y)  => genBinOp(x, y, new asm.Gt(_, _)) 
-    case ast.Add(x, y) => genBinOp(x, y, new asm.Add(_, _)) 
-    case ast.Sub(x, y) => genBinOp(x, y, new asm.Sub(_, _)) 
-    case ast.Mul(x, y) => genBinOp(x, y, new asm.Mul(_, _)) 
-    case ast.Div(x, y) => genBinOp(x, y, new asm.Div(_, _)) 
-    case ast.Mod(x, y) => genBinOp(x, y, new asm.Mod(_, _)) 
-    case ast.Not(x)    => genUnOp(x, new asm.Not(_))
-    case ast.Neg(x)    => genUnOp(x, new asm.Neg(_))
-    case ast.Len(x)    => genUnOp(x, new asm.Len(_))
-    case ast.Ord(x)    => genUnOp(x, new asm.Ord(_))
-    case ast.Chr(x)    => genUnOp(x, new asm.Chr(_))
+    case ast.Or(x, y)  => genBinOp(x, y, new asm.Or(_, _)())
+    case ast.And(x, y) => genBinOp(x, y, new asm.And(_, _)())
+    case ast.Eq(x, y)  => genBinOp(x, y, new asm.Eq(_, _)())
+    case ast.Neq(x, y) => genBinOp(x, y, new asm.Neq(_, _)())
+    case ast.Leq(x, y) => genBinOp(x, y, new asm.Leq(_, _)())
+    case ast.Lt(x, y)  => genBinOp(x, y, new asm.Lt(_, _)())
+    case ast.Geq(x, y) => genBinOp(x, y, new asm.Geq(_, _)())
+    case ast.Gt(x, y)  => genBinOp(x, y, new asm.Gt(_, _)())
+    case ast.Add(x, y) => genBinOp(x, y, new asm.Add(_, _)())
+    case ast.Sub(x, y) => genBinOp(x, y, new asm.Sub(_, _)())
+    case ast.Mul(x, y) => genBinOp(x, y, new asm.Mul(_, _)())
+    case ast.Div(x, y) => genBinOp(x, y, new asm.Div(_, _)())
+    case ast.Mod(x, y) => genBinOp(x, y, new asm.Mod(_, _)())
+    case ast.Not(x)    => genUnOp(x, new asm.Not(_)())
+    case ast.Neg(x)    => genUnOp(x, new asm.Neg(_)())
+    case ast.Len(x)    => genUnOp(x, new asm.Len(_)())
+    case ast.Ord(x)    => genUnOp(x, new asm.Ord(_)())
+    case ast.Chr(x)    => genUnOp(x, new asm.Chr(_)())
   }
 
   def genRhs(rhs: AssignRhs)(implicit state: RegState): (List[Asm], RegState) = rhs match {
     case ArrayLiter(exprs) => {
       val setupArray: Step = combineSteps(List(
-        w(Mov(_, intToAsmLit(exprs.length)))(_),
-        w(Mov(_, intToAsmLit((exprs.length + 1) * 4)))(_),
+        w(Mov(_, intToAsmLit(exprs.length))())(_),
+        w(Mov(_, intToAsmLit((exprs.length + 1) * 4))())(_),
         ro(new Malloc(_))(_), // replace sizeInBytes with a pointer to the array
         rro(
           new Str(_, _), // Store sizeInElements in array[0]
-          Mov(_, _) // replace sizeInElements with array pointer
+          Mov(_, _)() // replace sizeInElements with array pointer
         )(_),
       ))(_)
 
