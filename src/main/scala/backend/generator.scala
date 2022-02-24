@@ -47,9 +47,9 @@ object generator {
   
   type Step = RegState => (List[Asm], RegState)
 
-  def r(f: (String) => Asm)(implicit state: RegState): (List[Asm], RegState) = {
+  def r(fs: (String) => Asm *)(implicit state: RegState): (List[Asm], RegState) = {
     val (reg, asm1, state1) = state.read
-    (asm1 :+ f(reg), state1)
+    (asm1 ++ fs.map(_(reg)), state1)
   }
   
   def w(f: (String) => Asm)(implicit state: RegState): (List[Asm], RegState) = {
@@ -57,18 +57,24 @@ object generator {
     (f(reg) +: asm1, state1)
   }
 
-  def rw(f: (String) => Asm)(implicit state: RegState): (List[Asm], RegState) = {
+  def ro(fs: (String) => Asm *)(implicit state: RegState): (List[Asm], RegState) = {
     val (reg1, asm1, state1) = state.read
     val (reg2, asm2, state2) = state1.write
     assert(reg1 == reg2)
-    (asm1 :+ f(reg1) :++ asm2, state2)
+    (asm1 ++ fs.map(_(reg1)) ++ asm2, state2)
   }
 
-  def rrw(f: (String, String) => Asm)(implicit state: RegState): (List[Asm], RegState) = {
+  def rw(fs: (String, String) => Asm *)(implicit state: RegState): (List[Asm], RegState) = {
+    val (reg1, asm1, state1) = state.peek
+    val (reg2, asm2, state2) = state1.write
+    (asm1 ++ fs.map(_(reg2, reg1)) ++ asm2, state2)
+  }
+
+  def rro(fs: (String, String) => Asm *)(implicit state: RegState): (List[Asm], RegState) = {
     val (xReg, yReg, asm1, state1) = state.read2
     val (tReg, asm2, state2) = state1.write
     assert(xReg == tReg)
-    (asm1 :+ f(xReg, yReg) :++ asm2, state2)
+    (asm1 ++ fs.map(_(xReg, yReg)) ++ asm2, state2)
   }
 
   def combineSteps(steps: List[Step])(implicit state: RegState): (List[Asm], RegState) = {
@@ -125,14 +131,14 @@ object generator {
     combineSteps(List(
       genExpr(x)(_),
       genExpr(y)(_),
-      rrw(f(_, _))(_)
+      rro(f(_, _))(_)
     ))
   }
 
   def genUnOp(x: Expr, f: (String) => Asm)(implicit state: RegState): (List[Asm], RegState) = {
     combineSteps(List(
       genExpr(x)(_),
-      rw(f(_))(_)
+      ro(f(_))(_)
     ))
   }
 
@@ -165,12 +171,22 @@ object generator {
       // mov rn r0
       // for expr, i in exprs: str expr [rn + i]
       // return rn
-      combineSteps(List(
-        w(Mov(_, intToAsmLit((exprs.length + 1) * 4)))(_),
-        rw(new Malloc(_))(_),
-        
-      ))
-
+      combineSteps(
+        List((s: RegState) => combineSteps(List(
+          w(Mov(_, intToAsmLit((exprs.length + 1) * 4)))(_),
+          rw(new Malloc(_, _))(_),
+          rro(new Str(_, _), Mov(_, _))(_),
+        ))(s))
+        ++
+        exprs.zipWithIndex.map[Step] { _ match {
+          case (expr, i) => {
+            ((s: RegState) => combineSteps(List(
+              genExpr(expr)(_),
+              rro((pos, value) => new Str(value, pos))(_)
+            ))(s))
+          }
+        }}
+      )
     }
     case NewPair(fst, snd) => {
       ???

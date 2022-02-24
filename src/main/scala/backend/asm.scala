@@ -97,6 +97,10 @@ object asm {
   }
 
   case class Ldr(target: String, pos: String, offset: String) extends Asm {
-    def this(target: String, pos: String) = this(target, pos, 0)
+    def this(target: String, pos: String) = this(target, pos, intToAsmLit(0))
+  }
+
+  case class Str(value: String, pos: String, offset: String) extends Asm {
+    def this(value: String, pos: String) = this(value, pos, intToAsmLit(0))
   }
 }
