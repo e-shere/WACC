@@ -53,29 +53,33 @@ object asm {
   }
 
   case class Eq(x: String, y: String)(target: String = x) extends Asm {
+    override def toString: String = Compare(x, y) + SEP + Mov(target, "#1")(Some("EQ")) +
+      Mov(target, intToAsmLit(0))(Some("NE"))
   }
 
   case class Neq(x: String, y: String)(target: String = x) extends Asm {
+    override def toString: String = Compare(x, y) + SEP + Mov(target, "#1")(Some("NE")) +
+      Mov(target, intToAsmLit(0))(Some("EQ"))
   }
 
   case class Leq(x: String, y: String)(target: String = x) extends Asm {
     override def toString: String = Compare(x, y) + SEP + Mov(target, "#1")(Some("LE")) +
-      Mov(target, "#0")(Some("GT"))
+      Mov(target, intToAsmLit(0))(Some("GT"))
   }
 
   case class Lt(x: String, y: String)(target: String = x) extends Asm {
     override def toString: String = Compare(x, y) + SEP + Mov(target, "#1")(Some("LT")) +
-      Mov(target, "#0")(Some("GE"))
+      Mov(target, intToAsmLit(0))(Some("GE"))
   }
 
   case class Geq(x: String, y: String)(target: String = x) extends Asm {
     override def toString: String = Compare(x, y) + SEP + Mov(target, "#1")(Some("GE")) +
-      Mov(target, "#0")(Some("LT"))
+      Mov(target, intToAsmLit(0))(Some("LT"))
   }
 
   case class Gt(x: String, y: String)(target: String = x) extends Asm {
     override def toString: String = Compare(x, y) + SEP + Mov(target, "#1")(Some("GT")) +
-      Mov(target, "#0")(Some("LE"))
+      Mov(target, intToAsmLit(0))(Some("LE"))
   }
 
   case class Add(x: String, y: String)(target: String = x) extends Asm {
@@ -112,6 +116,7 @@ object asm {
   }
 
   case class Len(x: String)(target: String = x) extends Asm {
+    override def toString = Ldr(x, s"[$x]")().toString
   }
 
   case class Ord(x: String)(target: String = x) extends Asm {
@@ -120,16 +125,18 @@ object asm {
   case class Chr(x: String)(target: String = x) extends Asm {
   }
 
-
-  case class Malloc(target: String, x: String) extends Asm {
-    def this(x: String) = this(x, x)
+// TODO: rob look at this pls
+  case class Malloc(x: String)(target: String = x) extends Asm {
+    override def toString = CallAssembly(List(x), "malloc").toString
   }
 
-  case class Ldr(target: String, pos: String, offset: String) extends Asm {
-    def this(target: String, pos: String) = this(target, pos, intToAsmLit(0))
+  //TODO: how to ? offset here are these arguments even the right way round?
+  case class Ldr(target: String, pos: String)(offset: String = intToAsmLit(0)) extends Asm {
+    override def toString = s"LDR $target, $pos"
   }
 
-  case class Str(value: String, pos: String, offset: String) extends Asm {
-    def this(value: String, pos: String) = this(value, pos, intToAsmLit(0))
+  //TODO: how to ? offset here
+  case class Str(value: String, pos: String)(offset: String = intToAsmLit(0)) extends Asm {
+    override def toString = s"STR $pos, $value"
   }
 }
