@@ -8,28 +8,34 @@ object generator {
 
   val REG_START = 4
   val REG_END = 9
-  val PLACEHOLDER_START = 10
-  val PLACEHOLDER_END = 11
+  val PLACEHOLDER_1 = 10
+  val PLACEHOLDER_2 = 11
 
   /*
   Reg documents the highest register of 4-9 which is not in use
-  Placeholder documents the lowest register of 10-11 which is not in use
   If reg > 9, reg documents the number of things in the stack + REG_END + 1
    */
-  case class RegState(reg: Int, placeholder: Int) {
+  case class RegState(reg: Int) {
     def isReg: Boolean = reg >= REG_START && reg <= REG_END + 1
     def isStack: Boolean = reg > REG_END
-    def prev: RegState = RegState(reg - 1, placeholder)
-    def next: RegState = RegState(reg + 1, placeholder)
-    def read: (String, List[Asm], RegState) = if (isReg) ("r" + reg, Nil, prev) else {
-      ("r" + placeholder, List(/* pop into rplaceholder */), RegState(reg + 1, placeholder - 1))
+    def prev: RegState = RegState(reg - 1)
+    def next: RegState = RegState(reg + 1)
+    def read: (String, List[Asm], RegState) = if (isReg) (regToString(reg), Nil, prev) else {
+      ("r" + PLACEHOLDER_1, List(Pop(regToString(PLACEHOLDER_1))), prev)
     }
-    def write: (String, List[Asm], RegState) = if (isReg) ("r" + reg, Nil, next) else {
-      ("r" + PLACEHOLDER_END, List(/* push from r11 */), RegState(reg - 1, PLACEHOLDER_END))
+    def read2: (String, String, List[Asm], RegState) = {
+      if (isReg) (regToString(prev.reg), regToString(reg), Nil, prev.prev)
+      else if (prev.isReg) (regToString(prev.reg), regToString(PLACEHOLDER_1), List(Pop(regToString(PLACEHOLDER_1))), prev.prev)
+      else (regToString(PLACEHOLDER_1), regToString(PLACEHOLDER_2), List(Pop(regToString(PLACEHOLDER_2)), Pop(regToString(PLACEHOLDER_1))), prev.prev)
+    }
+    def write: (String, List[Asm], RegState) = if (isReg) (regToString(reg), Nil, next) else {
+      ("r" + PLACEHOLDER_1, List(Push(regToString(PLACEHOLDER_1))), next)
     }
   }
+  
+  def regToString(reg: Int) = "r" + reg
 
-  val NEW_REG = RegState(REG_START, PLACEHOLDER_END)
+  val NEW_REG = RegState(REG_START)
 
   def genProgram(program: WaccProgram): List[Asm] = program match {
     case WaccProgram(funcs, stats) => {
