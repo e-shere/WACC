@@ -116,7 +116,7 @@ object asm {
   }
 
   case class Len(x: String)(target: String = x) extends Asm {
-    override def toString = Ldr(x, s"[$x]")().toString
+    override def toString = Ldr(target, s"[$x]")().toString
   }
 
   case class Ord(x: String)(target: String = x) extends Asm {
