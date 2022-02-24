@@ -16,12 +16,12 @@ object asm {
   // length of argRegs <= 4
   case class CallAssembly(argRegs: List[String], funcName: String) extends Asm {
     // replace with a call to to register
-    override def toString = argRegs.zipWithIndex.map(x => Move(s"r${x._2}", x._1)).mkString(SEP) +
+    override def toString = argRegs.zipWithIndex.map(x => Move(s"r${x._2}", x._1, None)).mkString(SEP) +
                               s"BL $funcName"
   }
 
-  case class Move(target: String, dest: String) extends Asm {
-    override def toString = s"MOV $target, $dest"
+  case class Move(target: String, dest: String, cond: Option[String]) extends Asm {
+    override def toString = s"MOV${cond.getOrElse("")} $target, $dest"
   }
 
   case class Push(reg: String) extends Asm {
@@ -42,6 +42,10 @@ object asm {
     override def toString = s"AND $target, $x, $y"
   }
 
+  case class Compare(first: String, second: String) extends Asm {
+    override def toString = s"CMP $first, $second"
+  }
+
   case class Eq(target: String, x: String, y: String) extends Asm {
     def this(x: String, y: String) = this(x, x, y)
   }
@@ -52,18 +56,26 @@ object asm {
 
   case class Leq(target: String, x: String, y: String) extends Asm {
     def this(x: String, y: String) = this(x, x, y)
+    override def toString = Compare(x, y) + SEP + Move(target, "#1", Some("LE")) +
+      Move(target, "#0", Some("GT"))
   }
 
   case class Lt(target: String, x: String, y: String) extends Asm {
     def this(x: String, y: String) = this(x, x, y)
+    override def toString = Compare(x, y) + SEP + Move(target, "#1", Some("LT")) +
+      Move(target, "#0", Some("GE"))
   }
 
   case class Geq(target: String, x: String, y: String) extends Asm {
     def this(x: String, y: String) = this(x, x, y)
+    override def toString = Compare(x, y) + SEP + Move(target, "#1", Some("GE")) +
+      Move(target, "#0", Some("LT"))
   }
 
   case class Gt(target: String, x: String, y: String) extends Asm {
     def this(x: String, y: String) = this(x, x, y)
+    override def toString = Compare(x, y) + SEP + Move(target, "#1", Some("GT")) +
+      Move(target, "#0", Some("LE"))
   }
 
   case class Add(target: String, x: String, y: String) extends Asm {
@@ -87,7 +99,7 @@ object asm {
   case class Div(target: String, x: String, y: String) extends Asm {
     def this(x: String, y: String) = this(x, x, y)
     override def toString = CallAssembly(List(x, y), "p_check_divide_by_zero") + SEP +
-      CallAssembly(List.empty, "__aeabi_idiv") + Move(target, "r0")
+      CallAssembly(List.empty, "__aeabi_idiv") + Move(target, "r0", None)
   }
 
   case class Mod(target: String, x: String, y: String) extends Asm {
@@ -103,6 +115,7 @@ object asm {
 
   case class Neg(target: String, x: String) extends Asm {
     def this(x: String) = this(x, x)
+    override def toString = s"RSBS $target, $x, #0"
   }
 
   case class Len(target: String, x: String) extends Asm {
