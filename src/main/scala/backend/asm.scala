@@ -1,6 +1,9 @@
 package backend
 
 object asm {
+
+  def intToAsmLit(i: Int): String = "#" + i
+
   sealed trait Asm
 
   // TODO: consider separators
@@ -117,4 +120,18 @@ object asm {
   case class Chr(x: String)(target: String = x) extends Asm {
   }
 
+
+  case class Mov(target: String, x: String) extends Asm
+
+  case class Malloc(target: String, x: String) extends Asm {
+    def this(x: String) = this(x, x)
+  }
+
+  case class Ldr(target: String, pos: String, offset: String) extends Asm {
+    def this(target: String, pos: String) = this(target, pos, intToAsmLit(0))
+  }
+
+  case class Str(value: String, pos: String, offset: String) extends Asm {
+    def this(value: String, pos: String) = this(value, pos, intToAsmLit(0))
+  }
 }

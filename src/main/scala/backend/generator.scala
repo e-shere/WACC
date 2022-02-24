@@ -8,8 +8,9 @@ object generator {
 
   val REG_START = 4
   val REG_END = 9
-  val PLACEHOLDER_1 = 10
-  val PLACEHOLDER_2 = 11
+  val PLACEHOLDER_1 = "r10"
+  val PLACEHOLDER_2 = "r11"
+  val STACK_POINTER = "sp"
 
   /*
   Reg documents the highest register of 4-9 which is not in use
@@ -20,17 +21,69 @@ object generator {
     def isStack: Boolean = reg > REG_END
     def prev: RegState = RegState(reg - 1)
     def next: RegState = RegState(reg + 1)
-    def read: (String, List[Asm], RegState) = if (isReg) (regToString(reg), Nil, prev) else {
-      ("r" + PLACEHOLDER_1, List(Pop(regToString(PLACEHOLDER_1))), prev)
+    def read: (String, List[Asm], RegState) = {
+      if (isReg) (regToString(reg), Nil, prev)
+      else (PLACEHOLDER_1, List(Pop(PLACEHOLDER_1)), prev)
     }
     def read2: (String, String, List[Asm], RegState) = {
       if (isReg) (regToString(prev.reg), regToString(reg), Nil, prev.prev)
-      else if (prev.isReg) (regToString(prev.reg), regToString(PLACEHOLDER_1), List(Pop(regToString(PLACEHOLDER_1))), prev.prev)
-      else (regToString(PLACEHOLDER_1), regToString(PLACEHOLDER_2), List(Pop(regToString(PLACEHOLDER_2)), Pop(regToString(PLACEHOLDER_1))), prev.prev)
+      else if (prev.isReg) (regToString(prev.reg), PLACEHOLDER_1, List(Pop(PLACEHOLDER_1)), prev.prev)
+      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Pop(PLACEHOLDER_2), Pop(PLACEHOLDER_1)), prev.prev)
     }
-    def write: (String, List[Asm], RegState) = if (isReg) (regToString(reg), Nil, next) else {
-      ("r" + PLACEHOLDER_1, List(Push(regToString(PLACEHOLDER_1))), next)
+    def peek: (String, List[Asm], RegState) = {
+      if (isReg) (regToString(reg), Nil, this)
+      else (PLACEHOLDER_1, List(new Ldr(PLACEHOLDER_1, STACK_POINTER)), this)
     }
+    def peek2: (String, String, List[Asm], RegState) = {
+      if (isReg) (regToString(prev.reg), regToString(reg), Nil, this)
+      else if (prev.isReg) (regToString(prev.reg), PLACEHOLDER_1, List(new Ldr(PLACEHOLDER_1, STACK_POINTER)), this)
+      else (PLACEHOLDER_1, PLACEHOLDER_2, List(new Ldr(PLACEHOLDER_2, STACK_POINTER), Ldr(PLACEHOLDER_1, STACK_POINTER, intToAsmLit(4))), this)
+    }
+    def write: (String, List[Asm], RegState) = {
+      if (isReg) (regToString(next.reg), Nil, next)
+      else (PLACEHOLDER_1, List(Push(PLACEHOLDER_1)), next)
+    }
+  }
+  
+  type Step = RegState => (List[Asm], RegState)
+
+  def r(fs: (String) => Asm *)(implicit state: RegState): (List[Asm], RegState) = {
+    val (reg, asm1, state1) = state.read
+    (asm1 ++ fs.map(_(reg)), state1)
+  }
+  
+  def w(f: (String) => Asm)(implicit state: RegState): (List[Asm], RegState) = {
+    val (reg, asm1, state1) = state.write
+    (f(reg) +: asm1, state1)
+  }
+
+  def ro(fs: (String) => Asm *)(implicit state: RegState): (List[Asm], RegState) = {
+    val (reg1, asm1, state1) = state.read
+    val (reg2, asm2, state2) = state1.write
+    assert(reg1 == reg2)
+    (asm1 ++ fs.map(_(reg1)) ++ asm2, state2)
+  }
+
+  def rw(fs: (String, String) => Asm *)(implicit state: RegState): (List[Asm], RegState) = {
+    val (reg1, asm1, state1) = state.peek
+    val (reg2, asm2, state2) = state1.write
+    (asm1 ++ fs.map(_(reg2, reg1)) ++ asm2, state2)
+  }
+
+  def rro(fs: (String, String) => Asm *)(implicit state: RegState): (List[Asm], RegState) = {
+    val (xReg, yReg, asm1, state1) = state.read2
+    val (tReg, asm2, state2) = state1.write
+    assert(xReg == tReg)
+    (asm1 ++ fs.map(_(xReg, yReg)) ++ asm2, state2)
+  }
+
+  def combineSteps(steps: List[Step])(implicit state: RegState): (List[Asm], RegState) = {
+    steps.foldLeft[(List[Asm], RegState)]((Nil, state))((prev, step) => prev match {
+      case (asm1, state1) => {
+        val (asm2, state2) = step(state1)
+        (asm1 ++ asm2, state2)
+      }
+    })
   }
   
   def regToString(reg: Int) = "r" + reg
@@ -48,7 +101,7 @@ object generator {
   }
 
   def genStats(stats: List[Stat]): List[Asm] = {
-    stats.flatMap(genStat(_))
+    stats.flatMap(genStat)
   }
 
   def genStat(stat: Stat): List[Asm] = {
@@ -73,23 +126,20 @@ object generator {
     } 
   }
 
-  def genExpr2(x: Expr, y: Expr)(implicit state: RegState): (String, String, List[Asm], RegState) = {
-      val (asm1, state1) = genExpr(x)
-      val (asm2, state2) = genExpr(y)(state1)
-      val (yReg, asm3, state3) = state2.read
-      val (xReg, asm4, state4) = state3.read
-      (xReg, yReg, asm1 ++ asm2 ++ asm3 ++ asm4, state4)
-  }
-
   def genBinOp(x: Expr, y: Expr, f: (String, String) => Asm)(implicit state: RegState): (List[Asm], RegState) = {
-    val (xReg, yReg, list, newState) = genExpr2(x, y)
-    (list :+ f(xReg, yReg), newState)
+
+    combineSteps(List(
+      genExpr(x)(_),
+      genExpr(y)(_),
+      rro(f(_, _))(_)
+    ))
   }
 
   def genUnOp(x: Expr, f: (String) => Asm)(implicit state: RegState): (List[Asm], RegState) = {
-    val (asm1, state1) = genExpr(x)
-    val (xReg, asm2, state2) = state1.read
-    (asm1 ++ asm2 :+ f(xReg), state2)
+    combineSteps(List(
+      genExpr(x)(_),
+      ro(f(_))(_)
+    ))
   }
 
   def genExpr(expr: Expr)(implicit state: RegState): (List[Asm], RegState) = expr match {
@@ -115,13 +165,28 @@ object generator {
 
   def genRhs(rhs: AssignRhs)(implicit state: RegState): (List[Asm], RegState) = rhs match {
     case ArrayLiter(exprs) => {
-      // r0 := exprs.length
-      // malloc
-      // rn := state.write
-      // mov rn r0
-      // for expr, i in exprs: str expr [rn + i]
-      // return rn
-      ???
+      val setupArray: Step = combineSteps(List(
+        w(Mov(_, intToAsmLit(exprs.length)))(_),
+        w(Mov(_, intToAsmLit((exprs.length + 1) * 4)))(_),
+        ro(new Malloc(_))(_), // replace sizeInBytes with a pointer to the array
+        rro(
+          new Str(_, _), // Store sizeInElements in array[0]
+          Mov(_, _) // replace sizeInElements with array pointer
+        )(_),
+      ))(_)
+
+      def putElem(expr: Expr, i: Int): Step = {
+        combineSteps(List(
+          genExpr(expr)(_), // put value on the stack
+          rro((pos, value) => new Str(value, pos, intToAsmLit((i + 1) * 4)))(_) // store value at pos, pos remains on the stack
+        ))(_)
+      }
+
+      combineSteps(
+        List(setupArray)
+        ++
+        exprs.zipWithIndex.map(v => putElem(v._1, v._2))
+      )
     }
     case NewPair(fst, snd) => {
       ???
