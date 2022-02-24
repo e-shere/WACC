@@ -1,6 +1,9 @@
 package backend
 
 object asm {
+
+  def intToAsmLit(i: Int): String = "#" + i
+
   sealed trait Asm
 
   case class Directive(value: String) extends Asm {
@@ -86,4 +89,14 @@ object asm {
     def this(x: String) = this(x, x)
   }
 
+
+  case class Mov(target: String, x: String) extends Asm
+
+  case class Malloc(target: String, x: String) extends Asm {
+    def this(x: String) = this(x, x)
+  }
+
+  case class Ldr(target: String, pos: String, offset: String) extends Asm {
+    def this(target: String, pos: String) = this(target, pos, 0)
+  }
 }
