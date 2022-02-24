@@ -165,27 +165,27 @@ object generator {
 
   def genRhs(rhs: AssignRhs)(implicit state: RegState): (List[Asm], RegState) = rhs match {
     case ArrayLiter(exprs) => {
-      // r0 := exprs.length
-      // malloc
-      // rn := state.write
-      // mov rn r0
-      // for expr, i in exprs: str expr [rn + i]
-      // return rn
+      val setupArray: Step = combineSteps(List(
+        w(Mov(_, intToAsmLit(exprs.length)))(_),
+        w(Mov(_, intToAsmLit((exprs.length + 1) * 4)))(_),
+        ro(new Malloc(_))(_), // replace sizeInBytes with a pointer to the array
+        rro(
+          new Str(_, _), // Store sizeInElements in array[0]
+          Mov(_, _) // replace sizeInElements with array pointer
+        )(_),
+      ))(_)
+
+      def putElem(expr: Expr, i: Int): Step = {
+        combineSteps(List(
+          genExpr(expr)(_), // put value on the stack
+          rro((pos, value) => new Str(value, pos, intToAsmLit((i + 1) * 4)))(_) // store value at pos, pos remains on the stack
+        ))(_)
+      }
+
       combineSteps(
-        List((s: RegState) => combineSteps(List(
-          w(Mov(_, intToAsmLit((exprs.length + 1) * 4)))(_),
-          rw(new Malloc(_, _))(_),
-          rro(new Str(_, _), Mov(_, _))(_),
-        ))(s))
+        List(setupArray)
         ++
-        exprs.zipWithIndex.map[Step] { _ match {
-          case (expr, i) => {
-            ((s: RegState) => combineSteps(List(
-              genExpr(expr)(_),
-              rro((pos, value) => new Str(value, pos))(_)
-            ))(s))
-          }
-        }}
+        exprs.zipWithIndex.map(v => putElem(v._1, v._2))
       )
     }
     case NewPair(fst, snd) => {
