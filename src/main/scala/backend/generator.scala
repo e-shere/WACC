@@ -131,7 +131,6 @@ object generator {
 
   def genBinOp(x: Expr, y: Expr, f: (String, String) => Asm)
               (implicit state: RegState, symbols: TypeTable): (List[Asm], RegState) = {
-
     combineSteps(List(
       genExpr(x)(_, symbols),
       genExpr(y)(_, symbols),
