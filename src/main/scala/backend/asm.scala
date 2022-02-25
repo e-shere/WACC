@@ -30,7 +30,7 @@ object asm {
   case class CallAssembly(argRegs: List[String], funcName: String) extends Asm {
     // replace with a call to to register
     override def toString: String = argRegs.zipWithIndex.map(x => Mov(s"r${x._2}", x._1)()).mkString(SEP) +
-                              s"BL $funcName"
+                              SEP + s"BL $funcName"
   }
 
   case class Mov(target: String, dest: String)(cond: Option[String] = None) extends Asm {
