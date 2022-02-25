@@ -14,6 +14,7 @@ test:
 # clean up all of the compiled files
 clean:
 	$(RM) *.jar
+	$(RM) *.s
 	sbt clean
 
 .PHONY: all test clean

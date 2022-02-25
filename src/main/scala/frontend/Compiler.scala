@@ -1,9 +1,10 @@
 package frontend
 
+import backend.generator.genProgram
 import frontend.parser._
 import parsley.{Failure, Success}
 
-import java.io.File
+import java.io.{File, PrintWriter}
 
 object Compiler {
   def main(args: Array[String]): Unit = {
@@ -20,7 +21,10 @@ object Compiler {
       case Success(ast) => {
         semanticChecker.validateProgram(ast, args(0)) match {
           case Nil => {
-            println(ast)
+            val filename = args(0).split("/").last.split("\\.").head + ".s"
+            val pw = new PrintWriter(new File(filename))
+            pw.write(genProgram(ast).mkString("\n") + "\n")
+            pw.close()
             sys.exit(0)
           }
           case errors => {

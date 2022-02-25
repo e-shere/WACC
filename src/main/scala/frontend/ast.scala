@@ -1,5 +1,7 @@
 package frontend
 
+import frontend.semanticChecker.FuncType
+import frontend.symbols.TypeTable
 import parsley.Parsley
 import parsley.Parsley._
 import parsley.implicits.zipped.{Zipped2, Zipped3, Zipped4}
@@ -130,13 +132,16 @@ object ast {
 
   // Top level
   case class WaccProgram(funcs: List[Func], stats: List[Stat])(
-      val pos: (Int, Int)
-  ) extends NodeWithPosition
+      val pos: (Int, Int)) extends NodeWithPosition {
+    var mainSymbols: Option[TypeTable] = None
+    var funcSymbols: Option[Map[Ident, FuncType]] = None
+  }
 
   case class Func(ty: Type, id: Ident, args: List[Param], body: List[Stat])(
       val pos: (Int, Int)
   ) extends NodeWithPosition {
     override def toString(): String = id.toString()
+    var symbols: Option[TypeTable] = None
   }
 
   case class Param(ty: Type, id: Ident)(val pos: (Int, Int))
@@ -166,14 +171,22 @@ object ast {
 
   case class If(expr: Expr, thenStats: List[Stat], elseStats: List[Stat])(
       val pos: (Int, Int)
-  ) extends Stat
+  ) extends Stat {
+    var thenTypeTable: Option[TypeTable] = None
+    var elseTypeTable: Option[TypeTable] = None
+  }
 
   // Binary operators
 
   case class While(expr: Expr, doStats: List[Stat])(val pos: (Int, Int))
-      extends Stat
+      extends Stat {
+    var doTypeTable: Option[TypeTable] = None
+  }
 
-  case class Scope(stats: List[Stat])(val pos: (Int, Int)) extends Stat
+  case class Scope(stats: List[Stat])(val pos: (Int, Int)) extends Stat {
+    var typeTable: Option[TypeTable] = None
+  }
+
 
   case class NewPair(fst: Expr, snd: Expr)(val pos: (Int, Int))
       extends AssignRhs {
