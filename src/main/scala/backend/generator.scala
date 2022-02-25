@@ -32,12 +32,12 @@ object generator {
     }
     def peek: (String, List[Asm], RegState) = {
       if (isReg) (regToString(reg), Nil, this)
-      else (PLACEHOLDER_1, List(new Ldr(PLACEHOLDER_1, STACK_POINTER)), this)
+      else (PLACEHOLDER_1, List(new Ldr(PLACEHOLDER_1, STACK_POINTER)()), this)
     }
     def peek2: (String, String, List[Asm], RegState) = {
       if (isReg) (regToString(prev.reg), regToString(reg), Nil, this)
-      else if (prev.isReg) (regToString(prev.reg), PLACEHOLDER_1, List(new Ldr(PLACEHOLDER_1, STACK_POINTER)), this)
-      else (PLACEHOLDER_1, PLACEHOLDER_2, List(new Ldr(PLACEHOLDER_2, STACK_POINTER), Ldr(PLACEHOLDER_1, STACK_POINTER, intToAsmLit(4))), this)
+      else if (prev.isReg) (regToString(prev.reg), PLACEHOLDER_1, List(new Ldr(PLACEHOLDER_1, STACK_POINTER)()), this)
+      else (PLACEHOLDER_1, PLACEHOLDER_2, List(new Ldr(PLACEHOLDER_2, STACK_POINTER)(), Ldr(PLACEHOLDER_1, STACK_POINTER)(intToAsmLit(4))), this)
     }
     def write: (String, List[Asm], RegState) = {
       if (isReg) (regToString(next.reg), Nil, next)
@@ -161,6 +161,7 @@ object generator {
     case ast.Len(x)    => genUnOp(x, new asm.Len(_)())
     case ast.Ord(x)    => genUnOp(x, new asm.Ord(_)())
     case ast.Chr(x)    => genUnOp(x, new asm.Chr(_)())
+    case _ => (Nil, state)
   }
 
   def genRhs(rhs: AssignRhs)(implicit state: RegState): (List[Asm], RegState) = rhs match {
@@ -168,9 +169,9 @@ object generator {
       val setupArray: Step = combineSteps(List(
         w(Mov(_, intToAsmLit(exprs.length))())(_),
         w(Mov(_, intToAsmLit((exprs.length + 1) * 4))())(_),
-        ro(new Malloc(_))(_), // replace sizeInBytes with a pointer to the array
+        ro(new Malloc(_)())(_), // replace sizeInBytes with a pointer to the array
         rro(
-          new Str(_, _), // Store sizeInElements in array[0]
+          new Str(_, _)(), // Store sizeInElements in array[0]
           Mov(_, _)() // replace sizeInElements with array pointer
         )(_),
       ))(_)
@@ -178,7 +179,7 @@ object generator {
       def putElem(expr: Expr, i: Int): Step = {
         combineSteps(List(
           genExpr(expr)(_), // put value on the stack
-          rro((pos, value) => new Str(value, pos, intToAsmLit((i + 1) * 4)))(_) // store value at pos, pos remains on the stack
+          rro((pos, value) => new Str(value, pos)(intToAsmLit((i + 1) * 4)))(_) // store value at pos, pos remains on the stack
         ))(_)
       }
 
