@@ -21,6 +21,11 @@ object asm {
     override def toString: String = value + ":"
   }
 
+  case class Func(label: Label, body: List[Asm]) extends Asm {
+    override def toString: String =
+      (label.toString +: Push("lr") +: body :+ Pop("pc") :+ Directive("ltorg")).mkString(SEP)
+  }
+
   // length of argRegs <= 4
   case class CallAssembly(argRegs: List[String], funcName: String) extends Asm {
     // replace with a call to to register

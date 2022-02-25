@@ -98,7 +98,8 @@ object generator {
   }
 
   def genFunc(name: String, argc: Int, stats: List[Stat])(implicit symbols: TypeTable): List[Asm] = {
-    Label(name) +: genStats(stats) :+ Directive("ltorg")
+    // todo: deal with ambiguity nicely
+    List(asm.Func(Label(name), genStats(stats)))
   }
 
   def genStats(stats: List[Stat])(implicit symbols: TypeTable): List[Asm] = {
@@ -114,20 +115,25 @@ object generator {
         val (rhsAsm, state) = genRhs(rhs)(NEW_REG, symbols)
         val lhsAsm = genLhs(lhs)(state, symbols)
         rhsAsm ++ lhsAsm
+        // TODO: where does the evaluation of the rhs go? I assume the mov to stack is done by lhs?
       }
       case Read(lhs) => Nil
       case Free(expr) => Nil
       case Return(expr) => Nil
-      case Exit(expr) => Nil
+      case Exit(expr) => {
+        val (nodes, expState) = genExpr(expr)
+        (nodes ++ r(reg => CallAssembly(List(reg), "exit"))(expState)._1)
+      }
       case Print(expr) => Nil
       case Println(expr) => Nil
       case If(expr, thenStats, elseStats) => Nil
       case While(expr, doStats) => Nil
-      case Scope(stats) => genStats(stats)
+      case s@Scope(stats) => genStats(stats)(s.typeTable.get)
     } 
   }
 
-  def genBinOp(x: Expr, y: Expr, f: (String, String) => Asm)(implicit state: RegState, symbols: TypeTable): (List[Asm], RegState) = {
+  def genBinOp(x: Expr, y: Expr, f: (String, String) => Asm)
+              (implicit state: RegState, symbols: TypeTable): (List[Asm], RegState) = {
     combineSteps(List(
       genExpr(x)(_, symbols),
       genExpr(y)(_, symbols),
