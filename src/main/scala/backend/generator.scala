@@ -198,7 +198,18 @@ object generator {
     case expr: Expr => genExpr(expr)
   }
 
-  def genLhs(lhs: AssignLhs)(implicit state: RegState, symbols: TypeTable): List[Asm] = {
-    ???
+  def genLhs(lhs: AssignLhs)(implicit state: RegState, symbols: TypeTable): List[Asm] = lhs match {
+    case id@Ident(_) => {
+      ???
+    }
+    case ArrayElem(id, index) => {
+      ???
+    }
+    case Fst(expr) => {
+      ???
+    }
+    case Snd(expr) => {
+      ???
+    }
   }
 }

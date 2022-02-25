@@ -26,10 +26,10 @@ object symbols {
       this.copy(symbols = this.symbols + (kv._1 -> (kv._2, counter)))
     }
 
-    def get(ident: Ident): Option[Type] = {
+    def get(ident: Ident): Option[(Type, Int)] = {
       symbols get ident match {
         case None => parent.flatMap(_ get ident)
-        case Some(x) => Some(x._1)
+        case Some(x) => Some(x)
       }
     }
 
