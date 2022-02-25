@@ -22,8 +22,8 @@ object asm {
   }
 
   case class Func(label: Label, body: List[Asm]) extends Asm {
-    override def toString: String = label.toString + "\n" +
-      (Push("lr") +: body :+ Pop("pc") :+ Directive("ltorg")).mkString(SEP)
+    override def toString: String =
+      (label.toString +: Push("lr") +: body :+ Pop("pc") :+ Directive("ltorg")).mkString(SEP)
   }
 
   // length of argRegs <= 4

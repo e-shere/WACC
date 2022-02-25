@@ -120,7 +120,10 @@ object generator {
       case Read(lhs) => Nil
       case Free(expr) => Nil
       case Return(expr) => Nil
-      case Exit(expr) => Nil
+      case Exit(expr) => {
+        val (nodes, expState) = genExpr(expr)
+        (nodes ++ r(reg => CallAssembly(List(reg), "exit"))(expState)._1)
+      }
       case Print(expr) => Nil
       case Println(expr) => Nil
       case If(expr, thenStats, elseStats) => Nil
