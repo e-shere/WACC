@@ -97,7 +97,8 @@ object generator {
   }
 
   def genFunc(name: String, argc: Int, stats: List[Stat]): List[Asm] = {
-    Label(name) +: genStats(stats) :+ Directive("ltorg")
+    // todo: deal with ambiguity nicely
+    List(asm.Func(Label(name), genStats(stats)))
   }
 
   def genStats(stats: List[Stat]): List[Asm] = {
@@ -113,6 +114,7 @@ object generator {
         val (rhsAsm, state) = genRhs(rhs)(NEW_REG)
         val lhsAsm = genLhs(lhs)(state)
         rhsAsm ++ lhsAsm
+        // TODO: where does the evaluation of the rhs go? I assume the mov to stack is done by lhs?
       }
       case Read(lhs) => Nil
       case Free(expr) => Nil
