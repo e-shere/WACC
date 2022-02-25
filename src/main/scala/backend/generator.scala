@@ -118,7 +118,7 @@ object generator {
       case Skip() => Nil
       case Declare(_, id, rhs) => genStat(Assign(id, rhs)(stat.pos))
       case Assign(lhs, rhs) => {
-        val (rhsAsm, state) = genRhs(rhs)(NEW_REG, symbols)
+        val (rhsAsm, state) = genRhs(rhs)(symbols)(initialState)
         val lhsAsm = genLhs(lhs)(state, symbols)
         rhsAsm ++ lhsAsm
         // TODO: where does the evaluation of the rhs go? I assume the mov to stack is done by lhs?
@@ -127,7 +127,7 @@ object generator {
       case Free(expr) => Nil
       case Return(expr) => Nil
       case Exit(expr) => {
-        val (nodes, expState) = genExpr(expr)
+        val (nodes, expState) = genExpr(expr)(symbols)(initialState)
         (nodes ++ r(reg => CallAssembly(List(reg), "exit"))(expState)._1)
       }
       case Print(expr) => Nil
@@ -237,7 +237,7 @@ object generator {
     }
     case arrElem@ArrayElem(id, index) => {
       val offset = countToOffset(symbols.getOffset(id).get)
-      val (nodes, expState) = genExpr(index)
+      val (nodes, expState) = genExpr(index)(symbols)(state)
       nodes ++ r(reg => Str(reg, STACK_POINTER)(intToAsmLit(offset + 1)))(state)._1
 
       // nodes
