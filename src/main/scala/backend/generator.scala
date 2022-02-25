@@ -49,19 +49,19 @@ object generator {
   type Step = RegState => (List[Asm], RegState)
 
   // Read from register, then free the register
-  def r(fs: (String) => Asm *)(state: RegState): (List[Asm], RegState) = {
+  def r(fs: (String) => Asm *): Step = (state: RegState) => {
     val (reg, asm1, state1) = state.read
     (asm1 ++ fs.map(_(reg)), state1)
   }
   
   // Write to a new register
-  def w(f: (String) => Asm)(state: RegState): (List[Asm], RegState) = {
+  def w(f: (String) => Asm): Step = (state: RegState) => {
     val (reg, asm1, state1) = state.write
     (f(reg) +: asm1, state1)
   }
 
   // Read from a register and overwrite it
-  def ro(fs: (String) => Asm *)(state: RegState): (List[Asm], RegState) = {
+  def ro(fs: (String) => Asm *): Step = (state: RegState) => {
     val (reg1, asm1, state1) = state.read
     val (reg2, asm2, state2) = state1.write
     assert(reg1 == reg2)
@@ -69,14 +69,14 @@ object generator {
   }
 
   // Read from a register, preserver it, write to a new one
-  def rw(fs: (String, String) => Asm *)(state: RegState): (List[Asm], RegState) = {
+  def rw(fs: (String, String) => Asm *): Step = (state: RegState) => {
     val (reg1, asm1, state1) = state.peek
     val (reg2, asm2, state2) = state1.write
     (asm1 ++ fs.map(_(reg2, reg1)) ++ asm2, state2)
   }
 
   // Read two registers, free both, write the result
-  def rro(fs: (String, String) => Asm *)(state: RegState): (List[Asm], RegState) = {
+  def rro(fs: (String, String) => Asm *): Step = (state: RegState) => {
     val (xReg, yReg, asm1, state1) = state.read2
     val (tReg, asm2, state2) = state1.write
     assert(xReg == tReg)
@@ -84,7 +84,7 @@ object generator {
   }
 
   // Compose several steps into one
-  def combineSteps(steps: List[Step])(state: RegState): (List[Asm], RegState) = {
+  def combineSteps(steps: List[Step]): Step = (state: RegState) => {
     steps.foldLeft[(List[Asm], RegState)]((Nil, state))((prev, step) => prev match {
       case (asm1, state1) => {
         val (asm2, state2) = step(state1)
@@ -141,86 +141,92 @@ object generator {
   def genBinOp(x: Expr, y: Expr, f: (String, String) => Asm)
               (implicit state: RegState, symbols: TypeTable): (List[Asm], RegState) = {
     combineSteps(List(
-      genExpr(x)(_, symbols),
-      genExpr(y)(_, symbols),
+      genExpr(x),
+      genExpr(y),
       rro(f(_, _))
     ))(state)
   }
 
   def genUnOp(x: Expr, f: (String) => Asm)(implicit state: RegState, symbols: TypeTable): (List[Asm], RegState) = {
     combineSteps(List(
-      genExpr(x)(_, symbols),
+      genExpr(x),
       ro(f(_))
     ))(state)
   }
 
-  def genExpr(expr: Expr)(implicit state: RegState, symbols: TypeTable): (List[Asm], RegState) = expr match {
-    case ast.Or(x, y)  => genBinOp(x, y, new asm.Or(_, _)())
-    case ast.And(x, y) => genBinOp(x, y, new asm.And(_, _)())
-    case ast.Eq(x, y)  => genBinOp(x, y, new asm.Eq(_, _)())
-    case ast.Neq(x, y) => genBinOp(x, y, new asm.Neq(_, _)())
-    case ast.Leq(x, y) => genBinOp(x, y, new asm.Leq(_, _)())
-    case ast.Lt(x, y)  => genBinOp(x, y, new asm.Lt(_, _)())
-    case ast.Geq(x, y) => genBinOp(x, y, new asm.Geq(_, _)())
-    case ast.Gt(x, y)  => genBinOp(x, y, new asm.Gt(_, _)())
-    case ast.Add(x, y) => genBinOp(x, y, new asm.Add(_, _)())
-    case ast.Sub(x, y) => genBinOp(x, y, new asm.Sub(_, _)())
-    case ast.Mul(x, y) => genBinOp(x, y, new asm.Mul(_, _)())
-    case ast.Div(x, y) => genBinOp(x, y, new asm.Div(_, _)())
-    case ast.Mod(x, y) => genBinOp(x, y, new asm.Mod(_, _)())
-    case ast.Not(x)    => genUnOp(x, new asm.Not(_)())
-    case ast.Neg(x)    => genUnOp(x, new asm.Neg(_)())
-    case ast.Len(x)    => genUnOp(x, new asm.Len(_)())
-    case ast.Ord(x)    => genUnOp(x, new asm.Ord(_)())
-    case ast.Chr(x)    => genUnOp(x, new asm.Chr(_)())
-    case _ => (Nil, state)
+  def genExpr(expr: Expr)(implicit symbols: TypeTable): Step = (state: RegState) => {
+    implicit val implicitState = state
+    expr match {
+      case ast.Or(x, y)  => genBinOp(x, y, new asm.Or(_, _)())
+      case ast.And(x, y) => genBinOp(x, y, new asm.And(_, _)())
+      case ast.Eq(x, y)  => genBinOp(x, y, new asm.Eq(_, _)())
+      case ast.Neq(x, y) => genBinOp(x, y, new asm.Neq(_, _)())
+      case ast.Leq(x, y) => genBinOp(x, y, new asm.Leq(_, _)())
+      case ast.Lt(x, y)  => genBinOp(x, y, new asm.Lt(_, _)())
+      case ast.Geq(x, y) => genBinOp(x, y, new asm.Geq(_, _)())
+      case ast.Gt(x, y)  => genBinOp(x, y, new asm.Gt(_, _)())
+      case ast.Add(x, y) => genBinOp(x, y, new asm.Add(_, _)())
+      case ast.Sub(x, y) => genBinOp(x, y, new asm.Sub(_, _)())
+      case ast.Mul(x, y) => genBinOp(x, y, new asm.Mul(_, _)())
+      case ast.Div(x, y) => genBinOp(x, y, new asm.Div(_, _)())
+      case ast.Mod(x, y) => genBinOp(x, y, new asm.Mod(_, _)())
+      case ast.Not(x)    => genUnOp(x, new asm.Not(_)())
+      case ast.Neg(x)    => genUnOp(x, new asm.Neg(_)())
+      case ast.Len(x)    => genUnOp(x, new asm.Len(_)())
+      case ast.Ord(x)    => genUnOp(x, new asm.Ord(_)())
+      case ast.Chr(x)    => genUnOp(x, new asm.Chr(_)())
+      case _ => (Nil, state)
+    }
   }
 
-  def genRhs(rhs: AssignRhs)(implicit state: RegState, symbols: TypeTable): (List[Asm], RegState) = rhs match {
-    case ArrayLiter(exprs) => {
-      val setupArray: Step = combineSteps(List(
-        w(Mov(_, intToAsmLit(exprs.length))()),
-        w(Mov(_, intToAsmLit((exprs.length + 1) * 4))()),
-        ro(new Malloc(_)()), // replace sizeInBytes with a pointer to the array
-        rro(
-          new Str(_, _)(), // Store sizeInElements in array[0]
-          Mov(_, _)() // replace sizeInElements with array pointer
-        ),
-      ))
-
-      def putElem(expr: Expr, i: Int): Step = {
-        combineSteps(List(
-          genExpr(expr)(_, symbols), // put value on the stack
-          rro((pos, value) => new Str(value, pos)(intToAsmLit((i + 1) * 4))) // store value at pos, pos remains on the stack
+  def genRhs(rhs: AssignRhs)(implicit symbols: TypeTable): Step = (state: RegState) => {
+    implicit val implicitState = state
+    rhs match {
+      case ArrayLiter(exprs) => {
+        val setupArray: Step = combineSteps(List(
+          w(Mov(_, intToAsmLit(exprs.length))()),
+          w(Mov(_, intToAsmLit((exprs.length + 1) * 4))()),
+          ro(new Malloc(_)()), // replace sizeInBytes with a pointer to the array
+          rro(
+            new Str(_, _)(), // Store sizeInElements in array[0]
+            Mov(_, _)() // replace sizeInElements with array pointer
+          ),
         ))
-      }
 
-      combineSteps(
-        List(setupArray)
-        ++
-        exprs.zipWithIndex.map(v => putElem(v._1, v._2))
-      )(state)
-    }
-    case NewPair(fst, snd) => {
-      combineSteps(List(
-        w(Mov(_, intToAsmLit(4 * 2))()),
-        ro(new Malloc(_)()),
-        genExpr(fst)(_, symbols),
-        rro((pos, value) => new Str(value, pos)()),
-        genExpr(snd)(_, symbols),
-        rro((pos, value) => new Str(value, pos)(intToAsmLit(4))),
+        def putElem(expr: Expr, i: Int): Step = {
+          combineSteps(List(
+            genExpr(expr), // put value on the stack
+            rro((pos, value) => new Str(value, pos)(intToAsmLit((i + 1) * 4))) // store value at pos, pos remains on the stack
+          ))
+        }
+
+        combineSteps(
+          List(setupArray)
+          ++
+          exprs.zipWithIndex.map(v => putElem(v._1, v._2))
+        )(state)
+      }
+      case NewPair(fst, snd) => {
+        combineSteps(List(
+          w(Mov(_, intToAsmLit(4 * 2))()),
+          ro(new Malloc(_)()),
+          genExpr(fst),
+          rro((pos, value) => new Str(value, pos)()),
+          genExpr(snd),
+          rro((pos, value) => new Str(value, pos)(intToAsmLit(4))),
+        ))(state)
+      }
+      case Fst(expr) => combineSteps(List(
+        genExpr(expr),
+        ro(reg => Ldr(reg, reg)()),
       ))(state)
+      case Snd(expr) => combineSteps(List(
+        genExpr(expr),
+        ro(reg => Ldr(reg, reg)(intToAsmLit(4))),
+      ))(state)
+      case Call(id, args) => ???
+      case expr: Expr => genExpr(expr)(symbols)(state)
     }
-    case Fst(expr) => combineSteps(List(
-      genExpr(expr)(_, symbols),
-      ro(reg => Ldr(reg, reg)()),
-    ))(state)
-    case Snd(expr) => combineSteps(List(
-      genExpr(expr)(_, symbols),
-      ro(reg => Ldr(reg, reg)(intToAsmLit(4))),
-    ))(state)
-    case Call(id, args) => ???
-    case expr: Expr => genExpr(expr)
   }
 
   def genLhs(lhs: AssignLhs)(implicit state: RegState, symbols: TypeTable): List[Asm] = lhs match {
