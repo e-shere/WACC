@@ -123,18 +123,13 @@ object asm {
   }
 
   case class Len(x: String)(target: String = x) extends Asm {
-    override def toString = Ldr(target, s"[$x]")().toString
+    override def toString: String = Ldr(target, s"[$x]")().toString
   }
 
   case class Ord(x: String)(target: String = x) extends Asm {
   }
 
   case class Chr(x: String)(target: String = x) extends Asm {
-  }
-
-// TODO: rob look at this pls
-  case class Malloc(x: String)(target: String = x) extends Asm {
-    override def toString = CallAssembly(List(x), "malloc").toString
   }
 
   //TODO: how to ? offset here are these arguments even the right way round?

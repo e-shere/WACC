@@ -49,7 +49,7 @@ object state {
 
     def mkString(sep: String): String = this(NEW_REG)._1.mkString(sep) 
 
-    def apply(state: RegState) = func(state)
+    def apply(state: RegState): (List[Asm], RegState) = func(state)
 
     def <++>(next: Step): Step = Step((state: RegState) => {
       val (asm1, state1) = this(state)
@@ -59,8 +59,9 @@ object state {
   }
 
   object Step {
-    val identity = Step((Nil, _))
-    val discard = Step(_ => (Nil, NEW_REG))
+    val identity: Step = Step((Nil, _))
+    // This step is used between steps where the state of registers needs to be reset
+    val discard: Step = Step(_ => (Nil, NEW_REG))
 
     // Read from register, then free the register
     def r(fs: (String) => Asm *): Step = Step((state: RegState) => {
@@ -82,14 +83,14 @@ object state {
       (asm1 ++ fs.map(_(reg1)) ++ asm2, state2)
     })
 
-    // Read from a register, preserver it, write to a new one
+    // Read from a register, preserve it, write to a new one
     def rw(fs: (String, String) => Asm *): Step = Step((state: RegState) => {
       val (reg1, asm1, state1) = state.peek
       val (reg2, asm2, state2) = state1.write
       (asm1 ++ fs.map(_(reg2, reg1)) ++ asm2, state2)
     })
 
-    // Read two registers, free both, write the result
+    // Read two registers, free one and overwrite the other
     def rro(fs: (String, String) => Asm *): Step = Step((state: RegState) => {
       val (xReg, yReg, asm1, state1) = state.read2
       val (tReg, asm2, state2) = state1.write
@@ -108,9 +109,9 @@ object state {
   //  })
   //}
   
-  def regToString(reg: Int) = "r" + reg
+  def regToString(reg: Int): String = "r" + reg
 
-  val NEW_REG = RegState(REG_START)
+  val NEW_REG: RegState = RegState(REG_START)
 
 
   object implicits {
