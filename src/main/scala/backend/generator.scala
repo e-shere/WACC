@@ -48,37 +48,43 @@ object generator {
   
   type Step = RegState => (List[Asm], RegState)
 
-  def r(fs: (String) => Asm *)(implicit state: RegState): (List[Asm], RegState) = {
+  // Read from register, then free the register
+  def r(fs: (String) => Asm *)(state: RegState): (List[Asm], RegState) = {
     val (reg, asm1, state1) = state.read
     (asm1 ++ fs.map(_(reg)), state1)
   }
   
-  def w(f: (String) => Asm)(implicit state: RegState): (List[Asm], RegState) = {
+  // Write to a new register
+  def w(f: (String) => Asm)(state: RegState): (List[Asm], RegState) = {
     val (reg, asm1, state1) = state.write
     (f(reg) +: asm1, state1)
   }
 
-  def ro(fs: (String) => Asm *)(implicit state: RegState): (List[Asm], RegState) = {
+  // Read from a register and overwrite it
+  def ro(fs: (String) => Asm *)(state: RegState): (List[Asm], RegState) = {
     val (reg1, asm1, state1) = state.read
     val (reg2, asm2, state2) = state1.write
     assert(reg1 == reg2)
     (asm1 ++ fs.map(_(reg1)) ++ asm2, state2)
   }
 
-  def rw(fs: (String, String) => Asm *)(implicit state: RegState): (List[Asm], RegState) = {
+  // Read from a register, preserver it, write to a new one
+  def rw(fs: (String, String) => Asm *)(state: RegState): (List[Asm], RegState) = {
     val (reg1, asm1, state1) = state.peek
     val (reg2, asm2, state2) = state1.write
     (asm1 ++ fs.map(_(reg2, reg1)) ++ asm2, state2)
   }
 
-  def rro(fs: (String, String) => Asm *)(implicit state: RegState): (List[Asm], RegState) = {
+  // Read two registers, free both, write the result
+  def rro(fs: (String, String) => Asm *)(state: RegState): (List[Asm], RegState) = {
     val (xReg, yReg, asm1, state1) = state.read2
     val (tReg, asm2, state2) = state1.write
     assert(xReg == tReg)
     (asm1 ++ fs.map(_(xReg, yReg)) ++ asm2, state2)
   }
 
-  def combineSteps(steps: List[Step])(implicit state: RegState): (List[Asm], RegState) = {
+  // Compose several steps into one
+  def combineSteps(steps: List[Step])(state: RegState): (List[Asm], RegState) = {
     steps.foldLeft[(List[Asm], RegState)]((Nil, state))((prev, step) => prev match {
       case (asm1, state1) => {
         val (asm2, state2) = step(state1)
@@ -137,15 +143,15 @@ object generator {
     combineSteps(List(
       genExpr(x)(_, symbols),
       genExpr(y)(_, symbols),
-      rro(f(_, _))(_)
-    ))
+      rro(f(_, _))
+    ))(state)
   }
 
   def genUnOp(x: Expr, f: (String) => Asm)(implicit state: RegState, symbols: TypeTable): (List[Asm], RegState) = {
     combineSteps(List(
       genExpr(x)(_, symbols),
-      ro(f(_))(_)
-    ))
+      ro(f(_))
+    ))(state)
   }
 
   def genExpr(expr: Expr)(implicit state: RegState, symbols: TypeTable): (List[Asm], RegState) = expr match {
@@ -173,33 +179,46 @@ object generator {
   def genRhs(rhs: AssignRhs)(implicit state: RegState, symbols: TypeTable): (List[Asm], RegState) = rhs match {
     case ArrayLiter(exprs) => {
       val setupArray: Step = combineSteps(List(
-        w(Mov(_, intToAsmLit(exprs.length))())(_),
-        w(Mov(_, intToAsmLit((exprs.length + 1) * 4))())(_),
-        ro(new Malloc(_)())(_), // replace sizeInBytes with a pointer to the array
+        w(Mov(_, intToAsmLit(exprs.length))()),
+        w(Mov(_, intToAsmLit((exprs.length + 1) * 4))()),
+        ro(new Malloc(_)()), // replace sizeInBytes with a pointer to the array
         rro(
           new Str(_, _)(), // Store sizeInElements in array[0]
           Mov(_, _)() // replace sizeInElements with array pointer
-        )(_),
-      ))(_)
+        ),
+      ))
 
       def putElem(expr: Expr, i: Int): Step = {
         combineSteps(List(
           genExpr(expr)(_, symbols), // put value on the stack
-          rro((pos, value) => new Str(value, pos)(intToAsmLit((i + 1) * 4)))(_) // store value at pos, pos remains on the stack
-        ))(_)
+          rro((pos, value) => new Str(value, pos)(intToAsmLit((i + 1) * 4))) // store value at pos, pos remains on the stack
+        ))
       }
 
       combineSteps(
         List(setupArray)
         ++
         exprs.zipWithIndex.map(v => putElem(v._1, v._2))
-      )
+      )(state)
     }
     case NewPair(fst, snd) => {
-      ???
+      combineSteps(List(
+        w(Mov(_, intToAsmLit(4 * 2))()),
+        ro(new Malloc(_)()),
+        genExpr(fst)(_, symbols),
+        rro((pos, value) => new Str(value, pos)()),
+        genExpr(snd)(_, symbols),
+        rro((pos, value) => new Str(value, pos)(intToAsmLit(4))),
+      ))(state)
     }
-    case Fst(expr) => ???
-    case Snd(expr) => ???
+    case Fst(expr) => combineSteps(List(
+      genExpr(expr)(_, symbols),
+      ro(reg => Ldr(reg, reg)()),
+    ))(state)
+    case Snd(expr) => combineSteps(List(
+      genExpr(expr)(_, symbols),
+      ro(reg => Ldr(reg, reg)(intToAsmLit(4))),
+    ))(state)
     case Call(id, args) => ???
     case expr: Expr => genExpr(expr)
   }
@@ -207,13 +226,13 @@ object generator {
   def genLhs(lhs: AssignLhs)(implicit state: RegState, symbols: TypeTable): List[Asm] = lhs match {
     case id@Ident(_) => {
       val offset = countToOffset(symbols.getOffset(id).get)
-      r(reg => Str(reg, STACK_POINTER)(intToAsmLit(offset)))._1
+      r(reg => Str(reg, STACK_POINTER)(intToAsmLit(offset)))(state)._1
       // TODO: account for movement in stack pointer
     }
     case arrElem@ArrayElem(id, index) => {
       val offset = countToOffset(symbols.getOffset(id).get)
       val (nodes, expState) = genExpr(index)
-      nodes ++ r(reg => Str(reg, STACK_POINTER)(intToAsmLit(offset + 1)))._1
+      nodes ++ r(reg => Str(reg, STACK_POINTER)(intToAsmLit(offset + 1)))(state)._1
 
       // nodes
       // r? = index + offset
