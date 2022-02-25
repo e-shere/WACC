@@ -23,6 +23,7 @@ object Compiler {
           case Nil => {
             val filename = args(0).split("/").last.split("\\.").head + ".s"
             val pw = new PrintWriter(new File(filename))
+            pw.write(".text\n\n.global main\n")
             pw.write(genProgram(ast).mkString("\n") + "\n")
             pw.close()
             sys.exit(0)
