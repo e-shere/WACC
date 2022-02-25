@@ -456,7 +456,7 @@ object semanticChecker {
         )
       case Paren(expr) => typeOfExpr(expr)
       case identExpr: Ident =>
-        (typeTable get identExpr) match {
+        (typeTable getType identExpr) match {
           // Need to find out what type it is because we need to construct a new object to change the pos
           case Some(ty) => (Some(ty.withPos(identExpr.pos)), Nil)
           case None =>

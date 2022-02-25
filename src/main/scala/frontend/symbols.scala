@@ -4,7 +4,7 @@ import frontend.ast._
 
 object symbols {
 
-  case class TypeTable(symbols: Map[Ident, (Type, Int)], parent: Option[TypeTable], var counter: Int) {
+  case class TypeTable(symbols: Map[Ident, (Type, Int)], parent: Option[TypeTable], counter: Int) {
 
     def locallyContains(ident: Ident): Boolean = {
       symbols contains ident
@@ -22,14 +22,20 @@ object symbols {
     }
 
     def +(kv: (Ident, Type)): TypeTable = {
-      counter += 1
-      this.copy(symbols = this.symbols + (kv._1 -> (kv._2, counter)))
+      this.copy(symbols = this.symbols + (kv._1 -> (kv._2, counter + 1)), counter = this.counter + 1)
     }
 
-    def get(ident: Ident): Option[(Type, Int)] = {
+    def getType(ident: Ident): Option[Type] = {
       symbols get ident match {
-        case None => parent.flatMap(_ get ident)
-        case Some(x) => Some(x)
+        case None => parent.flatMap(_ getType ident)
+        case Some(x) => Some(x._1)
+      }
+    }
+
+    def getOffset(ident: Ident): Option[Int] = {
+      symbols get ident match {
+        case None => parent.flatMap(_ getOffset ident)
+        case Some(x) => Some(x._2)
       }
     }
 
