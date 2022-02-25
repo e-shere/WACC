@@ -206,9 +206,19 @@ object generator {
 
   def genLhs(lhs: AssignLhs)(implicit state: RegState, symbols: TypeTable): List[Asm] = lhs match {
     case id@Ident(_) => {
-      ???
+      val offset = countToOffset(symbols.getOffset(id).get)
+      r(reg => Str(reg, STACK_POINTER)(intToAsmLit(offset)))._1
+      // TODO: account for movement in stack pointer
     }
-    case ArrayElem(id, index) => {
+    case arrElem@ArrayElem(id, index) => {
+      val offset = countToOffset(symbols.getOffset(id).get)
+      val (nodes, expState) = genExpr(index)
+      nodes ++ r(reg => Str(reg, STACK_POINTER)(intToAsmLit(offset + 1)))._1
+
+      // nodes
+      // r? = index + offset
+      // r(reg => Str(
+      // STR R(reg with id) [SP, R(reg with index + offset)]
       ???
     }
     case Fst(expr) => {

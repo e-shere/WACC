@@ -2,7 +2,11 @@ package backend
 
 object asm {
 
+  val BYTE_SIZE = 4
+
   def intToAsmLit(i: Int): String = "#" + i
+
+  def countToOffset(count: Int): Int = count * BYTE_SIZE
 
   sealed trait Asm
 
@@ -137,12 +141,12 @@ object asm {
   }
 
   //TODO: how to ? offset here are these arguments even the right way round?
-  case class Ldr(target: String, pos: String)(offset: String = intToAsmLit(0)) extends Asm {
-    override def toString = s"LDR $target, $pos"
+  case class Ldr(target: String, source: String)(offset: String = intToAsmLit(0)) extends Asm {
+    override def toString = s"LDR $target, $source"
   }
 
   //TODO: how to ? offset here
-  case class Str(value: String, pos: String)(offset: String = intToAsmLit(0)) extends Asm {
-    override def toString = s"STR $pos, $value"
+  case class Str(source: String, dest: String)(offset: String = intToAsmLit(0)) extends Asm {
+    override def toString = s"STR $source, $dest"
   }
 }
