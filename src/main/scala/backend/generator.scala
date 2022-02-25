@@ -3,6 +3,7 @@ package backend
 import frontend.ast
 import frontend.ast._
 import asm._
+import frontend.symbols.TypeTable
 
 object generator {
 
@@ -92,26 +93,26 @@ object generator {
 
   def genProgram(program: WaccProgram): List[Asm] = program match {
     case WaccProgram(funcs, stats) => {
-      funcs.flatMap(f => genFunc(f.id.id, f.args.length, f.body)) ++ genFunc("main", 0, stats)
+      funcs.flatMap(f => genFunc(f.id.id, f.args.length, f.body)(f.symbols.get)) ++ genFunc("main", 0, stats)(program.mainSymbols.get)
     }
   }
 
-  def genFunc(name: String, argc: Int, stats: List[Stat]): List[Asm] = {
+  def genFunc(name: String, argc: Int, stats: List[Stat])(implicit symbols: TypeTable): List[Asm] = {
     Label(name) +: genStats(stats) :+ Directive("ltorg")
   }
 
-  def genStats(stats: List[Stat]): List[Asm] = {
+  def genStats(stats: List[Stat])(implicit symbols: TypeTable): List[Asm] = {
     stats.flatMap(genStat)
   }
 
-  def genStat(stat: Stat): List[Asm] = {
+  def genStat(stat: Stat)(implicit symbols: TypeTable): List[Asm] = {
     implicit val initialState: RegState = NEW_REG
     stat match {
       case Skip() => Nil
       case Declare(_, id, rhs) => genStat(Assign(id, rhs)(stat.pos))
       case Assign(lhs, rhs) => {
-        val (rhsAsm, state) = genRhs(rhs)(NEW_REG)
-        val lhsAsm = genLhs(lhs)(state)
+        val (rhsAsm, state) = genRhs(rhs)(NEW_REG, symbols)
+        val lhsAsm = genLhs(lhs)(state, symbols)
         rhsAsm ++ lhsAsm
       }
       case Read(lhs) => Nil
@@ -126,23 +127,22 @@ object generator {
     } 
   }
 
-  def genBinOp(x: Expr, y: Expr, f: (String, String) => Asm)(implicit state: RegState): (List[Asm], RegState) = {
-
+  def genBinOp(x: Expr, y: Expr, f: (String, String) => Asm)(implicit state: RegState, symbols: TypeTable): (List[Asm], RegState) = {
     combineSteps(List(
-      genExpr(x)(_),
-      genExpr(y)(_),
+      genExpr(x)(_, symbols),
+      genExpr(y)(_, symbols),
       rro(f(_, _))(_)
     ))
   }
 
-  def genUnOp(x: Expr, f: (String) => Asm)(implicit state: RegState): (List[Asm], RegState) = {
+  def genUnOp(x: Expr, f: (String) => Asm)(implicit state: RegState, symbols: TypeTable): (List[Asm], RegState) = {
     combineSteps(List(
-      genExpr(x)(_),
+      genExpr(x)(_, symbols),
       ro(f(_))(_)
     ))
   }
 
-  def genExpr(expr: Expr)(implicit state: RegState): (List[Asm], RegState) = expr match {
+  def genExpr(expr: Expr)(implicit state: RegState, symbols: TypeTable): (List[Asm], RegState) = expr match {
     case ast.Or(x, y)  => genBinOp(x, y, new asm.Or(_, _)())
     case ast.And(x, y) => genBinOp(x, y, new asm.And(_, _)())
     case ast.Eq(x, y)  => genBinOp(x, y, new asm.Eq(_, _)())
@@ -164,7 +164,7 @@ object generator {
     case _ => (Nil, state)
   }
 
-  def genRhs(rhs: AssignRhs)(implicit state: RegState): (List[Asm], RegState) = rhs match {
+  def genRhs(rhs: AssignRhs)(implicit state: RegState, symbols: TypeTable): (List[Asm], RegState) = rhs match {
     case ArrayLiter(exprs) => {
       val setupArray: Step = combineSteps(List(
         w(Mov(_, intToAsmLit(exprs.length))())(_),
@@ -178,7 +178,7 @@ object generator {
 
       def putElem(expr: Expr, i: Int): Step = {
         combineSteps(List(
-          genExpr(expr)(_), // put value on the stack
+          genExpr(expr)(_, symbols), // put value on the stack
           rro((pos, value) => new Str(value, pos)(intToAsmLit((i + 1) * 4)))(_) // store value at pos, pos remains on the stack
         ))(_)
       }
@@ -198,7 +198,7 @@ object generator {
     case expr: Expr => genExpr(expr)
   }
 
-  def genLhs(lhs: AssignLhs)(implicit state: RegState): List[Asm] = {
+  def genLhs(lhs: AssignLhs)(implicit state: RegState, symbols: TypeTable): List[Asm] = {
     ???
   }
 }
