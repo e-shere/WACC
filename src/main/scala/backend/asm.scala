@@ -1,5 +1,7 @@
 package backend
 
+import state._
+
 object asm {
 
   val BYTE_SIZE = 4
@@ -23,11 +25,6 @@ object asm {
 
   case class Label(value: String) extends Asm {
     override def toString: String = value + ":"
-  }
-
-  case class Func(label: Label, body: List[Asm]) extends Asm {
-    override def toString: String =
-      (label.toString +: Push("lr") +: body :+ Pop("pc") :+ Directive("ltorg")).mkString(SEP)
   }
 
   // length of argRegs <= 4
