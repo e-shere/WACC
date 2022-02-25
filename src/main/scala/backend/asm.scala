@@ -6,87 +6,118 @@ object asm {
 
   sealed trait Asm
 
+  // TODO: consider separators
+  // somewhere I'm giving literals as a register........
+  // TODO: discuss calling assembly functions vs calling wacc functions
+  // TODO: discuss passing around List[Asm] implicitly in generator
+
+  val SEP = "\n\t"
+
   case class Directive(value: String) extends Asm {
-    override def toString = "." + value
+    override def toString: String = "." + value
   }
 
   case class Label(value: String) extends Asm {
-    override def toString = value + ":"
+    override def toString: String = value + ":"
   }
 
-  case class Push(reg: String) extends Asm
-  case class Pop(reg: String) extends Asm
-
-  case class Or(target: String, x: String, y: String) extends Asm {
-    def this(x: String, y: String) = this(x, x, y)
+  // length of argRegs <= 4
+  case class CallAssembly(argRegs: List[String], funcName: String) extends Asm {
+    // replace with a call to to register
+    override def toString: String = argRegs.zipWithIndex.map(x => Move(s"r${x._2}", x._1)()).mkString(SEP) +
+                              s"BL $funcName"
   }
 
-  case class And(target: String, x: String, y: String) extends Asm {
-    def this(x: String, y: String) = this(x, x, y)
+  case class Move(target: String, dest: String)(cond: Option[String] = None) extends Asm {
+    override def toString = s"MOV${cond.getOrElse("")} $target, $dest"
   }
 
-  case class Eq(target: String, x: String, y: String) extends Asm {
-    def this(x: String, y: String) = this(x, x, y)
+  case class Push(reg: String) extends Asm {
+    override def toString = s"PUSH {$reg}"
   }
 
-  case class Neq(target: String, x: String, y: String) extends Asm {
-    def this(x: String, y: String) = this(x, x, y)
+  case class Pop(reg: String) extends Asm {
+    override def toString = s"POP {$reg}"
   }
 
-  case class Leq(target: String, x: String, y: String) extends Asm {
-    def this(x: String, y: String) = this(x, x, y)
+  case class Or(x: String, y: String)(target: String = x) extends Asm {
+    override def toString = s"ORR $target, $x, $y"
   }
 
-  case class Lt(target: String, x: String, y: String) extends Asm {
-    def this(x: String, y: String) = this(x, x, y)
+  case class And(x: String, y: String)(target: String = x) extends Asm {
+    override def toString = s"AND $target, $x, $y"
   }
 
-  case class Geq(target: String, x: String, y: String) extends Asm {
-    def this(x: String, y: String) = this(x, x, y)
+  case class Compare(first: String, second: String) extends Asm {
+    override def toString = s"CMP $first, $second"
   }
 
-  case class Gt(target: String, x: String, y: String) extends Asm {
-    def this(x: String, y: String) = this(x, x, y)
+  case class Eq(x: String, y: String)(target: String = x) extends Asm {
   }
 
-  case class Add(target: String, x: String, y: String) extends Asm {
-    def this(x: String, y: String) = this(x, x, y)
+  case class Neq(x: String, y: String)(target: String = x) extends Asm {
   }
 
-  case class Sub(target: String, x: String, y: String) extends Asm {
-    def this(x: String, y: String) = this(x, x, y)
+  case class Leq(x: String, y: String)(target: String = x) extends Asm {
+    override def toString: String = Compare(x, y) + SEP + Move(target, "#1")(Some("LE")) +
+      Move(target, "#0")(Some("GT"))
   }
 
-  case class Mul(target: String, x: String, y: String) extends Asm {
-    def this(x: String, y: String) = this(x, x, y)
+  case class Lt(x: String, y: String)(target: String = x) extends Asm {
+    override def toString: String = Compare(x, y) + SEP + Move(target, "#1")(Some("LT")) +
+      Move(target, "#0")(Some("GE"))
   }
 
-  case class Div(target: String, x: String, y: String) extends Asm {
-    def this(x: String, y: String) = this(x, x, y)
+  case class Geq(x: String, y: String)(target: String = x) extends Asm {
+    override def toString: String = Compare(x, y) + SEP + Move(target, "#1")(Some("GE")) +
+      Move(target, "#0")(Some("LT"))
   }
 
-  case class Mod(target: String, x: String, y: String) extends Asm {
-    def this(x: String, y: String) = this(x, x, y)
+  case class Gt(x: String, y: String)(target: String = x) extends Asm {
+    override def toString: String = Compare(x, y) + SEP + Move(target, "#1")(Some("GT")) +
+      Move(target, "#0")(Some("LE"))
   }
 
-  case class Not(target: String, x: String) extends Asm {
-    def this(x: String) = this(x, x)
+  case class Add(x: String, y: String)(target: String = x) extends Asm {
+    override def toString = s"ADDS $target, $x, $y"
   }
 
-  case class Neg(target: String, x: String) extends Asm {
-    def this(x: String) = this(x, x)
+  case class Sub(x: String, y: String)(target: String = x) extends Asm {
+    //TODO: think about overflow errors
+    override def toString = s"SUBS $target, $x, $y"
   }
 
-  case class Len(target: String, x: String) extends Asm {
-    def this(x: String) = this(x, x)
+  case class Mul(x: String, y: String)(target1: String = x, target2: String = y) extends Asm {
+    override def toString = s"SMULL $x, $y, $x, $y"
+    // TODO: include s"CMP $y, $x ASR #31\nBLNE ${label of overflow error function}"
+    // result will be in register x
   }
 
-  case class Ord(target: String, x: String) extends Asm {
-    def this(x: String) = this(x, x)
+  case class Div(x: String, y: String)(target: String = x) extends Asm {
+    override def toString: String = CallAssembly(List(x, y), "p_check_divide_by_zero") + SEP +
+      CallAssembly(List.empty, "__aeabi_idiv") + Move(target, "r0")(None)
   }
 
-  case class Chr(target: String, x: String) extends Asm {
-    def this(x: String) = this(x, x)
+  case class Mod(x: String, y: String)(target: String = x) extends Asm {
+    override def toString: String = CallAssembly(List(x, y), "p_check_divide_by_zero") + SEP +
+      CallAssembly(List.empty, "__aeabi_idivmod") //TODO + put result in correct register
+  }
+
+  case class Not(x: String)(target: String = x) extends Asm {
+    override def toString = s"EOR $target, $x, #1"
+  }
+
+  case class Neg(x: String)(target: String = x) extends Asm {
+    override def toString = s"RSBS $target, $x, #0"
+  }
+
+  case class Len(x: String)(target: String = x) extends Asm {
+  }
+
+  case class Ord(x: String)(target: String = x) extends Asm {
+  }
+
+  case class Chr(x: String)(target: String = x) extends Asm {
   }
 
 
