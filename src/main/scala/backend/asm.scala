@@ -6,7 +6,7 @@ object asm {
 
   sealed trait Asm
 
-  // TODO: consider separators
+  // TODO: consider separators- which file
   // somewhere I'm giving literals as a register........
   // TODO: discuss calling assembly functions vs calling wacc functions
   // TODO: discuss passing around List[Asm] implicitly in generator
@@ -53,33 +53,33 @@ object asm {
   }
 
   case class Eq(x: String, y: String)(target: String = x) extends Asm {
-    override def toString: String = Compare(x, y) + SEP + Mov(target, "#1")(Some("EQ")) +
-      Mov(target, intToAsmLit(0))(Some("NE"))
+    override def toString: String = Compare(x, y).toString + SEP +
+      Mov(target, "#1")(Some("EQ")).toString + Mov(target, intToAsmLit(0))(Some("NE")).toString
   }
 
   case class Neq(x: String, y: String)(target: String = x) extends Asm {
-    override def toString: String = Compare(x, y) + SEP + Mov(target, "#1")(Some("NE")) +
-      Mov(target, intToAsmLit(0))(Some("EQ"))
+    override def toString: String = Compare(x, y).toString + SEP +
+      Mov(target, "#1")(Some("NE")).toString + Mov(target, intToAsmLit(0))(Some("EQ")).toString
   }
 
   case class Leq(x: String, y: String)(target: String = x) extends Asm {
-    override def toString: String = Compare(x, y) + SEP + Mov(target, "#1")(Some("LE")) +
-      Mov(target, intToAsmLit(0))(Some("GT"))
+    override def toString: String = Compare(x, y).toString + SEP +
+      Mov(target, "#1")(Some("LE")).toString + Mov(target, intToAsmLit(0))(Some("GT")).toString
   }
 
   case class Lt(x: String, y: String)(target: String = x) extends Asm {
-    override def toString: String = Compare(x, y) + SEP + Mov(target, "#1")(Some("LT")) +
-      Mov(target, intToAsmLit(0))(Some("GE"))
+    override def toString: String = Compare(x, y).toString + SEP +
+      Mov(target, "#1")(Some("LT")).toString + Mov(target, intToAsmLit(0))(Some("GE")).toString
   }
 
   case class Geq(x: String, y: String)(target: String = x) extends Asm {
-    override def toString: String = Compare(x, y) + SEP + Mov(target, "#1")(Some("GE")) +
-      Mov(target, intToAsmLit(0))(Some("LT"))
+    override def toString: String = Compare(x, y).toString + SEP +
+      Mov(target, "#1")(Some("GE")).toString + Mov(target, intToAsmLit(0))(Some("LT")).toString
   }
 
   case class Gt(x: String, y: String)(target: String = x) extends Asm {
-    override def toString: String = Compare(x, y) + SEP + Mov(target, "#1")(Some("GT")) +
-      Mov(target, intToAsmLit(0))(Some("LE"))
+    override def toString: String = Compare(x, y).toString + SEP +
+      Mov(target, "#1")(Some("GT")).toString + Mov(target, intToAsmLit(0))(Some("LE")).toString
   }
 
   case class Add(x: String, y: String)(target: String = x) extends Asm {
@@ -98,13 +98,14 @@ object asm {
   }
 
   case class Div(x: String, y: String)(target: String = x) extends Asm {
-    override def toString: String = CallAssembly(List(x, y), "p_check_divide_by_zero") + SEP +
-      CallAssembly(List.empty, "__aeabi_idiv") + Mov(target, "r0")(None)
+    override def toString: String = CallAssembly(List(x, y), "p_check_divide_by_zero").toString +
+      SEP + CallAssembly(List.empty, "__aeabi_idiv") + Mov(target, "r0")(None).toString
   }
 
   case class Mod(x: String, y: String)(target: String = x) extends Asm {
-    override def toString: String = CallAssembly(List(x, y), "p_check_divide_by_zero") + SEP +
-      CallAssembly(List.empty, "__aeabi_idivmod") //TODO + put result in correct register
+    override def toString: String = CallAssembly(List(x, y), "p_check_divide_by_zero").toString +
+      SEP + CallAssembly(List.empty, "__aeabi_idivmod").toString
+    //TODO + put result in correct register
   }
 
   case class Not(x: String)(target: String = x) extends Asm {
