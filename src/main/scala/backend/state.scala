@@ -31,12 +31,12 @@ object state {
     }
     def peek: (String, List[Asm], RegState) = {
       if (isReg) (regToString(reg), Nil, this)
-      else (PLACEHOLDER_1, List(new Ldr(PLACEHOLDER_1, STACK_POINTER)()), this)
+      else (PLACEHOLDER_1, List(Ldr(PLACEHOLDER_1, STACK_POINTER)()), this)
     }
     def peek2: (String, String, List[Asm], RegState) = {
       if (isReg) (regToString(prev.reg), regToString(reg), Nil, this)
-      else if (prev.isReg) (regToString(prev.reg), PLACEHOLDER_1, List(new Ldr(PLACEHOLDER_1, STACK_POINTER)()), this)
-      else (PLACEHOLDER_1, PLACEHOLDER_2, List(new Ldr(PLACEHOLDER_2, STACK_POINTER)(), Ldr(PLACEHOLDER_1, STACK_POINTER)(intToAsmLit(4))), this)
+      else if (prev.isReg) (regToString(prev.reg), PLACEHOLDER_1, List(Ldr(PLACEHOLDER_1, STACK_POINTER)()), this)
+      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Ldr(PLACEHOLDER_2, STACK_POINTER)(), Ldr(PLACEHOLDER_1, STACK_POINTER)(intToAsmLit(4))), this)
     }
     def write: (String, List[Asm], RegState) = {
       if (isReg) (regToString(next.reg), Nil, next)

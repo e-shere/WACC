@@ -50,7 +50,7 @@ object generator {
       case Assign(lhs, rhs) => genRhs(rhs) <++> genLhs(lhs)
       case Read(lhs) => ???
       case Free(expr) => ???
-      case Return(expr) => ???
+      case Return(expr) => genExpr(expr) <++> r(reg => Ldr(regToString(0), reg)())
       case Exit(expr) => genExpr(expr) <++> r(reg => CallAssembly(List(reg), "exit"))
       case Print(expr) => ???
       case Println(expr) => ???
@@ -90,6 +90,13 @@ object generator {
       case ast.Len(x)    => genUnOp(x, asm.Len(_)())
       case ast.Ord(x)    => genUnOp(x, asm.Ord(_)())
       case ast.Chr(x)    => genUnOp(x, asm.Chr(_)())
+      // TODO: deal with int overflow
+      case ast.IntLiter(x) => w(reg => Ldr(reg, intToAsmLit(x))())
+      case ast.BoolLiter(x) => w(reg => Ldr(reg, intToAsmLit(x.compare(false)))())
+        // TODO: let ldr take a char directly
+      case ast.CharLiter(x) => w(reg => Ldr(reg, intToAsmLit(x.toInt))())
+      case ast.StrLiter(x) => ???
+      case ast.ArrayLiter(x) => ???
         // TODO- lots more cases
       case _             => ???
     }
