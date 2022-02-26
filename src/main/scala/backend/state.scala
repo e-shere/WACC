@@ -15,13 +15,15 @@ object state {
   Reg documents the highest register of 4-9 which is not in use
   If reg > 9, reg documents the number of things in the stack + REG_END + 1
    */
+  // TODO: ROB PLEASE DO SOME OFF BY ONE CHECKS HERE
+  // TODO: unit test this
   case class RegState(reg: Int) {
-    def isReg: Boolean = reg >= REG_START && reg <= REG_END + 1
+    def isReg: Boolean = reg >= REG_START && reg <= REG_END
     def isStack: Boolean = reg > REG_END
     def prev: RegState = RegState(reg - 1)
     def next: RegState = RegState(reg + 1)
     def read: (String, List[Asm], RegState) = {
-      if (isReg) (regToString(reg), Nil, prev)
+      if (prev.isReg) (regToString(prev.reg), Nil, prev)
       else (PLACEHOLDER_1, List(Pop(PLACEHOLDER_1)), prev)
     }
     def read2: (String, String, List[Asm], RegState) = {
@@ -30,7 +32,7 @@ object state {
       else (PLACEHOLDER_1, PLACEHOLDER_2, List(Pop(PLACEHOLDER_2), Pop(PLACEHOLDER_1)), prev.prev)
     }
     def peek: (String, List[Asm], RegState) = {
-      if (isReg) (regToString(reg), Nil, this)
+      if (isReg) (regToString(prev.reg), Nil, this)
       else (PLACEHOLDER_1, List(Ldr(PLACEHOLDER_1, STACK_POINTER)()), this)
     }
     def peek2: (String, String, List[Asm], RegState) = {
@@ -39,7 +41,7 @@ object state {
       else (PLACEHOLDER_1, PLACEHOLDER_2, List(Ldr(PLACEHOLDER_2, STACK_POINTER)(), Ldr(PLACEHOLDER_1, STACK_POINTER)(intToAsmLit(4))), this)
     }
     def write: (String, List[Asm], RegState) = {
-      if (isReg) (regToString(next.reg), Nil, next)
+      if (isReg) (regToString(reg), Nil, next)
       else (PLACEHOLDER_1, List(Push(PLACEHOLDER_1)), next)
     }
   }

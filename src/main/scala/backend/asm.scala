@@ -1,7 +1,5 @@
 package backend
 
-import state._
-
 object asm {
 
   val BYTE_SIZE = 4
