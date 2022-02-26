@@ -132,7 +132,12 @@ object asm {
 
   //TODO: how to ? offset here are these arguments even the right way round?
   case class Ldr(target: String, source: String)(offset: String = intToAsmLit(0)) extends Asm {
-    override def toString = s"LDR $target, $source"
+    override def toString = {
+      source match {
+        case s if s.startsWith("=") => s"LDR $target, $source"
+        case _ => s"LDR $target, [$source, $offset]"
+      }
+    }
   }
 
   //TODO: how to ? offset here
