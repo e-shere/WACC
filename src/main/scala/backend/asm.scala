@@ -2,7 +2,11 @@ package backend
 
 object asm {
 
+  val BYTE_SIZE = 4
+
   def intToAsmLit(i: Int): String = "#" + i
+
+  def countToOffset(count: Int): Int = count * BYTE_SIZE
 
   sealed trait Asm
 
@@ -19,11 +23,6 @@ object asm {
 
   case class Label(value: String) extends Asm {
     override def toString: String = value + ":"
-  }
-
-  case class Func(label: Label, body: List[Asm]) extends Asm {
-    override def toString: String =
-      (label.toString +: Push("lr") +: body :+ Pop("pc") :+ Directive("ltorg")).mkString(SEP)
   }
 
   // length of argRegs <= 4
@@ -122,7 +121,7 @@ object asm {
   }
 
   case class Len(x: String)(target: String = x) extends Asm {
-    override def toString = Ldr(target, s"[$x]")().toString
+    override def toString: String = Ldr(target, s"[$x]")().toString
   }
 
   case class Ord(x: String)(target: String = x) extends Asm {
@@ -131,18 +130,13 @@ object asm {
   case class Chr(x: String)(target: String = x) extends Asm {
   }
 
-// TODO: rob look at this pls
-  case class Malloc(x: String)(target: String = x) extends Asm {
-    override def toString = CallAssembly(List(x), "malloc").toString
-  }
-
   //TODO: how to ? offset here are these arguments even the right way round?
-  case class Ldr(target: String, pos: String)(offset: String = intToAsmLit(0)) extends Asm {
-    override def toString = s"LDR $target, $pos"
+  case class Ldr(target: String, source: String)(offset: String = intToAsmLit(0)) extends Asm {
+    override def toString = s"LDR $target, $source"
   }
 
   //TODO: how to ? offset here
-  case class Str(value: String, pos: String)(offset: String = intToAsmLit(0)) extends Asm {
-    override def toString = s"STR $pos, $value"
+  case class Str(source: String, dest: String)(offset: String = intToAsmLit(0)) extends Asm {
+    override def toString = s"STR $source, $dest"
   }
 }
