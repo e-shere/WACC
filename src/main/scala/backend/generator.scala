@@ -14,12 +14,18 @@ object generator {
   def genProgram(program: WaccProgram): Step = program match {
     case WaccProgram(funcs, stats) => (
       funcs.foldLeft(Step.identity)((prev, f) => prev <++> genFunc(f.id.id, f.args.length, f.body)(f.symbols.get))
-      <++> genFunc("main", 0, stats)(program.mainSymbols.get)
+      <++> genMain(0, stats)(program.mainSymbols.get)
     )
   }
 
-  // TODO
-  def genMain(): Step = ???
+  def genMain(argc: Int, stats: List[Stat])(implicit symbols: TypeTable): Step = (
+  Label("main")
+  <++> Push("lr")
+  <++> genStats(stats :+ ast.Return(IntLiter(0)(NO_POS))(NO_POS))
+  <++> Pop("pc")
+  <++> Directive("ltorg")
+  <++> Step.discard
+  )
 
   // Note that each ASM node here is implicitly converted to a step
   def genFunc(name: String, argc: Int, stats: List[Stat])(implicit symbols: TypeTable): Step = (
