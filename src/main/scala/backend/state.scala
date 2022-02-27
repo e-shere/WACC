@@ -102,12 +102,15 @@ object state {
       (asm1 ++ fs.map(_(xReg, yReg)) ++ asm2, state2)
     })
 
+    // Read a register but do not discard its value afterwards
+    // Note that the output Asm CANNOT change the register
     def p(fs: (AsmReg) => Asm *): Step = Step((state: RegState) => {
       val (xReg, asm1, state1) = state.peek
       (asm1 ++ fs.map(_(xReg)) ++ asm1, state1)
     })
 
     // WARNING!
+    // Read two registers
     // Can only be used with fs that do not modify registers at all i.e. store
     def pp(fs: (AsmReg, AsmReg) => Asm *): Step = Step((state: RegState) => {
       val (xReg, yReg, asm1, state1) = state.peek2
