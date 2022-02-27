@@ -7,7 +7,7 @@
 # Official OpenJDK Java image. Look for the different tagged releases at
 # https://hub.docker.com/_/openjdk/ . A Java image is not required
 # but an image with a JVM speeds up the build a bit.
-image: hseeberger/scala-sbt:8u222_1.3.5_2.13.1
+#image: hseeberger/scala-sbt:8u222_1.3.5_2.13.1
 
 stages:
     #- lint
