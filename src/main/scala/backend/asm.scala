@@ -4,7 +4,7 @@ object asm {
 
   val BYTE_SIZE = 4
 
-  def intToAsmLit(i: Int): String = "#" + i
+  def intToAsmLit(i: Int): String = "=" + i
 
   def countToOffset(count: Int): Int = count * BYTE_SIZE
 
@@ -131,17 +131,23 @@ object asm {
   }
 
   //TODO: how to ? offset here are these arguments even the right way round?
-  case class Ldr(target: String, source: String)(offset: String = intToAsmLit(0)) extends Asm {
+  //TODO: add intToOffset = s"#$x" ?
+  case class Ldr(target: String, source: String)(offset: String = "#0") extends Asm {
     override def toString = {
-      source match {
-        case s if s.startsWith("=") => s"LDR $target, $source"
-        case _ => s"LDR $target, [$source, $offset]"
+      offset match {
+        case "#0" => s"Ldr $target, $source"
+        case _ => s"Ldr $target, [$source, $offset]"
       }
     }
   }
 
   //TODO: how to ? offset here
-  case class Str(source: String, dest: String)(offset: String = intToAsmLit(0)) extends Asm {
-    override def toString = s"STR $source, $dest"
+  case class Str(source: String, dest: String)(offset: String = "#0") extends Asm {
+    override def toString = {
+      offset match {
+        case "#0" => s"Str $source, [$dest]"
+        case _ => s"Str $source, [$dest, $offset]"
+      }
+    }
   }
 }

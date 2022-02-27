@@ -19,15 +19,18 @@ object generator {
     )
   }
 
+  // TODO: set sp
   def genMain(argc: Int, stats: List[Stat])(implicit symbols: TypeTable): Step = (
   Label("main")
   <++> Push("lr")
-  <++> genStats(stats :+ ast.Return(IntLiter(0)(NO_POS))(NO_POS))
+  <++> genStats(stats)
+  <++> Ldr("r0", "=0")()
   <++> Pop("pc")
   <++> Directive("ltorg")
   <++> Step.discard
   )
 
+  // TODO: set sp
   // Note that each ASM node here is implicitly converted to a step
   def genFunc(name: String, argc: Int, stats: List[Stat])(implicit symbols: TypeTable): Step = (
          Label(name)
@@ -120,7 +123,8 @@ object generator {
         <++> exprs.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
                prev 
           <++> genExpr(v._1) // put value in a register
-          <++> rro((pos, value) => Str(value, pos)(intToAsmLit((v._2 + 1) * 4))) // store value at pos, pos remains on the stack
+                 // TODO: intToOffset
+          <++> rro((pos, value) => Str(value, pos)(s"#${(v._2 + 1) * 4}")) // store value at pos, pos remains on the stack
         ))
       )
       case NewPair(fst, snd) => (
@@ -129,7 +133,8 @@ object generator {
         <++> genExpr(fst)
         <++> rro((pos, value) => Str(value, pos)())
         <++> genExpr(snd)
-        <++> rro((pos, value) => Str(value, pos)(intToAsmLit(4)))
+             // TODO: intToOffset
+        <++> rro((pos, value) => Str(value, pos)(s"#4"))
       )
       case Fst(expr) => (
              genExpr(expr)
@@ -137,7 +142,7 @@ object generator {
       )
       case Snd(expr) => (
              genExpr(expr)
-        <++> ro(reg => Ldr(reg, reg)(intToAsmLit(4)))
+        <++> ro(reg => Ldr(reg, reg)(s"#4"))
       )
       case Call(id, args) => ???
       case expr: Expr => genExpr(expr)
@@ -147,12 +152,12 @@ object generator {
   def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {
     case id@Ident(_) => {
       val offset = countToOffset(symbols.getOffset(id).get)
-      r(reg => Str(reg, STACK_POINTER)(intToAsmLit(offset)))
+      r(reg => Str(reg, STACK_POINTER)(s"#$offset"))
       // TODO: account for movement in stack pointer
     }
-    case arrElem@ArrayElem(id, index) => {
+    case ArrayElem(id, index) => {
       val offset = countToOffset(symbols.getOffset(id).get)
-      genExpr(index) <++> r(reg => Str(reg, STACK_POINTER)(intToAsmLit(offset + 1)))
+      genExpr(index) <++> r(reg => Str(reg, STACK_POINTER)(s"#${offset + 1}"))
 
       // nodes
       // r? = index + offset
