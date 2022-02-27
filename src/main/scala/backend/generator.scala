@@ -61,7 +61,7 @@ object generator {
       case Read(lhs) => ???
       case Free(expr) => ??? // Need to find out if is pair or array
       case Return(expr) => genExpr(expr) <++> r(reg => Mov(regToString(0), reg)())
-      case Exit(expr) => genExpr(expr) <++> r(reg => CallAssembly(List(reg), "exit"))
+      case Exit(expr) => genExpr(expr) <++> r(reg => asm.Call(List(reg), "exit"))
       case Print(expr) => ???
       case Println(expr) => ???
       case s@If(expr, thenStats, elseStats) => {
@@ -131,8 +131,10 @@ object generator {
       case ast.CharLiter(x) => w(reg => Ldr(reg, intToAsmLit(x.toInt))())
       case ast.StrLiter(x) => ???
       case ast.ArrayLiter(x) => ???
-        // TODO- lots more cases
-      case _             => ???
+      case ArrayElem(id, index) => ???
+      case Ident(id) => ???
+      case Null() => ???
+      case Paren(expr) => genExpr(expr) // same symbol table?
     }
   }
 
@@ -143,7 +145,7 @@ object generator {
       case ArrayLiter(exprs) => (
              w(Mov(_, intToAsmLit(exprs.length))())
         <++> w(Mov(_, intToAsmLit((exprs.length + 1) * 4))())
-        <++> ro(reg => CallAssembly(List(reg), "malloc")) // replace sizeInBytes with a pointer to the array
+        <++> ro(reg => asm.Call(List(reg), "malloc")) // replace sizeInBytes with a pointer to the array
         <++> rro(
           Str(_, _)(), // Store sizeInElements in array[0]
           Mov(_, _)() // replace sizeInElements with array pointer
@@ -159,7 +161,7 @@ object generator {
       )
       case NewPair(fst, snd) => (
              w(Mov(_, intToAsmLit(4 * 2))())
-        <++> ro(reg => CallAssembly(List(reg), "malloc"))
+        <++> ro(reg => asm.Call(List(reg), "malloc"))
         <++> genExpr(fst)
         <++> rro((pos, value) => Str(value, pos)())
         <++> genExpr(snd)
@@ -174,7 +176,9 @@ object generator {
              genExpr(expr)
         <++> ro(reg => Ldr(reg, reg)(s"#4"))
       )
-      case Call(id, args) => ???
+      case ast.Call(id, args) => //TODO: a variable number of reads into the Nil
+          args.foldLeft(Step.identity)(_ <++> genExpr(_)) //<++>
+//          rn(regs => Call(regs, id.id)) // regs is a list of registers of size n
       case expr: Expr => genExpr(expr)
     }
   }

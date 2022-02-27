@@ -30,7 +30,7 @@ object asm {
   }
 
   // length of argRegs <= 4
-  case class CallAssembly(argRegs: List[String], funcName: String) extends Asm {
+  case class Call(argRegs: List[String], funcName: String) extends Asm {
     // replace with a call to to register
     override def toString: String = argRegs.zipWithIndex.map(x => Mov(s"r${x._2}", x._1)()).mkString(SEP) +
                               SEP + Branch(funcName)("L")
@@ -106,13 +106,13 @@ object asm {
   }
 
   case class Div(x: String, y: String)(target: String = x) extends Asm {
-    override def toString: String = CallAssembly(List(x, y), "p_check_divide_by_zero").toString +
-      SEP + CallAssembly(List.empty, "__aeabi_idiv") + Mov(target, "r0")(None).toString
+    override def toString: String = Call(List(x, y), "p_check_divide_by_zero").toString +
+      SEP + Call(List.empty, "__aeabi_idiv") + Mov(target, "r0")(None).toString
   }
 
   case class Mod(x: String, y: String)(target: String = x) extends Asm {
-    override def toString: String = CallAssembly(List(x, y), "p_check_divide_by_zero").toString +
-      SEP + CallAssembly(List.empty, "__aeabi_idivmod").toString
+    override def toString: String = Call(List(x, y), "p_check_divide_by_zero").toString +
+      SEP + Call(List.empty, "__aeabi_idivmod").toString
     //TODO + put result in correct register
   }
 
