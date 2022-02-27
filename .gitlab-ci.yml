@@ -10,16 +10,9 @@
 image: hseeberger/scala-sbt:8u222_1.3.5_2.13.1
 
 stages:
-    #- lint
     - build
     - frontend-tests
     - backend-tests
-
-#lint-job:
-#  stage: lint
-#  script:
-#    - sbt scalafmtCheck
-
 
 build-job:
   stage: build
@@ -50,3 +43,8 @@ test-contents-of-code:
   stage: backend-tests
   script:
     - sbt "testOnly backend.MatchOutputTests"
+
+test-reg-state:
+  stage: backend-tests
+  script:
+    - sbt "testOnly backend.RegStateTests"
