@@ -178,9 +178,9 @@ object asm {
     def this(target: AsmReg, value: AsmDefiniteArg) = this(target, value, AsmInt(0))
 
     override def toString = {
-      offset match {
-        case AsmInt(0) => s"Ldr $target, $source"
-        case _ => s"Ldr $target, [$source, $offset]"
+      source match {
+        case i@ AsmInt(_) => s"LDR $target, ${i.toLdrString}"
+        case _ => s"LDR $target, [$source, $offset]"
       }
     }
   }
