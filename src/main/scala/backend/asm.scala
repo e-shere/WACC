@@ -8,6 +8,33 @@ object asm {
 
   def countToOffset(count: Int): Int = count * BYTE_SIZE
 
+  sealed trait AsmArg
+
+  case class AsmReg(r: Int) extends AsmArg {
+    assert(r >= 0 && r <= 15)
+
+    override def toString = r match {
+      case 12 => "ip"
+      case 13 => "sp"
+      case 14 => "lr"
+      case 15 => "pc"
+      case x  => s"r$x"
+    }
+  }
+
+  case class AsmInt(i: Int) extends AsmArg {
+    override def toString = s"#$i"
+
+    def toLdrString = s"=$i"
+  }
+
+  // Handling Chars separately would produce nicer assembly but requires ugly code
+  // to convert an escape character back to the escaped form
+  // Maybe do this later
+  // case class AsmChar(c: Char) {
+  //   override def toString = s"#'$c'"
+  // }
+
   sealed trait Asm
 
   // TODO: consider separators- which file
