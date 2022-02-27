@@ -13,7 +13,7 @@ object generator {
 
   private val r0 = AsmReg(0)
   private val lr = AsmReg(14)
-  private val pc = AsmReg(13)
+  private val pc = AsmReg(15)
 
   // TODO: consider naming conventions for dynamically created unique labels
   private var uniqueNameGen = -1
