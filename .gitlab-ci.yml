@@ -10,16 +10,9 @@
 image: hseeberger/scala-sbt:8u222_1.3.5_2.13.1
 
 stages:
-    #- lint
     - build
     - frontend-tests
     - backend-tests
-
-#lint-job:
-#  stage: lint
-#  script:
-#    - sbt scalafmtCheck
-
 
 build-job:
   stage: build
@@ -45,6 +38,16 @@ semantically-test-invalid-job:
   stage: frontend-tests
   script:
     - sbt "testOnly frontend.AllSemanticallyInvalid"
+
+test-reg-state:
+  stage: backend-tests
+  script:
+    - sbt "testOnly backend.RegStateTests"
+
+test-assembly-output:
+  stage: backend-tests
+  script:
+    - sbt "testOnly backend.MatchOutputTests"
 
 test-assembly-compiles:
   stage: backend-tests
