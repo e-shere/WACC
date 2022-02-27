@@ -50,6 +50,8 @@ object generator {
   }
 
   //TODO
+
+  // TODO: dynamically add doStats, thenStats and elseStats as functions instead?
   @tailrec
   def genStat(stat: Stat)(implicit symbols: TypeTable): Step = {
     stat match {
@@ -57,18 +59,18 @@ object generator {
       case Declare(_, id, rhs) => genStat(Assign(id, rhs)(stat.pos))
       case Assign(lhs, rhs) => genRhs(rhs) <++> genLhs(lhs)
       case Read(lhs) => ???
-      case Free(expr) => ???
+      case Free(expr) => ??? // Need to find out if is pair or array
       case Return(expr) => genExpr(expr) <++> r(reg => Mov(regToString(0), reg)())
       case Exit(expr) => genExpr(expr) <++> r(reg => CallAssembly(List(reg), "exit"))
       case Print(expr) => ???
       case Println(expr) => ???
-        // TODO: dynamically add thenStats and elseStats as functions instead?
       case s@If(expr, thenStats, elseStats) => {
         val l = getUniqueName
         val thenLabel = s"L_then_$l"
         val elseLabel = s"L_else_$l"
         val doneLabel = s"L_done_$l"
-        r(reg => Compare(reg, "#0")) <++>
+        genExpr(expr) <++>
+        r(reg => Compare(reg, "#1")) <++>
         Branch(thenLabel)("LEQ") <++>
         Branch(elseLabel)("L") <++>
         Branch(doneLabel)() <++>
@@ -78,8 +80,16 @@ object generator {
         genStats(elseStats)(s.elseTypeTable.get) <++>
         Label("done")
       }
-
-      case While(expr, doStats) => ???
+      case s@While(expr, doStats) =>
+        val l = getUniqueName
+        val topLabel = s"L_while_cond_$l"
+        val endLabel = s"L_while_end$l"
+        Label(topLabel) <++>
+        genExpr(expr) <++>
+        r(reg => Compare(reg, "#0")) <++>
+        Branch(endLabel)("EQ") <++>
+        genStats(doStats)(s.doTypeTable.get) <++>
+        Label(endLabel)
       case s@Scope(stats) => genStats(stats)(s.typeTable.get)
     } 
   }
