@@ -42,7 +42,8 @@ class AssemblyCompileTests extends AnyFlatSpec {
       pw.write(genProgram(ast).mkString("\n") + "\n")
       pw.close()
       // compile assembly
-      val compileResult = s"arm-linux-gnueabi-gcc -o ${path.split("\\.").head} -mcpu=arm1176jzf-s -mtune=arm1176jzf-s ${assemblyPath}"!
+      val cmd = s"arm-linux-gnueabi-gcc -o ${path.split("\\.").head} -mcpu=arm1176jzf-s -mtune=arm1176jzf-s ${assemblyPath}"
+      cmd.! shouldBe 0
     }
   }
 
@@ -87,9 +88,9 @@ class AssemblyCompileTests extends AnyFlatSpec {
     allCompile("src/examples/valid/scope")
   } */
 
-  "All valid sequence programs" should "compile" in pending /* {
+  "All valid sequence programs" should "compile" in {
     allCompile("src/examples/valid/sequence")
-  } */
+  }
 
   "All valid variables programs" should "compile" in pending /* {
     allCompile("src/examples/valid/variables")
