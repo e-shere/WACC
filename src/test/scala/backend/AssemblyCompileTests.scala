@@ -88,9 +88,9 @@ class AssemblyCompileTests extends AnyFlatSpec {
     allCompile("src/examples/valid/scope")
   } */
 
-  "All valid sequence programs" should "compile" in {
+  "All valid sequence programs" should "compile" in pending /* {
     allCompile("src/examples/valid/sequence")
-  }
+  } */
 
   "All valid variables programs" should "compile" in pending /* {
     allCompile("src/examples/valid/variables")
