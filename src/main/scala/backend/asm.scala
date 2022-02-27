@@ -25,11 +25,15 @@ object asm {
     override def toString: String = value + ":"
   }
 
+  case class Branch(label: String)(cond: String = "") extends Asm {
+    override def toString: String = s"B$cond $label"
+  }
+
   // length of argRegs <= 4
   case class CallAssembly(argRegs: List[String], funcName: String) extends Asm {
     // replace with a call to to register
     override def toString: String = argRegs.zipWithIndex.map(x => Mov(s"r${x._2}", x._1)()).mkString(SEP) +
-                              SEP + s"BL $funcName"
+                              SEP + Branch(funcName)("L")
   }
 
   case class Mov(target: String, dest: String)(cond: Option[String] = None) extends Asm {

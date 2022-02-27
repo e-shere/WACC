@@ -10,16 +10,9 @@
 image: hseeberger/scala-sbt:8u222_1.3.5_2.13.1
 
 stages:
-    #- lint
     - build
     - frontend-tests
     - backend-tests
-
-#lint-job:
-#  stage: lint
-#  script:
-#    - sbt scalafmtCheck
-
 
 build-job:
   stage: build
@@ -46,7 +39,19 @@ semantically-test-invalid-job:
   script:
     - sbt "testOnly frontend.AllSemanticallyInvalid"
 
-test-contents-of-code:
+test-reg-state:
+  stage: backend-tests
+  script:
+    - sbt "testOnly backend.RegStateTests"
+
+test-assembly-output:
   stage: backend-tests
   script:
     - sbt "testOnly backend.MatchOutputTests"
+
+test-assembly-compiles:
+  stage: backend-tests
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq gcc-arm-linux-gnueabi
+  script:
+    - sbt "testOnly backend.AssemblyCompileTests"

@@ -7,10 +7,14 @@ import state._
 import state.Step._
 import state.implicits._
 import frontend.symbols.TypeTable
-
 import scala.annotation.tailrec
 
 object generator {
+
+  // TODO: consider naming conventions for dynamically created unique labels
+  private var uniqueNameGen = -1
+  private def getUniqueName: Int = {uniqueNameGen += 1; uniqueNameGen}
+
   def genProgram(program: WaccProgram): Step = program match {
     case WaccProgram(funcs, stats) => (
       Directive("text\n") <++> Directive("global main") <++>
@@ -21,13 +25,13 @@ object generator {
 
   // TODO: set sp
   def genMain(argc: Int, stats: List[Stat])(implicit symbols: TypeTable): Step = (
-  Label("main")
-  <++> Push("lr")
-  <++> genStats(stats)
-  <++> Ldr("r0", "=0")()
-  <++> Pop("pc")
-  <++> Directive("ltorg")
-  <++> Step.discard
+    Label("main")
+    <++> Push("lr")
+    <++> genStats(stats)
+    <++> Ldr("r0", "=0")()
+    <++> Pop("pc")
+    <++> Directive("ltorg")
+    <++> Step.discard
   )
 
   // TODO: set sp
@@ -46,6 +50,8 @@ object generator {
   }
 
   //TODO
+
+  // TODO: dynamically add doStats, thenStats and elseStats as functions instead?
   @tailrec
   def genStat(stat: Stat)(implicit symbols: TypeTable): Step = {
     stat match {
@@ -53,13 +59,37 @@ object generator {
       case Declare(_, id, rhs) => genStat(Assign(id, rhs)(stat.pos))
       case Assign(lhs, rhs) => genRhs(rhs) <++> genLhs(lhs)
       case Read(lhs) => ???
-      case Free(expr) => ???
+      case Free(expr) => ??? // Need to find out if is pair or array
       case Return(expr) => genExpr(expr) <++> r(reg => Mov(regToString(0), reg)())
       case Exit(expr) => genExpr(expr) <++> r(reg => CallAssembly(List(reg), "exit"))
       case Print(expr) => ???
       case Println(expr) => ???
-      case If(expr, thenStats, elseStats) => ???
-      case While(expr, doStats) => ???
+      case s@If(expr, thenStats, elseStats) => {
+        val l = getUniqueName
+        val thenLabel = s"L_then_$l"
+        val elseLabel = s"L_else_$l"
+        val doneLabel = s"L_done_$l"
+        genExpr(expr) <++>
+        r(reg => Compare(reg, "#1")) <++>
+        Branch(thenLabel)("LEQ") <++>
+        Branch(elseLabel)("L") <++>
+        Branch(doneLabel)() <++>
+        Label("then") <++>
+        genStats(thenStats)(s.thenTypeTable.get) <++>
+        Label("else") <++>
+        genStats(elseStats)(s.elseTypeTable.get) <++>
+        Label("done")
+      }
+      case s@While(expr, doStats) =>
+        val l = getUniqueName
+        val topLabel = s"L_while_cond_$l"
+        val endLabel = s"L_while_end$l"
+        Label(topLabel) <++>
+        genExpr(expr) <++>
+        r(reg => Compare(reg, "#0")) <++>
+        Branch(endLabel)("EQ") <++>
+        genStats(doStats)(s.doTypeTable.get) <++>
+        Label(endLabel)
       case s@Scope(stats) => genStats(stats)(s.typeTable.get)
     } 
   }
@@ -156,6 +186,7 @@ object generator {
       // TODO: account for movement in stack pointer
     }
     case ArrayElem(id, index) => {
+      // this is the case a[3] = x
       val offset = countToOffset(symbols.getOffset(id).get)
       genExpr(index) <++> r(reg => Str(reg, STACK_POINTER)(s"#${offset + 1}"))
 
