@@ -7,10 +7,14 @@ import state._
 import state.Step._
 import state.implicits._
 import frontend.symbols.TypeTable
-
 import scala.annotation.tailrec
 
 object generator {
+
+  // TODO: consider naming conventions for dynamically created unique labels
+  private var uniqueNameGen = -1
+  private def getUniqueName: Int = {uniqueNameGen += 1; uniqueNameGen}
+
   def genProgram(program: WaccProgram): Step = program match {
     case WaccProgram(funcs, stats) => (
       Directive("text\n") <++> Directive("global main") <++>
@@ -21,13 +25,13 @@ object generator {
 
   // TODO: set sp
   def genMain(argc: Int, stats: List[Stat])(implicit symbols: TypeTable): Step = (
-  Label("main")
-  <++> Push("lr")
-  <++> genStats(stats)
-  <++> Ldr("r0", "=0")()
-  <++> Pop("pc")
-  <++> Directive("ltorg")
-  <++> Step.discard
+    Label("main")
+    <++> Push("lr")
+    <++> genStats(stats)
+    <++> Ldr("r0", "=0")()
+    <++> Pop("pc")
+    <++> Directive("ltorg")
+    <++> Step.discard
   )
 
   // TODO: set sp
@@ -58,7 +62,23 @@ object generator {
       case Exit(expr) => genExpr(expr) <++> r(reg => CallAssembly(List(reg), "exit"))
       case Print(expr) => ???
       case Println(expr) => ???
-      case If(expr, thenStats, elseStats) => ???
+        // TODO: dynamically add thenStats and elseStats as functions instead?
+      case s@If(expr, thenStats, elseStats) => {
+        val l = getUniqueName
+        val thenLabel = s"L_then_$l"
+        val elseLabel = s"L_else_$l"
+        val doneLabel = s"L_done_$l"
+        r(reg => Compare(reg, "#0")) <++>
+        Branch(thenLabel)("LEQ") <++>
+        Branch(elseLabel)("L") <++>
+        Branch(doneLabel)() <++>
+        Label("then") <++>
+        genStats(thenStats)(s.thenTypeTable.get) <++>
+        Label("else") <++>
+        genStats(elseStats)(s.elseTypeTable.get) <++>
+        Label("done")
+      }
+
       case While(expr, doStats) => ???
       case s@Scope(stats) => genStats(stats)(s.typeTable.get)
     } 
@@ -156,6 +176,7 @@ object generator {
       // TODO: account for movement in stack pointer
     }
     case ArrayElem(id, index) => {
+      // this is the case a[3] = x
       val offset = countToOffset(symbols.getOffset(id).get)
       genExpr(index) <++> r(reg => Str(reg, STACK_POINTER)(s"#${offset + 1}"))
 
