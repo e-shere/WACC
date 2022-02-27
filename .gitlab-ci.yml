@@ -46,7 +46,7 @@ semantically-test-invalid-job:
   script:
     - sbt "testOnly frontend.AllSemanticallyInvalid"
 
-test-contents-of-code:
+test-assembly-compiles:
   stage: backend-tests
   script:
-    - sbt "testOnly backend.MatchOutputTests"
+    - sbt "testOnly backend.AssemblyCompileTests"
