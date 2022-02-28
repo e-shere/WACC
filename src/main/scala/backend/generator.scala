@@ -61,7 +61,9 @@ object generator {
     stat match {
       case Skip() => Step.identity
       case Declare(_, id, rhs) => genStat(Assign(id, rhs)(stat.pos))
-      case Assign(lhs, rhs) => genRhs(rhs) <++> genLhs(lhs)
+      // In the Assign case, we use genLhs to store the offset on the stack
+      // that we access the given lhs variable from
+      case Assign(lhs, rhs) => genRhs(rhs) <++> genLhs(lhs) <++> Str.step(_0, STACK_POINTER, _0)
       case Read(lhs) => ???
       case Free(expr) => ??? // Need to find out if is pair or array
       case Return(expr) => genExpr(expr) <++> Mov.step(r0, _0)
@@ -190,7 +192,8 @@ object generator {
   def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {
     case id@Ident(_) => {
       val offset = countToOffset(symbols.getOffset(id).get)
-      Str.step(_0, STACK_POINTER, AsmInt(offset)) // TODO: this leaks a register
+      Mov.step(_0, AsmInt(offset))
+      // TODO: this leaks a register
       // TODO: account for movement in stack pointer
     }
     case ArrayElem(id, index) => (
@@ -198,13 +201,12 @@ object generator {
       <++> genExpr(index)
       <++> asm.Add.step(_0,_0, AsmInt(1))
       <++> asm.Mul.step(_0, _0, AsmInt(BYTE_SIZE))
-      <++> Str.step(_0, _1, _0))
-    case Fst(expr) => {
-      ???
-    }
-    case Snd(expr) => {
-      ???
-    }
+      <++> asm.Add.step(_0, _0, _1))
+    case Fst(id@Ident(_)) => genExpr(id)
+    case Snd(id@Ident(_)) => (
+      genExpr(id)
+      <++> asm.Add.step(_0, _0, AsmInt(1))
+    )
   }
 
   def genCallWithRegs(name: String, argc: Int): Step = {
