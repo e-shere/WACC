@@ -1,7 +1,9 @@
 package backend
-import backend.state._
+import backend.step._
 import backend.asm._
-import backend.state.implicits.implicitStep
+import backend.step.implicits.implicitStep
+
+import scala.language.implicitConversions
 
 object auxState {
 

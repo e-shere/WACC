@@ -3,12 +3,13 @@ package backend
 import frontend.ast
 import frontend.ast._
 import asm._
-import asm.implicits._
-import state._
-import state.implicits._
+import step._
 import frontend.symbols.TypeTable
+
 import scala.annotation.tailrec
 import auxState._
+import backend.state.STACK_POINTER
+import backend.step.implicits.implicitStep
 
 object generator {
 
