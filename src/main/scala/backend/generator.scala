@@ -75,14 +75,14 @@ object generator {
         val doneLabel = s"L_done_$l"
             (genExpr(expr)
         <++> Compare.step(_0, AsmInt(1))
-        <++> Branch(thenLabel)("LEQ")
-        <++> Branch(elseLabel)("L")
+        <++> Branch(thenLabel)("EQ")
+        <++> Branch(elseLabel)("")
         <++> Branch(doneLabel)()
-        <++> Label("then")
+        <++> Label(thenLabel)
         <++> genStats(thenStats)(s.thenTypeTable.get)
-        <++> Label("else")
+        <++> Label(elseLabel)
         <++> genStats(elseStats)(s.elseTypeTable.get)
-        <++> Label("done"))
+        <++> Label(doneLabel))
       }
       case s@While(expr, doStats) =>
         val l = getUniqueName

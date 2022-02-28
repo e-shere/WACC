@@ -179,7 +179,7 @@ object asm {
 
     override def toString = {
       source match {
-        case i@ AsmInt(_) => s"LDR $target, ${i.toLdrString}"
+        case i@AsmInt(_) => s"LDR $target, ${i.toLdrString}"
         case _ => s"LDR $target, [$source, $offset]"
       }
     }
