@@ -4,7 +4,7 @@ import backend.asm.AsmReg
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers._
 
-class RegStateTests extends AnyFlatSpec {
+class StateTests extends AnyFlatSpec {
   import backend.state._
 
   behavior of "state of registers"
@@ -26,12 +26,12 @@ class RegStateTests extends AnyFlatSpec {
   }
 
   "a full register state" should "use stack" in {
-    assert(RegState(AsmReg(10)).isStack)
-    assert(!RegState(AsmReg(10)).isReg)
+    assert(State(AsmReg(10), Set()).isStack)
+    assert(!State(AsmReg(10), Set()).isReg)
   }
 
   "top register" should "used in full stack" in {
-    val reg = RegState(AsmReg(9))
+    val reg = State(AsmReg(9), Set())
     assert(reg.isReg)
     reg.write._1 shouldBe AsmReg(9)
     assert(reg.isReg)

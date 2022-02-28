@@ -1,20 +1,20 @@
 package backend
 
 import backend.asm._
-import backend.state.{NEW_REG, RegState}
+import backend.state.{NEW_REG, State}
 import scala.language.implicitConversions
 
 object step {
   import implicits._
 
-  case class Step(func: RegState => (List[Asm], RegState)) {
+  case class Step(func: State => (List[Asm], State)) {
     override def toString = mkString("\n")
 
     def mkString(sep: String): String = this (NEW_REG)._1.mkString(sep)
 
-    def apply(state: RegState): (List[Asm], RegState) = func(state)
+    def apply(state: State): (List[Asm], State) = func(state)
 
-    def <++>(next: Step): Step = Step((state: RegState) => {
+    def <++>(next: Step): Step = Step((state: State) => {
       val (asm1, state1) = this (state)
       val (asm2, state2) = next(state1)
       (asm1 ++ asm2, state2)
@@ -29,19 +29,19 @@ object step {
     val discard: Step = Step(_ => (Nil, NEW_REG))
 
     // Read from register, then free the register
-    def r(fs: (AsmReg) => Asm*): Step = Step((state: RegState) => {
+    def r(fs: (AsmReg) => Asm*): Step = Step((state: State) => {
       val (reg, asm1, state1) = state.read
       (asm1 ++ fs.map(_ (reg)), state1)
     })
 
     // Write to a new register
-    def w(f: (AsmReg) => Asm): Step = Step((state: RegState) => {
+    def w(f: (AsmReg) => Asm): Step = Step((state: State) => {
       val (reg, asm1, state1) = state.write
       (f(reg) +: asm1, state1)
     })
 
     // Read from a register and overwrite it
-    def ro(fs: (AsmReg) => Asm*): Step = Step((state: RegState) => {
+    def ro(fs: (AsmReg) => Asm*): Step = Step((state: State) => {
       val (reg1, asm1, state1) = state.read
       val (reg2, asm2, state2) = state1.write
       assert(reg1 == reg2)
@@ -49,14 +49,14 @@ object step {
     })
 
     // Read from a register, preserve it, write to a new one
-    def rw(fs: (AsmReg, AsmReg) => Asm*): Step = Step((state: RegState) => {
+    def rw(fs: (AsmReg, AsmReg) => Asm*): Step = Step((state: State) => {
       val (reg1, asm1, state1) = state.peek
       val (reg2, asm2, state2) = state1.write
       (asm1 ++ fs.map(_ (reg2, reg1)) ++ asm2, state2)
     })
 
     // Read two registers, free one and overwrite the other
-    def rro(fs: (AsmReg, AsmReg) => Asm*): Step = Step((state: RegState) => {
+    def rro(fs: (AsmReg, AsmReg) => Asm*): Step = Step((state: State) => {
       val (xReg, yReg, asm1, state1) = state.read2
       val (tReg, asm2, state2) = state1.write
       assert(xReg == tReg)
@@ -65,7 +65,7 @@ object step {
 
     // Read a register but do not discard its value afterwards
     // Note that the output Asm CANNOT change the register
-    def p(fs: (AsmReg) => Asm*): Step = Step((state: RegState) => {
+    def p(fs: (AsmReg) => Asm*): Step = Step((state: State) => {
       val (xReg, asm1, state1) = state.peek
       (asm1 ++ fs.map(_ (xReg)) ++ asm1, state1)
     })
@@ -73,7 +73,7 @@ object step {
     // WARNING!
     // Read two registers
     // Can only be used with fs that do not modify registers at all i.e. store
-    def pp(fs: (AsmReg, AsmReg) => Asm*): Step = Step((state: RegState) => {
+    def pp(fs: (AsmReg, AsmReg) => Asm*): Step = Step((state: State) => {
       val (xReg, yReg, asm1, state1) = state.peek2
       (asm1 ++ fs.map(_ (xReg, yReg)) ++ asm1, state1)
     })
