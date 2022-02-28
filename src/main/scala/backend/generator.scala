@@ -193,7 +193,6 @@ object generator {
     case id@Ident(_) => {
       val offset = countToOffset(symbols.getOffset(id).get)
       Mov.step(_0, AsmInt(offset))
-      // TODO: this leaks a register
       // TODO: account for movement in stack pointer
     }
     case ArrayElem(id, index) => (
