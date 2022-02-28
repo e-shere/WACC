@@ -132,7 +132,6 @@ object generator {
       case ast.Len(x)    => genUnOp(x, asm.Len.step(_0, _0))
       case ast.Ord(x)    => genUnOp(x, asm.Ord.step(_0, _0))
       case ast.Chr(x)    => genUnOp(x, asm.Chr.step(_0, _0))
-      // TODO: deal with int overflow
       case ast.IntLiter(x) => Ldr.step(_0, AsmInt(x))
       case ast.BoolLiter(x) => Ldr.step(_0, AsmInt(x.compare(false)))
         // TODO: let ldr take a char directly
