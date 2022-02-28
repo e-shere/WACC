@@ -50,14 +50,12 @@ object state {
     }
   }
 
-  object funcState {
+  case class funcState() {
 
     //TODO: make these not private in generator?
     private val r0 = AsmReg(0)
     private val lr = AsmReg(14)
     private val pc = AsmReg(15)
-    private val NEWLINE = 10
-    private val ESCAPE = 0
 
     val includedFuncs: Set[PredefinedFunc] = Set.empty
 

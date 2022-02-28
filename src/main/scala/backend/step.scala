@@ -80,55 +80,6 @@ object step {
 
   sealed trait StepBuilder
 
-  //trait R extends StepBuilder {
-  //  def apply(reg: AsmReg): Asm
-
-  //  def r: Step = Step.r(apply)
-  //}
-
-  //trait W extends StepBuilder {
-  //  def apply(reg: AsmReg): Asm
-
-  //  def w: Step = Step.w(apply)
-  //}
-
-  //trait RW extends StepBuilder {
-  //  def apply(target: AsmReg, reg: AsmReg): Asm
-
-  //  def rw: Step = Step.rw(apply)
-  //}
-
-  //trait RO extends StepBuilder {
-  //  def apply(reg: AsmReg): Asm
-
-  //  def ro: Step = Step.ro(apply)
-  //}
-
-  //trait RRO1 extends StepBuilder {
-  //  def apply(x: AsmReg, y: AsmReg): Asm
-
-  //  def rro1: Step = Step.rro(apply)
-  //}
-
-  //trait P extends StepBuilder {
-  //  def apply(reg: AsmReg): Asm
-
-  //  def p: Step = Step.p(apply)
-  //}
-
-  //trait PP extends StepBuilder {
-  //  def apply(x: AsmReg, y: AsmReg): Asm
-
-  //  def pp: Step = Step.pp(apply)
-  //}
-
-  //trait RRO2 extends StepBuilder {
-  //  def apply(x: AsmReg, y: AsmReg): Asm
-
-  //  def rro2: Step = Step.rro(apply) <++> Mov.rro1
-  //}
-  //
-
   trait OutImm extends StepBuilder {
     def apply(out: AsmReg, in: AsmDefiniteArg): Asm
 
@@ -206,6 +157,7 @@ object step {
   trait InInIn extends StepBuilder {
     def apply(in1: AsmReg, in2: AsmReg, in3: AsmDefiniteArg): Asm
 
+    //TODO: complete
     def step(in1: AsmMaybeReg, in2: AsmMaybeReg, in3: AsmMaybeReg): Step = (in1, in2) match {
       //case (AsmAnyReg(0), in2Reg @ AsmReg(_)) => Step.r(apply(_, in2Reg))
       //case (in1Reg @ AsmReg(_), AsmAnyReg(0)) => Step.r(apply(in1Reg, _))
@@ -214,7 +166,6 @@ object step {
       //case (AsmAnyReg(1), AsmAnyReg(0))        => Step.pp((x, y) => apply(y, x))
       case _ => ???
     }
-
   }
 
   object implicits {
