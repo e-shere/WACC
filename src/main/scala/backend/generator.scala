@@ -36,7 +36,7 @@ object generator {
     <++> Ldr(r0, AsmInt(0))
     <++> Pop(pc)
     <++> Directive("ltorg")
-    <++> Step.discard
+    <++> Step.discardAll
   )
 
   // TODO: set sp
@@ -47,11 +47,11 @@ object generator {
     <++> genStats(stats)
     <++> Pop(pc)
     <++> Directive("ltorg")
-    <++> Step.discard
+    <++> Step.discardAll
   )
 
   def genStats(stats: List[Stat])(implicit symbols: TypeTable): Step = {
-    stats.foldLeft(Step.identity)(_ <++> genStat(_) <++> Step.discard)
+    stats.foldLeft(Step.identity)(_ <++> genStat(_) <++> Step.discardAll)
   }
 
   // TODO: dynamically add doStats, thenStats and elseStats as functions instead?
