@@ -64,7 +64,10 @@ object generator {
       case Declare(_, id, rhs) => genStat(Assign(id, rhs)(stat.pos))
       case Assign(lhs, rhs) => genRhs(rhs) <++> genLhs(lhs)
       case Read(lhs) => ???
-      case Free(expr) => ??? // Need to find out if is pair or array
+      case Free(expr) =>
+        ???// TODO: add free_pair to auxState set
+        // TODO: switch on free array vs free pair
+//        genExpr(expr) <++> genCallWithRegs(free_pair().label, 1)
       case Return(expr) => genExpr(expr) <++> Mov.step(r0, _0)
       case Exit(expr) => ??? // genExpr(expr) <++> r(reg => asm.Call(List(reg), "exit"))
       case Print(expr) => ???
