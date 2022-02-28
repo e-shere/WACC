@@ -136,7 +136,10 @@ object generator {
       case ast.StrLiter(x) => ???
       case ast.ArrayLiter(x) => ???
       case ArrayElem(id, index) => ???
-      case Ident(id) => ???
+      case idd@Ident(id) => {
+        val offset = countToOffset(symbols.getOffset(idd).get)
+        Ldr.step(_0, STACK_POINTER, AsmInt(offset))
+      }
       case Null() => ???
       case Paren(expr) => genExpr(expr) // same symbol table?
     }
@@ -190,17 +193,12 @@ object generator {
       Str.step(_0, STACK_POINTER, AsmInt(offset)) // TODO: this leaks a register
       // TODO: account for movement in stack pointer
     }
-    case ArrayElem(id, index) => {
-      // this is the case a[3] = x
-      val offset = countToOffset(symbols.getOffset(id).get)
-      genExpr(index) <++> Str.step(_0, STACK_POINTER, AsmInt(offset + 1))
-
-      // nodes
-      // r? = index + offset
-      // r(reg => Str(
-      // STR R(reg with id) [SP, R(reg with index + offset)]
-      ???
-    }
+    case ArrayElem(id, index) => (
+      genExpr(id)
+      <++> genExpr(index)
+      <++> asm.Add.step(_0,_0, AsmInt(1))
+      <++> asm.Mul.step(_0, _0, AsmInt(BYTE_SIZE))
+      <++> Str.step(_0, _1, _0))
     case Fst(expr) => {
       ???
     }
