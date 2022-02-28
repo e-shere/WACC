@@ -7,7 +7,7 @@ import step._
 import frontend.symbols.TypeTable
 
 import scala.annotation.tailrec
-import auxState._
+//import State._
 import backend.state.STACK_POINTER
 import backend.step.implicits.implicitStep
 
@@ -25,7 +25,7 @@ object generator {
     case WaccProgram(funcs, stats) => (
       Directive("text\n") <++> Directive("global main") <++>
         funcs.foldLeft(Step.identity)((prev, f) => prev <++> genFunc(f.id.id, f.args.length, f.body)(f.symbols.get))
-      <++> genMain(0, stats)(program.mainSymbols.get) <++> getPredefFuncs()
+      <++> genMain(0, stats)(program.mainSymbols.get)// <++> getPredefFuncs()
     )
   }
 
