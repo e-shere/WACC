@@ -28,6 +28,8 @@ object step {
     // TODO: don't discard function state!
     val discardAll: Step = Step(_ => (Nil, NEW_REG))
 
+    val discardTop: Step = Step(state => (Nil, state.prev))
+
     // Read from register, then free the register
     def r(fs: (AsmReg) => Asm*): Step = Step((state: State) => {
       val (reg, asm1, state1) = state.read

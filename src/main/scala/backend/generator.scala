@@ -65,7 +65,7 @@ object generator {
       case Assign(lhs, rhs) => genRhs(rhs) <++> genLhs(lhs) <++> Str.step(_0, STACK_POINTER, _0)
       case Read(lhs) => ???
       case Free(expr) =>
-        ???// TODO: add free_pair to auxState set
+        ??? // TODO: add free_pair to auxState set
         // TODO: switch on free array vs free pair
 //        genExpr(expr) <++> genCallWithRegs(free_pair().label, 1)
       case Return(expr) => genExpr(expr) <++> Mov.step(r0, _0)
@@ -172,6 +172,7 @@ object generator {
         <++> genCallWithRegs("malloc", 1)
         <++> genExpr(fst)
         <++> Str.step(_1, _0)
+        <++> Step.discardTop
         <++> genExpr(snd)
              // TODO: intToOffset
         <++> Str.step(_1, _0, AsmInt(4))
