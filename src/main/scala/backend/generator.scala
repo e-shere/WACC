@@ -65,7 +65,7 @@ object generator {
       case Read(lhs) => ???
       case Free(expr) => ??? // Need to find out if is pair or array
       case Return(expr) => genExpr(expr) <++> Mov.step(r0, _0)
-      case Exit(expr) => ??? // genExpr(expr) <++> r(reg => asm.Call(List(reg), "exit"))
+      case Exit(expr) => genExpr(expr) <++> Mov.step(r0, _0) <++> genCallWithRegs("exit", 1)
       case Print(expr) => ???
       case Println(expr) => ???
       case s@If(expr, thenStats, elseStats) => {
