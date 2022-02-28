@@ -8,6 +8,7 @@ import state._
 import state.implicits._
 import frontend.symbols.TypeTable
 import scala.annotation.tailrec
+import auxState._
 
 object generator {
 
@@ -23,7 +24,7 @@ object generator {
     case WaccProgram(funcs, stats) => (
       Directive("text\n") <++> Directive("global main") <++>
         funcs.foldLeft(Step.identity)((prev, f) => prev <++> genFunc(f.id.id, f.args.length, f.body)(f.symbols.get))
-      <++> genMain(0, stats)(program.mainSymbols.get)
+      <++> genMain(0, stats)(program.mainSymbols.get) <++> getPredefFuncs()
     )
   }
 
