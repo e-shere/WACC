@@ -3,11 +3,12 @@ package backend
 import frontend.ast
 import frontend.ast._
 import asm._
-import asm.implicits._
-import state._
-import state.implicits._
+import step._
 import frontend.symbols.TypeTable
+
 import scala.annotation.tailrec
+import backend.state.STACK_POINTER
+import backend.step.implicits.implicitStep
 
 object generator {
 
@@ -23,7 +24,7 @@ object generator {
     case WaccProgram(funcs, stats) => (
       Directive("text\n") <++> Directive("global main") <++>
         funcs.foldLeft(Step.identity)((prev, f) => prev <++> genFunc(f.id.id, f.args.length, f.body)(f.symbols.get))
-      <++> genMain(0, stats)(program.mainSymbols.get)
+      <++> genMain(0, stats)(program.mainSymbols.get)// <++> getPredefFuncs()
     )
   }
 
@@ -53,8 +54,6 @@ object generator {
     stats.foldLeft(Step.identity)(_ <++> genStat(_) <++> Step.discard)
   }
 
-  //TODO
-
   // TODO: dynamically add doStats, thenStats and elseStats as functions instead?
   @tailrec
   def genStat(stat: Stat)(implicit symbols: TypeTable): Step = {
@@ -65,7 +64,10 @@ object generator {
       // that we access the given lhs variable from
       case Assign(lhs, rhs) => genRhs(rhs) <++> genLhs(lhs) <++> Str.step(_0, STACK_POINTER, _0)
       case Read(lhs) => ???
-      case Free(expr) => ??? // Need to find out if is pair or array
+      case Free(expr) =>
+        ???// TODO: add free_pair to auxState set
+        // TODO: switch on free array vs free pair
+//        genExpr(expr) <++> genCallWithRegs(free_pair().label, 1)
       case Return(expr) => genExpr(expr) <++> Mov.step(r0, _0)
       case Exit(expr) => genExpr(expr) <++> Mov.step(r0, _0) <++> genCallWithRegs("exit", 1)
       case Print(expr) => ???
