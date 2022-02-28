@@ -25,6 +25,7 @@ object step {
 
     val identity: Step = Step((Nil, _))
     // This step is used between steps where the state of registers needs to be reset
+    // TODO: don't discard function state!
     val discard: Step = Step(_ => (Nil, NEW_REG))
 
     // Read from register, then free the register

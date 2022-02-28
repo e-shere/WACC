@@ -54,8 +54,6 @@ object generator {
     stats.foldLeft(Step.identity)(_ <++> genStat(_) <++> Step.discard)
   }
 
-  //TODO
-
   // TODO: dynamically add doStats, thenStats and elseStats as functions instead?
   @tailrec
   def genStat(stat: Stat)(implicit symbols: TypeTable): Step = {
