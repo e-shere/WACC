@@ -24,18 +24,47 @@ object PredefinedFunctions {
 
   case class print_ln() {
     val label = "p_print_ln"
-    def toStep: Step = Label(label) <++> Push(lr) <++> ??? <++>
-      Branch("fflush")("L") <++> Pop(pc)
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Ldr.step(r0, AsmInt(0))
+      <++> Add.step(r0, r0, AsmInt(WORD_BYTES))
+      <++> Branch("puts")("L")
+      <++> Mov.step(r0, AsmInt(0))
+      <++> Branch("fflush")("L")
+      <++> Pop(pc)
+      )
   }
 
   case class print_int() {
     val label = "p_print_int"
-    def toStep: Step = ???
+    def toStep: Step = (
+      Label(label)
+      <++> Push(lr)
+      <++> Mov.step(r1, r0)
+      <++> Ldr.step(r0, AsmInt(0))
+      <++> Add.step(r0, r0, AsmInt(WORD_BYTES))
+      <++> Branch("printf")("L")
+      <++> Mov.step(r0, AsmInt(0))
+      <++> Branch("fflush")("L")
+      <++> Pop(pc)
+    )
   }
 
   case class print_string() {
     val label = "p_print_string"
-    def toStep: Step = ???
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Ldr.step(r1, r0)
+      <++> Add.step(r2, r0, AsmInt(WORD_BYTES))
+      <++> Ldr.step(r0, AsmInt(0))
+      <++> Add.step(r0, r0, AsmInt(WORD_BYTES))
+      <++> Branch("printf")("L")
+      <++> Mov.step(r0, AsmInt(0))
+      <++> Branch("fflush")("L")
+      <++> Pop(pc)
+    )
   }
 
   case class print_bool() {
@@ -118,21 +147,8 @@ object PredefinedFunctions {
     )
   }
 
-  case class read_char() {
-    val label = "p_read_char"
-    def toStep: Step = (
-           Label(label)
-      <++> Push(lr)
-      <++> Mov.step(r1, r0)
-      <++> Ldr.step(r0, AsmInt(0))
-      <++> Add.step(r0, r0, AsmInt(WORD_BYTES))
-      <++> Branch("scanf")("L")
-      <++> Pop(pc)
-    )
-  }
-
-  case class read_int() {
-    val label = "p_read_int"
+  case class read_byte() {
+    val label = "p_read_byte"
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
