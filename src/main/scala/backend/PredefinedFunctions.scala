@@ -104,7 +104,18 @@ object PredefinedFunctions {
 
   case class check_array_bound() {
     val label = "p_check_array_bound"
-    def toStep: Step = ???
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Compare.step(r0, AsmInt(0))
+      /* <++> Load error message if LT */
+      <++> Branch(throw_runtime.toString())("LLT") // Link, Less than
+      <++> Ldr.step(r1, r1)
+      <++> Compare.step(r0, r1)
+      /* <++> Load error message if CS */
+      <++> Branch(throw_runtime.toString())("LCS") // Link, Carry set
+      <++> Pop(pc)
+    )
   }
 
   case class read_char() {
