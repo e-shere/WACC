@@ -34,25 +34,28 @@ object state {
     def next: State = State(AsmReg(reg.r + 1), this.fState)
     def read: (AsmReg, List[Asm], State) = {
       if (prev.isReg) (prev.reg, Nil, prev)
-      else (PLACEHOLDER_1, List(Pop(PLACEHOLDER_1)), prev)
+      else (PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev)
     }
     def read2: (AsmReg, AsmReg, List[Asm], State) = {
       if (isReg) (prev.reg, reg, Nil, prev.prev)
-      else if (prev.isReg) (prev.reg, PLACEHOLDER_1, List(Pop(PLACEHOLDER_1)), prev.prev)
-      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Pop(PLACEHOLDER_2), Pop(PLACEHOLDER_1)), prev.prev)
+      else if (prev.isReg) (prev.reg, PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev.prev)
+      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Pop()(PLACEHOLDER_2), Pop()(PLACEHOLDER_1)), prev.prev)
     }
     def peek: (AsmReg, List[Asm], State) = {
       if (isReg) (prev.reg, Nil, this)
-      else (PLACEHOLDER_1, List(Ldr(PLACEHOLDER_1, STACK_POINTER)), this)
+      // TODO: added 0 offset here. Check
+      else (PLACEHOLDER_1, List(Ldr()(PLACEHOLDER_1, STACK_POINTER, AsmInt(0))), this)
     }
     def peek2: (AsmReg, AsmReg, List[Asm], State) = {
       if (isReg) (prev.reg, reg, Nil, this)
-      else if (prev.isReg) (prev.reg, PLACEHOLDER_1, List(Ldr(PLACEHOLDER_1, STACK_POINTER)), this)
-      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Ldr(PLACEHOLDER_2, STACK_POINTER), new Ldr(PLACEHOLDER_1, STACK_POINTER, AsmInt(4))), this)
+      // TODO: added 0 offset here. Check
+      else if (prev.isReg) (prev.reg, PLACEHOLDER_1, List(Ldr()(PLACEHOLDER_1, STACK_POINTER, AsmInt(0))), this)
+      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Ldr()(PLACEHOLDER_2, STACK_POINTER, AsmInt(0)), new Ldr()(PLACEHOLDER_1, STACK_POINTER, AsmInt(4))), this)
     }
     def write: (AsmReg, List[Asm], State) = {
       if (isReg) (reg, Nil, next)
-      else (PLACEHOLDER_1, List(Push(PLACEHOLDER_1)), next)
+      // TODO: added 0 offset here. Check
+      else (PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next)
     }
   }
 }

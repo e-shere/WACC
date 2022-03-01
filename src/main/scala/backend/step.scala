@@ -26,7 +26,6 @@ object step {
 
     val identity: Step = Step((Nil, _))
     // This step is used between steps where the state of registers needs to be reset
-    // TODO: don't discard function state!
     val discardAll: Step = Step(state => (Nil, State(REG_START, state.fState)))
 
     val discardTop: Step = Step(state => (Nil, state.prev))
@@ -72,7 +71,7 @@ object step {
       (asm1 ++ asmF ++ asm2 ++ asm3 ++ asm4, state4)
     })
 
-    def instr(f: (Seq[AsmDefiniteArg]) => Asm)(args: AsmArg *)(out: AsmAnyReg *): Step = instr(f)(args: _*)(out: _*)
+//    def instr(f: (Seq[AsmDefiniteArg]) => Asm)(args: AsmArg *)(out: AsmAnyReg *): Step = instr(f)(args: _*)(out: _*)
 
     def instr[T](f: (Seq[AsmDefiniteArg], T) => Step)(args: AsmArg *)(aux: T)(out: AsmAnyReg *): Step = 
       instr(f(_, aux))(args: _*)(out: _*)
