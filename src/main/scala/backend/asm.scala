@@ -20,7 +20,7 @@ object asm {
   case class AsmReg(r: Int) extends AsmMaybeReg with AsmDefiniteArg {
     assert(r >= -1 && r <= 15)
 
-    override def toString = r match {
+    override def toString: String = r match {
       case -1 => "INVALID REGISTER"
       case 12 => "ip"
       case 13 => "sp"
@@ -30,7 +30,7 @@ object asm {
     }
   }
 
-  val NO_REG = AsmReg(-1)
+  val NO_REG: AsmReg = AsmReg(-1)
 
   case class AsmInt(i: Int) extends AsmDefiniteArg {
     override def toString = s"#$i"
@@ -163,7 +163,7 @@ object asm {
 
   case class Ldr(cond: String = "")(target: AsmReg, source: AsmDefiniteArg, offset: AsmDefiniteArg = AsmInt(0)) extends AsmInstr {
     override val opcode: String = "LDR"
-    override def argsToString = {
+    override def argsToString: String = {
       source match {
         case i@AsmInt(_) => s"$target, ${i.toLdrString}"
         case _ => s"target, [$source, $offset]"
@@ -173,7 +173,7 @@ object asm {
 
   case class Str(cond: String = "")(source: AsmReg, dest: AsmDefiniteArg, offset: AsmDefiniteArg = AsmInt(0)) extends AsmInstr {
     override val opcode: String = "STR"
-    override def argsToString = {
+    override def argsToString: String = {
       offset match {
         case AsmInt(0) => s"$source, [$dest]"
         case _ => s"$source, [$dest, $offset]"
@@ -187,35 +187,6 @@ object asm {
     }
   }
 
-  //case class Eq(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr {
-  //  override def toString: String = new Compare(x, y).toString + SEP +
-  //    Mov(target, AsmInt(1), Some("EQ")).toString + Mov(target, AsmInt(0), Some("NE")).toString
-  //}
-  //case class Neq(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr {
-  //  override def toString: String = new Compare(x, y).toString + SEP +
-  //    Mov(target, AsmInt(1), Some("NE")).toString + Mov(target, AsmInt(0), Some("EQ")).toString
-  //}
-
-  //case class Leq(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr {
-  //  override def toString: String = new Compare(x, y).toString + SEP +
-  //    Mov(target, AsmInt(1), Some("LE")).toString + Mov(target, AsmInt(0), Some("GT")).toString
-  //}
-
-  //case class Lt(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr {
-  //  override def toString: String = new Compare(x, y).toString + SEP +
-  //    Mov(target, AsmInt(1), Some("LT")).toString + Mov(target, AsmInt(0), Some("GE")).toString
-  //}
-
-  //case class Geq(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr {
-  //  override def toString: String = new Compare(x, y).toString + SEP +
-  //    Mov(target, AsmInt(1), Some("GE")).toString + Mov(target, AsmInt(0), Some("LT")).toString
-  //}
-
-  //case class Gt(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr {
-  //  override def toString: String = new Compare(x, y).toString + SEP +
-  //    Mov(target, AsmInt(1), Some("GT")).toString + Mov(target, AsmInt(0), Some("LE")).toString
-  //}
-  
   object Eq {
     def apply(cond: String = "")(args: AsmDefiniteArg *): Step = (
            Compare(cond)(args.tail: _*)
@@ -270,6 +241,7 @@ object asm {
   //  def apply(target: AsmReg, source: AsmDefiniteArg): Ldr = new Ldr(target, source)
   //  def apply(target: AsmReg, source: AsmReg, offset: AsmDefiniteArg): Ldr = new Ldr(target, source, offset)
   //}
+
   //object Str {
   //  def apply(target: AsmReg, dest: AsmDefiniteArg): Str = new Str(target, dest)
   //  def apply(target: AsmReg, dest: AsmReg, offset: AsmDefiniteArg): Str = new Str(target, dest, offset)
