@@ -51,6 +51,8 @@ object PredefinedFunctions {
     )
   }
 
+  // print_ char is just "BL putchar"
+
   case class print_string() {
     val label = "p_print_string"
     def toStep: Step = (
@@ -69,7 +71,18 @@ object PredefinedFunctions {
 
   case class print_bool() {
     val label = "p_print_bool"
-    def toStep: Step = ???
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Compare(r0, AsmInt(0))
+      /* <++> Load True if NE */
+      /* <++> Load False if EQ */
+      <++> Add.step(r0, r0, AsmInt(WORD_BYTES))
+      <++> Branch("printf")("L")
+      <++> Ldr.step(r0, AsmInt(0))
+      <++> Branch("fflush")("L")
+      <++> Pop(pc)
+    )
   }
 
   case class print_ref() {
