@@ -136,7 +136,23 @@ object generator {
       case ast.BoolLiter(x) => Ldr.step(_0, AsmInt(x.compare(false)))
         // TODO: let ldr take a char directly
       case ast.CharLiter(x) => Ldr.step(_0, AsmInt(x.toInt))
-      case ast.StrLiter(x) => ???
+      // There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
+      case ast.StrLiter(x) => (
+        Mov.step(_0, AsmInt(x.length))
+          <++> Mov.step(_0, AsmInt((x.length + 1) * 4))
+          <++> genCallWithRegs("malloc", 1) // replace sizeInBytes with a pointer to the array
+          <++> Str.step(_0, _1) // TODO: avoid this register leak (the bottom register isn't used again)
+          // -> size, ------
+          // -> pointer to array, nothing
+          <++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
+          prev
+            <++> asm.Chr.step(_0, AsmInt(v._1)) // Presumably this adds the char to the top of regState?
+            // Does this not lose the place where we malloc? Solved on line 168
+            // TODO: intToOffset
+            <++> Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
+            <++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
+          ))
+      )
       case ast.ArrayLiter(x) => (
         Mov.step(_0, AsmInt(x.length))
           <++> Mov.step(_0, AsmInt((x.length + 1) * 4))
