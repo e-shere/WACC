@@ -1,8 +1,8 @@
 package backend
 
 import backend.asm._
-import backend.step.Step
-import backend.step.implicits.implicitStep
+import backend()()
+import backend().implicits.implicitStep
 
 object PredefinedFunctions {
 
@@ -26,11 +26,11 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Ldr.step(r0, zero)
-      <++> Add.step(r0, r0, word_size)
-      <++> Branch("puts")("L")
-      <++> Mov.step(r0, zero)
-      <++> Branch("fflush")("L")
+      <++> Ldr()(r0, zero)
+      <++> Add()(r0, r0, word_size)
+      <++> Branch("L")("puts")
+      <++> Mov()(r0, zero)
+      <++> Branch("L")("fflush")
       <++> Pop(pc)
       )
   }
@@ -40,12 +40,12 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Mov.step(r1, r0)
-      <++> Ldr.step(r0, zero)
-      <++> Add.step(r0, r0, word_size)
-      <++> Branch("printf")("L")
-      <++> Mov.step(r0, zero)
-      <++> Branch("fflush")("L")
+      <++> Mov()(r1, r0)
+      <++> Ldr()(r0, zero)
+      <++> Add()(r0, r0, word_size)
+      <++> Branch("L")("printf")
+      <++> Mov()(r0, zero)
+      <++> Branch("L")("fflush")
       <++> Pop(pc)
     )
   }
@@ -57,13 +57,13 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Ldr.step(r1, r0)
-      <++> Add.step(r2, r0, word_size)
-      <++> Ldr.step(r0, zero)
-      <++> Add.step(r0, r0, word_size)
-      <++> Branch("printf")("L")
-      <++> Mov.step(r0, zero)
-      <++> Branch("fflush")("L")
+      <++> Ldr()(r1, r0)
+      <++> Add()(r2, r0, word_size)
+      <++> Ldr()(r0, zero)
+      <++> Add()(r0, r0, word_size)
+      <++> Branch("L")("printf")
+      <++> Mov()(r0, zero)
+      <++> Branch("L")("fflush")
       <++> Pop(pc)
     )
   }
@@ -76,10 +76,10 @@ object PredefinedFunctions {
       <++> Compare(r0, zero)
       /* <++> Load True if NE */
       /* <++> Load False if EQ */
-      <++> Add.step(r0, r0, word_size)
-      <++> Branch("printf")("L")
-      <++> Ldr.step(r0, zero)
-      <++> Branch("fflush")("L")
+      <++> Add()(r0, r0, word_size)
+      <++> Branch("L")("printf")
+      <++> Ldr()(r0, zero)
+      <++> Branch("L")("fflush")
       <++> Pop(pc)
     )
   }
@@ -89,12 +89,12 @@ object PredefinedFunctions {
     def toStep: Step = (
       Label(label)
       <++> Push(lr)
-      <++> Mov.step(r1, r0)
+      <++> Mov()(r1, r0)
       <++> Ldr(r0, zero)
-      <++> Add.step(r0, r0, word_size)
-      <++> Branch("printf")("L")
-      <++> Mov.step(r0, zero)
-      <++> Branch("fflush")("L")
+      <++> Add()(r0, r0, word_size)
+      <++> Branch("L")("printf")
+      <++> Mov()(r0, zero)
+      <++> Branch("L")("fflush")
       <++> Pop(pc)
     )
   }
@@ -104,7 +104,7 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       /* <++> Load error message */
-      <++> Branch(throw_runtime().label)("L")
+      <++> Branch("L")(throw_runtime().label)
     )
   }
 
@@ -112,9 +112,9 @@ object PredefinedFunctions {
     val label = "p_throw_runtime"
     def toStep: Step = (
            Label(label)
-      <++> Branch(print_string().label)("L")
+      <++> Branch("L")(print_string().label)
       <++> Mov(r0, AsmInt(-1))
-      <++> Branch("exit")("L")
+      <++> Branch("L")("exit")
       )
   }
 
@@ -123,9 +123,9 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Compare.step(r0, zero)
+      <++> Compare()(r0, zero)
       /* <++> Load error message if EQ */
-      <++> Branch(throw_runtime().label)("EQ")
+      <++> Branch("EQ")(throw_runtime().label)
       <++> Pop(pc)
       )
   }
@@ -136,7 +136,7 @@ object PredefinedFunctions {
              Label(label)
         <++> Push(lr)
         <++> check_null_pointer().toStep
-        <++> Branch("free")("L")
+        <++> Branch("L")("free")
         <++> Pop(pc)
       )
   }
@@ -146,9 +146,9 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Compare.step(r0, zero)
+      <++> Compare()(r0, zero)
       /* <++> Load error message if EQ */
-      <++> Branch(throw_runtime().label)("EQ")
+      <++> Branch("EQ")(throw_runtime().label)
       <++> Pop(pc)
     )
   }
@@ -158,13 +158,13 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Compare.step(r0, zero)
+      <++> Compare()(r0, zero)
       /* <++> Load error message if LT */
-      <++> Branch(throw_runtime.toString())("LLT") // Link, Less than
-      <++> Ldr.step(r1, r1)
-      <++> Compare.step(r0, r1)
+      <++> Branch("LLT")(throw_runtime.toString()) // Link, Less than
+      <++> Ldr()(r1, r1)
+      <++> Compare()(r0, r1)
       /* <++> Load error message if CS */
-      <++> Branch(throw_runtime.toString())("LCS") // Link, Carry set
+      <++> Branch("LCS")(throw_runtime.toString()) // Link, Carry set
       <++> Pop(pc)
     )
   }
@@ -174,10 +174,10 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Mov.step(r1, r0)
-      <++> Ldr.step(r0, zero)
-      <++> Add.step(r0, r0, word_size)
-      <++> Branch("scanf")("L")
+      <++> Mov()(r1, r0)
+      <++> Ldr()(r0, zero)
+      <++> Add()(r0, r0, word_size)
+      <++> Branch("L")("scanf")
       <++> Pop(pc)
     )
   }

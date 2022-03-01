@@ -36,10 +36,10 @@ object generator {
   // TODO: set sp
   def genMain(argc: Int, stats: List[Stat])(implicit symbols: TypeTable): Step = (
          Label("main")
-    <++> Push(lr)
+    <++> Push()(lr)
     <++> genStats(stats)
-    <++> Ldr(r0, AsmInt(0))
-    <++> Pop(pc)
+    <++> Ldr()(r0, AsmInt(0), AsmInt(0))
+    <++> Pop()(pc)
     <++> Directive("ltorg")
     <++> Step.discardAll
   )
@@ -48,9 +48,9 @@ object generator {
   // Note that each ASM node here is implicitly converted to a step
   def genFunc(name: String, argc: Int, stats: List[Stat])(implicit symbols: TypeTable): Step = (
          Label(name)
-    <++> Push(lr)
+    <++> Push()(lr)
     <++> genStats(stats)
-    <++> Pop(pc)
+    <++> Pop()(pc)
     <++> Directive("ltorg")
     <++> Step.discardAll
   )
@@ -68,14 +68,14 @@ object generator {
       // In the Assign case, we use genLhs to store the offset on the stack
       // that we access the given lhs variable from
         // TODO: check
-      case Assign(lhs, rhs) => genRhs(rhs) <++> genLhs(lhs) <++> Str.step(_0, STACK_POINTER, _1)
+      case Assign(lhs, rhs) => genRhs(rhs) <++> genLhs(lhs) // <++> Str.step(&(-2), STACK_POINTER, &(-1))
       case Read(lhs) => ???
       case Free(expr) =>
         ??? // TODO: add free_pair to auxState set
         // TODO: switch on free array vs free pair
 //        genExpr(expr) <++> genCallWithRegs(free_pair().label, 1)
-      case Return(expr) => genExpr(expr) <++> Mov.step(r0, _0)
-      case Exit(expr) => genExpr(expr) <++> Mov.step(r0, _0) <++> genCallWithRegs("exit", 1, None)
+      case Return(expr) => genExpr(expr) <++> Step.instr(Mov() _)(r0, Re1)()
+      case Exit(expr) => genExpr(expr) <++> Step.instr(Mov() _)(r0, Re1)() <++> genCallWithRegs("exit", 1, None)
       case Print(expr) => ???
       case Println(expr) => ???
       case s@If(expr, thenStats, elseStats) => {
@@ -84,12 +84,12 @@ object generator {
         val elseLabel = s"L_else_$l"
         val doneLabel = s"L_done_$l"
             (genExpr(expr)
-        <++> Compare.step(_0, AsmInt(1))
+        <++> Step.instr(Compare() _)(Re1, AsmInt(1))()
         <++> Branch(thenLabel)("EQ")
         <++> Branch(elseLabel)("")
         <++> Label(thenLabel)
         <++> genStats(thenStats)(s.thenTypeTable.get)
-        <++> Branch(doneLabel)()
+        <++> Branch()(doneLabel)
         <++> Label(elseLabel)
         <++> genStats(elseStats)(s.elseTypeTable.get)
         <++> Label(doneLabel))
@@ -100,10 +100,10 @@ object generator {
         val endLabel = s"L_while_end$l"
           (Label(topLabel)
         <++> genExpr(expr)
-        <++> Compare.step(_0, AsmInt(0))
+        <++> Step.instr(Compare() _)(Re1, AsmInt(0))()
         <++> Branch(endLabel)("EQ")
         <++> genStats(doStats)(s.doTypeTable.get)
-        <++> Branch(topLabel)()
+        <++> Branch()(topLabel)
         <++> Label(endLabel))
       case s@Scope(stats) => genStats(stats)(s.typeTable.get)
     } 
@@ -121,16 +121,16 @@ object generator {
 
   def genExpr(expr: Expr)(implicit symbols: TypeTable): Step = {
     expr match {
-      case ast.Or(x, y)  => genBinOp(x, y, asm.Or.step(_0, _0, _1))
-      case ast.And(x, y) => genBinOp(x, y, asm.And.step(_0, _0, _1))
-      case ast.Eq(x, y)  => genBinOp(x, y, asm.Eq.step(_0, _0, _1))
-      case ast.Neq(x, y) => genBinOp(x, y, asm.Neq.step(_0, _0, _1))
-      case ast.Leq(x, y) => genBinOp(x, y, asm.Leq.step(_0, _0, _1))
-      case ast.Lt(x, y)  => genBinOp(x, y, asm.Lt.step(_0, _0, _1))
-      case ast.Geq(x, y) => genBinOp(x, y, asm.Geq.step(_0, _0, _1))
-      case ast.Gt(x, y)  => genBinOp(x, y, asm.Gt.step(_0, _0, _1))
-      case ast.Add(x, y) => genBinOp(x, y, asm.Add.step(_0, _0, _1))
-      case ast.Sub(x, y) => genBinOp(x, y, asm.Sub.step(_0, _0, _1))
+      case ast.Or(x, y)  => genBinOp(x, y, Step.instr(asm.Or() _)(Re2, Re2, Re1)(Re2))
+      case ast.And(x, y) => genBinOp(x, y, asm.And.step(&(-2), &(-2), &(-1)))
+      case ast.Eq(x, y)  => genBinOp(x, y, asm.Eq.step(&(-2), &(-2), &(-1)))
+      case ast.Neq(x, y) => genBinOp(x, y, asm.Neq.step(&(-2), &(-2), &(-1)))
+      case ast.Leq(x, y) => genBinOp(x, y, asm.Leq.step(&(-2), &(-2), &(-1)))
+      case ast.Lt(x, y)  => genBinOp(x, y, asm.Lt.step(&(-2), &(-2), &(-1)))
+      case ast.Geq(x, y) => genBinOp(x, y, asm.Geq.step(&(-2), &(-2), &(-1)))
+      case ast.Gt(x, y)  => genBinOp(x, y, asm.Gt.step(&(-2), &(-2), &(-1)))
+      case ast.Add(x, y) => genBinOp(x, y, asm.Add.step(&(-2), &(-2), &(-1)))
+      case ast.Sub(x, y) => genBinOp(x, y, asm.Sub.step(&(-2), &(-2), &(-1)))
 //      case ast.Mul(x, y) => genBinOp(x, y, asm.Mul.step(_0, _0, _1))
       case ast.Div(x, y) => genDiv
       case ast.Mod(x, y) => genMod
