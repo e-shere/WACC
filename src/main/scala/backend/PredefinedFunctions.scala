@@ -8,6 +8,10 @@ object PredefinedFunctions {
 
   //TODO: make these not private in generator?
   private val r0 = AsmReg(0)
+  private val r1 = AsmReg(1)
+  private val r2 = AsmReg(2)
+  private val r3 = AsmReg(3)
+  private val sp = AsmReg(13)
   private val lr = AsmReg(14)
   private val pc = AsmReg(15)
   private val WORD_BYTES = 4
@@ -68,21 +72,22 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Compare.step(_0, AsmInt(0))
+      <++> Compare.step(r0, AsmInt(0))
       /* <++> Load error message if EQ */
       <++> Branch(throw_runtime().label)("EQ")
       <++> Pop(pc)
       )
   }
 
-  case class free_array() {
-    val label = "p_free_array"
-    def toStep: Step = ???
-  }
-
-  case class free_pair() {
-    val label = "p_free_pair"
-    def toStep: Step = ???
+  case class free() {
+    val label = "p_free"
+    def toStep: Step = (
+             Label(label)
+        <++> Push(lr)
+        <++> check_null_pointer().toStep
+        <++> Branch("free")("L")
+        <++> Pop(pc)
+      )
   }
 
   case class check_null_pointer() {
@@ -90,7 +95,7 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Compare.step(_0, AsmInt(0))
+      <++> Compare.step(r0, AsmInt(0))
       /* <++> Load error message if EQ */
       <++> Branch(throw_runtime().label)("EQ")
       <++> Pop(pc)
@@ -107,9 +112,9 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Mov.step(_1, _0)
-      <++> Ldr.step(_0, AsmInt(0))
-      <++> Add.step(_0, _0, AsmInt(WORD_BYTES))
+      <++> Mov.step(r1, r0)
+      <++> Ldr.step(r0, AsmInt(0))
+      <++> Add.step(r0, r0, AsmInt(WORD_BYTES))
       <++> Branch("scanf")("L")
       <++> Pop(pc)
     )
@@ -120,9 +125,9 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Mov.step(_1, _0)
-      <++> Ldr.step(_0, AsmInt(0))
-      <++> Add.step(_0, _0, AsmInt(WORD_BYTES))
+      <++> Mov.step(r1, r0)
+      <++> Ldr.step(r0, AsmInt(0))
+      <++> Add.step(r0, r0, AsmInt(WORD_BYTES))
       <++> Branch("scanf")("L")
       <++> Pop(pc)
     )
