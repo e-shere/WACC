@@ -2,6 +2,7 @@ package backend
 
 import backend.asm._
 import backend.state.{NEW_REG, REG_START, State}
+import backend.step.Step.stepInstr
 
 import scala.language.implicitConversions
 
@@ -30,11 +31,11 @@ object step {
 
     val discardTop: Step = Step(state => (Nil, state.prev))
 
-    def stepInstr(f: (Seq[AsmDefiniteArg]) => Step)(args: AsmArg *)(out: AsmAnyReg *): Step = Step((state: State) => {
+    def stepInstr(f: (Seq[AsmDefiniteArg]) => Step)(args: AsmArg*)(out: AsmAnyReg*): Step = Step((state: State) => {
       // TODO: remove this?
       val outSet = out.toSet
-      
-      val (re1, re2, asm1, state1) = 
+
+      val (re1, re2, asm1, state1) =
         if (args contains Re2) state.read2
         else if (args contains Re1) {
           val result = state.read
@@ -44,17 +45,17 @@ object step {
 
       val (re1w, asm2, state2) = if (out contains Re1) {
         assert(args contains Re1)
-        state1.write 
+        state1.write
       } else (NO_REG, asm1, state1)
 
-      assert (re1 == re1w)
-      
+      assert(re1 == re1w)
+
       val (re2w, asm3, state3) = if (out contains Re2) {
         assert(args contains Re2)
-        state1.write 
+        state1.write
       } else (NO_REG, asm2, state2)
 
-      assert (re2 == re2w)
+      assert(re2 == re2w)
 
       val (reNew, asm4, state4) = if (args contains ReNew) state1.write else (NO_REG, asm1, state1)
 
@@ -72,12 +73,17 @@ object step {
       (asm1 ++ asmF ++ asm2 ++ asm3 ++ asm4, state4)
     })
 
-    def asmInstr(f: Seq[AsmDefiniteArg] => Asm)(args: AsmArg *)(out: AsmAnyReg *): Step = stepInstr((x: Seq[AsmDefiniteArg]) => f(x))(args: _*)(out: _*)
+    def asmInstr(f: Seq[AsmDefiniteArg] => Asm)(args: AsmArg*)(out: AsmAnyReg*): Step =
+      stepInstr((x: Seq[AsmDefiniteArg]) => f(x))(args: _*)(out: _*)
 
-    def instr[T](f: (T, Seq[AsmDefiniteArg]) => Step)(args: AsmArg *)(aux: T)(out: AsmAnyReg *): Step =
-      stepInstr(f(aux, _))(args: _*)(out: _*)
+    def genericStepInstr[T](f: (Seq[AsmDefiniteArg]) => T => Step)(args: AsmArg*)(aux: T)(out: AsmAnyReg*): Step =
+      stepInstr(f(_)(aux))(args: _*)(out: _*)
+
+    def genericAsmInstr[T](f: (Seq[AsmDefiniteArg]) => T => Asm)(args: AsmArg*)(aux: T)(out: AsmAnyReg*): Step =
+      stepInstr(f(_)(aux))(args: _*)(out: _*)
+
+
   }
-
   object implicits {
     implicit def implicitStep(node: Asm): Step = Step((List(node), _))
   }

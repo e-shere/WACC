@@ -144,8 +144,7 @@ object asm {
     override def argsToString = s"${args(0)}, ${args(1)}, #0"
   }
 
-//  case class Ldr(cond: String = "")(target: AsmReg, source: AsmDefiniteArg, offset: AsmDefiniteArg = AsmInt(0)) extends AsmInstr {
-  case class Ldr(cond: String = "")(offset: AsmDefiniteArg, args: AsmDefiniteArg *) extends AsmInstr {
+  case class Ldr(cond: String = "")(args: AsmDefiniteArg *)(offset: AsmInt = AsmInt(0)) extends AsmInstr {
     override val opcode: String = "LDR"
     override def argsToString: String = {
       args(1) match {
@@ -154,9 +153,7 @@ object asm {
       }
     }
   }
-
-//  case class Str(cond: String = "")(source: AsmReg, dest: AsmDefiniteArg, offset: AsmDefiniteArg = AsmInt(0)) extends AsmInstr {
-  case class Str(cond: String = "")(offset: AsmDefiniteArg, args: AsmDefiniteArg *) extends AsmInstr {
+  case class Str(cond: String = "")(args: AsmDefiniteArg *)(offset: AsmInt = AsmInt(0))extends AsmInstr {
     override val opcode: String = "STR"
     override def argsToString: String = {
       offset match {
@@ -168,7 +165,7 @@ object asm {
 
   object Len {
     def apply(cond: String = "")(args: AsmDefiniteArg *): Step = args match {
-      case Seq(target: AsmReg, source) => Ldr(cond)(target, source)
+      case Seq(target: AsmReg, source) => Ldr(cond)(target, source)()
     }
   }
 
