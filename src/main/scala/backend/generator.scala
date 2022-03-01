@@ -73,8 +73,8 @@ object generator {
         ??? // TODO: add free_pair to auxState set
         // TODO: switch on free array vs free pair
 //        genExpr(expr) <++> genCallWithRegs(free_pair().label, 1)
-      case Return(expr) => genExpr(expr) <++> Step.instr(Mov() _)(r0, Re1)()
-      case Exit(expr) => genExpr(expr) <++> Step.instr(Mov() _)(r0, Re1)() <++> genCallWithRegs("exit", 1, None)
+      case Return(expr) => genExpr(expr) <++> Step.asmInstr(Mov() _)(r0, Re1)()
+      case Exit(expr) => genExpr(expr) <++> Step.asmInstr(Mov() _)(r0, Re1)() <++> genCallWithRegs("exit", 1, None)
       case Print(expr) => ???
       case Println(expr) => ???
       case s@If(expr, thenStats, elseStats) => {
@@ -83,7 +83,7 @@ object generator {
         val elseLabel = s"L_else_$l"
         val doneLabel = s"L_done_$l"
             (genExpr(expr)
-        <++> Step.instr(Compare() _)(Re1, AsmInt(1))()
+        <++> Step.asmInstr(Compare() _)(Re1, AsmInt(1))()
         <++> Branch(thenLabel)("EQ")
         <++> Branch(elseLabel)("")
         <++> Label(thenLabel)
@@ -99,7 +99,7 @@ object generator {
         val endLabel = s"L_while_end$l"
           (Label(topLabel)
         <++> genExpr(expr)
-        <++> Step.instr(Compare() _)(Re1, AsmInt(0))()
+        <++> Step.asmInstr(Compare() _)(Re1, AsmInt(0))()
         <++> Branch(endLabel)("EQ")
         <++> genStats(doStats)(s.doTypeTable.get)
         <++> Branch()(topLabel)
@@ -120,24 +120,24 @@ object generator {
 
   def genExpr(expr: Expr)(implicit symbols: TypeTable): Step = {
     expr match {
-      case ast.Or(x, y)  => genBinOp(x, y, Step.instr(asm.Or() _)(Re2, Re2, Re1)(Re2))
-      case ast.And(x, y) => genBinOp(x, y, asm.And.step(&(-2), &(-2), &(-1)))
-      case ast.Eq(x, y)  => genBinOp(x, y, asm.Eq.step(&(-2), &(-2), &(-1)))
-      case ast.Neq(x, y) => genBinOp(x, y, asm.Neq.step(&(-2), &(-2), &(-1)))
-      case ast.Leq(x, y) => genBinOp(x, y, asm.Leq.step(&(-2), &(-2), &(-1)))
-      case ast.Lt(x, y)  => genBinOp(x, y, asm.Lt.step(&(-2), &(-2), &(-1)))
-      case ast.Geq(x, y) => genBinOp(x, y, asm.Geq.step(&(-2), &(-2), &(-1)))
-      case ast.Gt(x, y)  => genBinOp(x, y, asm.Gt.step(&(-2), &(-2), &(-1)))
-      case ast.Add(x, y) => genBinOp(x, y, asm.Add.step(&(-2), &(-2), &(-1)))
-      case ast.Sub(x, y) => genBinOp(x, y, asm.Sub.step(&(-2), &(-2), &(-1)))
-//      case ast.Mul(x, y) => genBinOp(x, y, asm.Mul.step(_0, _0, _1))
-      case ast.Div(x, y) => genDiv
-      case ast.Mod(x, y) => genMod
-      case ast.Not(x)    => genUnOp(x, asm.Not.step(_0, _0))
-      case ast.Neg(x)    => genUnOp(x, asm.Neg.step(_0, _0))
-      case ast.Len(x)    => genUnOp(x, asm.Len.step(_0, _0))
-      case ast.Ord(x)    => genUnOp(x, asm.Ord.step(_0, _0))
-      case ast.Chr(x)    => genUnOp(x, asm.Chr.step(_0, _0))
+      case ast.Or(x, y)  => genBinOp(x, y, Step.asmInstr(asm.Or())(Re2, Re2, Re1)(Re2))
+      case ast.And(x, y) => genBinOp(x, y, Step.asmInstr(asm.And())(Re2, Re2, Re1)(Re2))
+      case ast.Eq(x, y)  => genBinOp(x, y, Step.stepInstr(asm.Eq())(Re2, Re2, Re1)(Re2))
+      case ast.Neq(x, y) => genBinOp(x, y, Step.stepInstr(asm.Neq())(Re2, Re2, Re1)(Re2))
+      case ast.Leq(x, y) => genBinOp(x, y, Step.stepInstr(asm.Leq())(Re2, Re2, Re1)(Re2))
+      case ast.Lt(x, y)  => genBinOp(x, y, Step.stepInstr(asm.Lt())(Re2, Re2, Re1)(Re2))
+      case ast.Geq(x, y) => genBinOp(x, y, Step.stepInstr(asm.Geq())(Re2, Re2, Re1)(Re2))
+      case ast.Gt(x, y)  => genBinOp(x, y, Step.stepInstr(asm.Gt())(Re2, Re2, Re1)(Re2))
+      case ast.Add(x, y) => genBinOp(x, y, Step.asmInstr(asm.Adds())(Re2, Re2, Re1)(Re2))
+      case ast.Sub(x, y) => genBinOp(x, y, Step.asmInstr(asm.Subs())(Re2, Re2, Re1)(Re2))
+      case ast.Mul(x, y) => ??? //genBinOp(x, y, asm.Mul.step(_0, _0, _1))
+      case ast.Div(x, y) => genDiv /*TODO: deal with x and y*/
+      case ast.Mod(x, y) => genMod /*TODO: deal with x and y*/
+      case ast.Not(x)    => genUnOp(x, Step.asmInstr(asm.Not())(Re1, Re1)(Re1))
+      case ast.Neg(x)    => genUnOp(x, Step.asmInstr(asm.Neg())(Re1, Re1)(Re1))
+      case ast.Len(x)    => genUnOp(x, Step.stepInstr(asm.Len())(Re1, Re1)(Re1))
+      case ast.Ord(x)    => ???
+      case ast.Chr(x)    => ???
       case ast.IntLiter(x) => Ldr.step(_0, AsmInt(x))
       case ast.BoolLiter(x) => Ldr.step(_0, AsmInt(x.compare(false)))
         // TODO: let ldr take a char directly
