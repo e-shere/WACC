@@ -169,7 +169,11 @@ object generator {
             <++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
           ))
       )
-      case ArrayElem(id, index) => ???
+      case ArrayElem(id, index) => (genExpr(id)
+        <++> genExpr(index)
+        <++> asm.Add.step(_0,_0, AsmInt(1))
+        <++> asm.Mul.step(_0, _0, AsmInt(BYTE_SIZE))
+        <++> asm.Add.step(_0, _0, _1))
       case idd@Ident(id) => {
         val offset = countToOffset(symbols.getOffset(idd).get)
         Ldr.step(_0, STACK_POINTER, AsmInt(offset))
@@ -215,16 +219,11 @@ object generator {
       Mov.step(_0, AsmInt(offset))
       // TODO: account for movement in stack pointer
     }
-    case ArrayElem(id, index) => (
-      genExpr(id)
-      <++> genExpr(index)
-      <++> asm.Add.step(_0,_0, AsmInt(1))
-      <++> asm.Mul.step(_0, _0, AsmInt(BYTE_SIZE))
-      <++> asm.Add.step(_0, _0, _1))
+    case arrElem@ArrayElem(id, index) => genExpr(arrElem)
     case Fst(id@Ident(_)) => genExpr(id)
     case Snd(id@Ident(_)) => (
       genExpr(id)
-      <++> asm.Add.step(_0, _0, AsmInt(1))
+      <++> asm.Add.step(_0, _0, AsmInt(BYTE_SIZE)) // Should the offset be 4 or 1?
     )
   }
 
