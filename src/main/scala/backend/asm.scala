@@ -217,7 +217,7 @@ object asm {
     def apply(target: AsmReg, source: AsmDefiniteArg): Ldr = new Ldr(target, source)
     def apply(target: AsmReg, source: AsmReg, offset: AsmDefiniteArg): Ldr = new Ldr(target, source, offset)
   }
-  object Str extends InImm with InIn with InInImm with InInIn {
+  object Str extends InImm with InIn with InInImm /* with InInIn */ {
     def apply(target: AsmReg, dest: AsmDefiniteArg): Str = new Str(target, dest)
     def apply(target: AsmReg, dest: AsmReg, offset: AsmDefiniteArg): Str = new Str(target, dest, offset)
   }
