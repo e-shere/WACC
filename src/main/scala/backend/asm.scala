@@ -38,14 +38,6 @@ object asm {
     def toLdrString = s"=$i"
   }
 
-  //case class AsmAnyReg(index: Int) extends AsmMaybeReg {
-  //  def toReg(available: Seq[AsmReg]): AsmReg = available(index)
-  //}
-
-  //def &(index: Int): AsmAnyReg = {
-  //  assert(index != 0)
-  //  AsmAnyReg(index)
-  //}
   sealed trait AsmAnyReg extends AsmArg
 
   case object Re1 extends AsmAnyReg
@@ -152,31 +144,24 @@ object asm {
     override def argsToString = s"${args(0)}, ${args(1)}, #0"
   }
 
-  // TODO: these shouldnt' be case classes- they'll be implemented in code gen
-//  case class Ord(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr {
-//    ???
-//  }
-//
-//  case class Chr(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr {
-//    ???
-//  }
-
-  case class Ldr(cond: String = "")(target: AsmReg, source: AsmDefiniteArg, offset: AsmDefiniteArg = AsmInt(0)) extends AsmInstr {
+//  case class Ldr(cond: String = "")(target: AsmReg, source: AsmDefiniteArg, offset: AsmDefiniteArg = AsmInt(0)) extends AsmInstr {
+  case class Ldr(cond: String = "")(offset: AsmDefiniteArg, args: AsmDefiniteArg *) extends AsmInstr {
     override val opcode: String = "LDR"
     override def argsToString: String = {
-      source match {
-        case i@AsmInt(_) => s"$target, ${i.toLdrString}"
-        case _ => s"target, [$source, $offset]"
+      args(1) match {
+        case i@AsmInt(_) => s"${args(0)}, ${i.toLdrString}"
+        case _ => s"target, [${args(1)}, $offset]"
       }
     }
   }
 
-  case class Str(cond: String = "")(source: AsmReg, dest: AsmDefiniteArg, offset: AsmDefiniteArg = AsmInt(0)) extends AsmInstr {
+//  case class Str(cond: String = "")(source: AsmReg, dest: AsmDefiniteArg, offset: AsmDefiniteArg = AsmInt(0)) extends AsmInstr {
+  case class Str(cond: String = "")(offset: AsmDefiniteArg, args: AsmDefiniteArg *) extends AsmInstr {
     override val opcode: String = "STR"
     override def argsToString: String = {
       offset match {
-        case AsmInt(0) => s"$source, [$dest]"
-        case _ => s"$source, [$dest, $offset]"
+        case AsmInt(0) => s"${args(0)}, [${args(1)}]"
+        case _ => s"${args(0)}, [${args(1)}, $offset]"
       }
     }
   }
@@ -235,17 +220,9 @@ object asm {
       )
   }
 
-  object Mul
-
-  //object Ldr {
-  //  def apply(target: AsmReg, source: AsmDefiniteArg): Ldr = new Ldr(target, source)
-  //  def apply(target: AsmReg, source: AsmReg, offset: AsmDefiniteArg): Ldr = new Ldr(target, source, offset)
-  //}
-
-  //object Str {
-  //  def apply(target: AsmReg, dest: AsmDefiniteArg): Str = new Str(target, dest)
-  //  def apply(target: AsmReg, dest: AsmReg, offset: AsmDefiniteArg): Str = new Str(target, dest, offset)
-  //}
+  object Mul {
+    def apply: Step = ???
+  }
 
   object implicits {
     def implicitAsmInt(i: Int): AsmInt = AsmInt(i)

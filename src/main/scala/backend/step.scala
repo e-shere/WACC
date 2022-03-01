@@ -74,8 +74,8 @@ object step {
 
     def asmInstr(f: Seq[AsmDefiniteArg] => Asm)(args: AsmArg *)(out: AsmAnyReg *): Step = stepInstr((x: Seq[AsmDefiniteArg]) => f(x))(args: _*)(out: _*)
 
-    def instr[T](f: (Seq[AsmDefiniteArg], T) => Step)(args: AsmArg *)(aux: T)(out: AsmAnyReg *): Step = 
-      stepInstr(f(_, aux))(args: _*)(out: _*)
+    def instr[T](f: (T, Seq[AsmDefiniteArg]) => Step)(args: AsmArg *)(aux: T)(out: AsmAnyReg *): Step =
+      stepInstr(f(aux, _))(args: _*)(out: _*)
   }
 
   object implicits {

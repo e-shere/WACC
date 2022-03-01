@@ -138,16 +138,17 @@ object generator {
       case ast.Len(x)    => genUnOp(x, Step.stepInstr(asm.Len())(Re1, Re1)(Re1))
       case ast.Ord(x)    => ???
       case ast.Chr(x)    => ???
-      case ast.IntLiter(x) => Step.asmInstr(asm.Ldr()(Re1, AsmInt(x)))(Re1)//Ldr.step(_0, AsmInt(x))
-      case ast.BoolLiter(x) => Ldr.step(_0, AsmInt(x.compare(false)))
+      case ast.IntLiter(x) => Step.instr(asm.Ldr())(Re1, AsmInt(x))(AsmInt(0))(Re1)
+      case ast.BoolLiter(x) => Step.instr(asm.Ldr())(Re1, AsmInt(x.compare(false)))(AsmInt(0))(Re1)
         // TODO: let ldr take a char directly
-      case ast.CharLiter(x) => Ldr.step(_0, AsmInt(x.toInt))
+      case ast.CharLiter(x) => Step.instr(asm.Ldr())(Re1, AsmInt(x.toInt))(AsmInt(0))(Re1)
       // There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
       case ast.StrLiter(x) => (
         Step.asmInstr(asm.Mov())(Re1, AsmInt(x.length))(Re1)
           <++> Step.asmInstr(asm.Mov())(Re1, AsmInt((x.length + 1) * 4))(Re1)
           <++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
-          <++> Str.step(_0, _1) // TODO: avoid this register leak (the bottom register isn't used again)
+          <++> Step.instr(asm.Str())(Re1, Re2)(AsmInt(0))(Re1)
+          //Str.step(_0, _1) // TODO: avoid this register leak (the bottom register isn't used again)
           // -> size, ------
           // -> pointer to array, nothing
           <++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
@@ -155,7 +156,8 @@ object generator {
             // <++> asm.Chr.step(_0, AsmInt(v._1)) // Presumably this adds the char to the top of regState?
             // Does this not lose the place where we malloc? Solved on line 168
             // TODO: intToOffset
-            <++> Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
+            <++> Step.instr(asm.Str())(Re2, Re1)(AsmInt((v._2 + 1) * 4))(Re2)
+            //Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
             <++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
           ))
       )
@@ -163,7 +165,8 @@ object generator {
         Step.asmInstr(asm.Mov())(Re1, AsmInt(x.length))(Re1)
           <++> Step.asmInstr(asm.Mov())(Re1, AsmInt((x.length + 1) * 4))(Re1)
           <++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
-          <++> Str.step(_0, _1) // TODO: avoid this register leak (the bottom register isn't used again)
+          <++> Step.instr(asm.Str())(Re1, Re2)(AsmInt(0))(Re1)
+          // Str.step(_0, _1) // TODO: avoid this register leak (the bottom register isn't used again)
           // -> size, ------
           // -> pointer to array, nothing
           <++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
@@ -171,7 +174,8 @@ object generator {
             <++> genExpr(v._1) // put value in a register
             // Does this not lose the place where we malloc? Solved on line 168
             // TODO: intToOffset
-            <++> Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
+            <++> Step.instr(asm.Str())(Re2, Re1)(AsmInt((v._2 + 1) * 4))(Re2)
+            // Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
             <++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
           ))
       )
@@ -183,7 +187,8 @@ object generator {
         )
       case idd@Ident(id) => {
         val offset = countToOffset(symbols.getOffset(idd).get)
-        Ldr.step(_0, STACK_POINTER, AsmInt(offset))
+        Step.instr(asm.Ldr())(Re1, STACK_POINTER)(AsmInt(offset))(Re1)
+        // Ldr.step(_0, STACK_POINTER, AsmInt(offset))
       }
       case Null() => ???
       case Paren(expr) => genExpr(expr) // same symbol table?
@@ -199,19 +204,21 @@ object generator {
         Step.asmInstr(asm.Mov())(Re1, AsmInt(4 * 2))(Re1)
         <++> genCallWithRegs("malloc", 1, Some(r0))
         <++> genExpr(fst)
-        <++> Str.step(_1, _0)
+        <++> Step.instr(asm.Str())(Re2, Re1)(AsmInt(0))(Re2)
+          // Str.step(_1, _0)
         <++> Step.discardTop
         <++> genExpr(snd)
              // TODO: intToOffset
-        <++> Str.step(_1, _0, AsmInt(4))
+        <++> Step.instr(asm.Str())(Re2, Re1)(AsmInt(4))(Re2)
+          //Str.step(_1, _0, AsmInt(4))
       )
       case Fst(expr) => (
              genExpr(expr)
-        <++> Ldr.step(_0, _0)
+        <++> Step.instr(asm.Ldr())(Re1, Re1)(AsmInt(0))(Re1)
       )
       case Snd(expr) => (
              genExpr(expr)
-        <++> Ldr.step(_0, _0, AsmInt(4))
+        <++> Step.instr(asm.Ldr())(Re1, Re1)(AsmInt(4))(Re1)
       )
       case ast.Call(id, args) => //TODO: a variable number of reads into the Nil
           args.foldLeft(Step.identity)(_ <++> genExpr(_)) //<++>
