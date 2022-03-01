@@ -153,6 +153,8 @@ object asm {
       }
     }
   }
+
+  // args(0): source, args(1): dest
   case class Str(cond: String = "")(args: AsmDefiniteArg *)(offset: AsmInt = AsmInt(0))extends AsmInstr {
     override val opcode: String = "STR"
     override def argsToString: String = {

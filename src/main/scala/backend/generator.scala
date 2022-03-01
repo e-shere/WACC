@@ -143,30 +143,29 @@ object generator {
         // TODO: let ldr take a char directly
       case ast.CharLiter(x) => Step.genericAsmInstr(asm.Ldr())(Re1, AsmInt(x.toInt))(AsmInt(0))(Re1)
       // There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
-      case ast.StrLiter(x) => (
-        Step.asmInstr(asm.Mov())(Re1, AsmInt(x.length))(Re1)
-          <++> Step.asmInstr(asm.Mov())(Re1, AsmInt((x.length + 1) * 4))(Re1)
-          <++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
-          <++> Step.genericAsmInstr(asm.Str())(Re1, Re2)(AsmInt(0))(Re1)
-          //Str.step(_0, _1) // TODO: avoid this register leak (the bottom register isn't used again)
-          // -> size, ------
-          // -> pointer to array, nothing
-          <++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
-          prev
-            // <++> asm.Chr.step(_0, AsmInt(v._1)) // Presumably this adds the char to the top of regState?
-            // Does this not lose the place where we malloc? Solved on line 168
-            // TODO: intToOffset
-            <++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt((v._2 + 1) * 4))(Re2)
-            //Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
-            <++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
-          ))
+      case ast.StrLiter(x) => ( ???
+//        Step.asmInstr(asm.Mov())(Re1, AsmInt(x.length))(Re1)
+//          <++> Step.asmInstr(asm.Mov())(Re1, AsmInt((x.length + 1) * 4))(Re1)
+//          <++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
+//          <++> Step.genericAsmInstr(asm.Str())(Re1, Re2)(AsmInt(0))(Re1)
+//          //Str.step(_0, _1) // TODO: avoid this register leak (the bottom register isn't used again)
+//          // -> size, ------
+//          // -> pointer to array, nothing
+//          <++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
+//          prev
+//            // <++> asm.Chr.step(_0, AsmInt(v._1)) // Presumably this adds the char to the top of regState?
+//            // Does this not lose the place where we malloc? Solved on line 168
+//            // TODO: intToOffset
+//            <++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt((v._2 + 1) * 4))(Re2)
+//            //Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
+//            <++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
+
       )
       case ast.ArrayLiter(x) => (
         Step.asmInstr(asm.Mov())(Re1, AsmInt(x.length))(Re1)
           <++> Step.asmInstr(asm.Mov())(Re1, AsmInt((x.length + 1) * 4))(Re1)
           <++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
-          <++> Step.genericAsmInstr(asm.Str())(Re1, Re2)(AsmInt(0))(Re1)
-          // Str.step(_0, _1) // TODO: avoid this register leak (the bottom register isn't used again)
+          <++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt(0))(Re1)
           // -> size, ------
           // -> pointer to array, nothing
           <++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
@@ -174,7 +173,7 @@ object generator {
             <++> genExpr(v._1) // put value in a register
             // Does this not lose the place where we malloc? Solved on line 168
             // TODO: intToOffset
-            <++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt((v._2 + 1) * 4))(Re2)
+            <++> Step.genericAsmInstr(asm.Str())(Re1, Re2)(AsmInt((v._2 + 1) * 4))(Re2)
             // Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
             <++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
           ))
