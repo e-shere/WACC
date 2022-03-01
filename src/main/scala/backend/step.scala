@@ -30,7 +30,8 @@ object step {
 
     val discardTop: Step = Step(state => (Nil, state.prev))
 
-    def instr(f: (Seq[AsmDefiniteArg]) => Step)(args: AsmArg *)(out: AsmAnyReg *): Step = Step((state: State) => {
+    def stepInstr(f: (Seq[AsmDefiniteArg]) => Step)(args: AsmArg *)(out: AsmAnyReg *): Step = Step((state: State) => {
+      // TODO: remove this?
       val outSet = out.toSet
       
       val (re1, re2, asm1, state1) = 
@@ -71,10 +72,10 @@ object step {
       (asm1 ++ asmF ++ asm2 ++ asm3 ++ asm4, state4)
     })
 
-//    def instr(f: (Seq[AsmDefiniteArg]) => Asm)(args: AsmArg *)(out: AsmAnyReg *): Step = instr(f)(args: _*)(out: _*)
+    def asmInstr(f: Seq[AsmDefiniteArg] => Asm)(args: AsmArg *)(out: AsmAnyReg *): Step = stepInstr((x: Seq[AsmDefiniteArg]) => f(x))(args: _*)(out: _*)
 
     def instr[T](f: (Seq[AsmDefiniteArg], T) => Step)(args: AsmArg *)(aux: T)(out: AsmAnyReg *): Step = 
-      instr(f(_, aux))(args: _*)(out: _*)
+      stepInstr(f(_, aux))(args: _*)(out: _*)
   }
 
   object implicits {

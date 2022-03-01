@@ -4,7 +4,6 @@ import frontend.ast
 import frontend.ast._
 import asm._
 import backend.PredefinedFunctions.{PredefinedFunc, check_div_zero}
-import backend.generator.genCallWithRegs
 import step._
 import frontend.symbols.TypeTable
 
