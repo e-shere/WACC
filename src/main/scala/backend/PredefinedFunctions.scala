@@ -10,11 +10,10 @@ object PredefinedFunctions {
   private val r0 = AsmReg(0)
   private val r1 = AsmReg(1)
   private val r2 = AsmReg(2)
-  private val r3 = AsmReg(3)
-  private val sp = AsmReg(13)
   private val lr = AsmReg(14)
   private val pc = AsmReg(15)
-  private val WORD_BYTES = 4
+  private val word_size = AsmInt(4)
+  private val zero = AsmInt(0)
 
   // TODO: enum or case classes of each type of predefined functions
   sealed trait PredefinedFunc {
@@ -27,10 +26,10 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Ldr.step(r0, AsmInt(0))
-      <++> Add.step(r0, r0, AsmInt(WORD_BYTES))
+      <++> Ldr.step(r0, zero)
+      <++> Add.step(r0, r0, word_size)
       <++> Branch("puts")("L")
-      <++> Mov.step(r0, AsmInt(0))
+      <++> Mov.step(r0, zero)
       <++> Branch("fflush")("L")
       <++> Pop(pc)
       )
@@ -42,10 +41,10 @@ object PredefinedFunctions {
            Label(label)
       <++> Push(lr)
       <++> Mov.step(r1, r0)
-      <++> Ldr.step(r0, AsmInt(0))
-      <++> Add.step(r0, r0, AsmInt(WORD_BYTES))
+      <++> Ldr.step(r0, zero)
+      <++> Add.step(r0, r0, word_size)
       <++> Branch("printf")("L")
-      <++> Mov.step(r0, AsmInt(0))
+      <++> Mov.step(r0, zero)
       <++> Branch("fflush")("L")
       <++> Pop(pc)
     )
@@ -59,11 +58,11 @@ object PredefinedFunctions {
            Label(label)
       <++> Push(lr)
       <++> Ldr.step(r1, r0)
-      <++> Add.step(r2, r0, AsmInt(WORD_BYTES))
-      <++> Ldr.step(r0, AsmInt(0))
-      <++> Add.step(r0, r0, AsmInt(WORD_BYTES))
+      <++> Add.step(r2, r0, word_size)
+      <++> Ldr.step(r0, zero)
+      <++> Add.step(r0, r0, word_size)
       <++> Branch("printf")("L")
-      <++> Mov.step(r0, AsmInt(0))
+      <++> Mov.step(r0, zero)
       <++> Branch("fflush")("L")
       <++> Pop(pc)
     )
@@ -74,12 +73,12 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Compare(r0, AsmInt(0))
+      <++> Compare(r0, zero)
       /* <++> Load True if NE */
       /* <++> Load False if EQ */
-      <++> Add.step(r0, r0, AsmInt(WORD_BYTES))
+      <++> Add.step(r0, r0, word_size)
       <++> Branch("printf")("L")
-      <++> Ldr.step(r0, AsmInt(0))
+      <++> Ldr.step(r0, zero)
       <++> Branch("fflush")("L")
       <++> Pop(pc)
     )
@@ -91,10 +90,10 @@ object PredefinedFunctions {
       Label(label)
       <++> Push(lr)
       <++> Mov.step(r1, r0)
-      <++> Ldr(r0, AsmInt(0))
-      <++> Add.step(r0, r0, AsmInt(WORD_BYTES))
+      <++> Ldr(r0, zero)
+      <++> Add.step(r0, r0, word_size)
       <++> Branch("printf")("L")
-      <++> Mov.step(r0, AsmInt(0))
+      <++> Mov.step(r0, zero)
       <++> Branch("fflush")("L")
       <++> Pop(pc)
     )
@@ -124,7 +123,7 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Compare.step(r0, AsmInt(0))
+      <++> Compare.step(r0, zero)
       /* <++> Load error message if EQ */
       <++> Branch(throw_runtime().label)("EQ")
       <++> Pop(pc)
@@ -147,7 +146,7 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Compare.step(r0, AsmInt(0))
+      <++> Compare.step(r0, zero)
       /* <++> Load error message if EQ */
       <++> Branch(throw_runtime().label)("EQ")
       <++> Pop(pc)
@@ -159,7 +158,7 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       <++> Push(lr)
-      <++> Compare.step(r0, AsmInt(0))
+      <++> Compare.step(r0, zero)
       /* <++> Load error message if LT */
       <++> Branch(throw_runtime.toString())("LLT") // Link, Less than
       <++> Ldr.step(r1, r1)
@@ -176,8 +175,8 @@ object PredefinedFunctions {
            Label(label)
       <++> Push(lr)
       <++> Mov.step(r1, r0)
-      <++> Ldr.step(r0, AsmInt(0))
-      <++> Add.step(r0, r0, AsmInt(WORD_BYTES))
+      <++> Ldr.step(r0, zero)
+      <++> Add.step(r0, r0, word_size)
       <++> Branch("scanf")("L")
       <++> Pop(pc)
     )
