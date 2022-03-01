@@ -137,7 +137,22 @@ object generator {
         // TODO: let ldr take a char directly
       case ast.CharLiter(x) => Ldr.step(_0, AsmInt(x.toInt))
       case ast.StrLiter(x) => ???
-      case ast.ArrayLiter(x) => ???
+      case ast.ArrayLiter(x) => (
+        Mov.step(_0, AsmInt(x.length))
+          <++> Mov.step(_0, AsmInt((x.length + 1) * 4))
+          <++> genCallWithRegs("malloc", 1) // replace sizeInBytes with a pointer to the array
+          <++> Str.step(_0, _1) // TODO: avoid this register leak (the bottom register isn't used again)
+          // -> size, ------
+          // -> pointer to array, nothing
+          <++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
+          prev
+            <++> genExpr(v._1) // put value in a register
+            // Does this not lose the place where we malloc? Solved on line 168
+            // TODO: intToOffset
+            <++> Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
+            <++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
+          ))
+      )
       case ArrayElem(id, index) => ???
       case idd@Ident(id) => {
         val offset = countToOffset(symbols.getOffset(idd).get)
@@ -152,20 +167,7 @@ object generator {
   def genRhs(rhs: AssignRhs)(implicit symbols: TypeTable): Step = {
     rhs match {
         // [0,5,7,2]
-      case ArrayLiter(exprs) => (
-             Mov.step(_0, AsmInt(exprs.length))
-        <++> Mov.step(_0, AsmInt((exprs.length + 1) * 4))
-        <++> genCallWithRegs("malloc", 1) // replace sizeInBytes with a pointer to the array
-        <++> Str.step(_0, _1) // TODO: avoid this register leak (the bottom register isn't used again)
-             // -> size, ------
-             // -> pointer to array, nothing
-        <++> exprs.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
-               prev 
-          <++> genExpr(v._1) // put value in a register
-                 // TODO: intToOffset
-          <++> Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
-        ))
-      )
+      case arr@ArrayLiter(exprs) => genExpr(arr)
       case NewPair(fst, snd) => (
              Mov.step(_0, AsmInt(4 * 2))
         <++> genCallWithRegs("malloc", 1)
