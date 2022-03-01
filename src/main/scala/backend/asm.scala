@@ -203,7 +203,7 @@ object asm {
   object Gt extends OutInImm with OutInIn
   object Add extends OutInImm with OutInIn
   object Sub extends OutInImm with OutInIn
-  object Mul extends OutInImm with OutInIn
+//  object Mul extends OutInImm with OutInIn
 
   object Compare extends InImm with InIn
 

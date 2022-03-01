@@ -75,7 +75,7 @@ object generator {
         // TODO: switch on free array vs free pair
 //        genExpr(expr) <++> genCallWithRegs(free_pair().label, 1)
       case Return(expr) => genExpr(expr) <++> Mov.step(r0, _0)
-      case Exit(expr) => genExpr(expr) <++> Mov.step(r0, _0) <++> genCallWithRegs("exit", 1)
+      case Exit(expr) => genExpr(expr) <++> Mov.step(r0, _0) <++> genCallWithRegs("exit", 1, None)
       case Print(expr) => ???
       case Println(expr) => ???
       case s@If(expr, thenStats, elseStats) => {
@@ -131,7 +131,7 @@ object generator {
       case ast.Gt(x, y)  => genBinOp(x, y, asm.Gt.step(_0, _0, _1))
       case ast.Add(x, y) => genBinOp(x, y, asm.Add.step(_0, _0, _1))
       case ast.Sub(x, y) => genBinOp(x, y, asm.Sub.step(_0, _0, _1))
-      case ast.Mul(x, y) => genBinOp(x, y, asm.Mul.step(_0, _0, _1))
+//      case ast.Mul(x, y) => genBinOp(x, y, asm.Mul.step(_0, _0, _1))
       case ast.Div(x, y) => genDiv
       case ast.Mod(x, y) => genMod
       case ast.Not(x)    => genUnOp(x, asm.Not.step(_0, _0))
@@ -147,7 +147,7 @@ object generator {
       case ast.StrLiter(x) => (
         Mov.step(_0, AsmInt(x.length))
           <++> Mov.step(_0, AsmInt((x.length + 1) * 4))
-          <++> genCallWithRegs("malloc", 1) // replace sizeInBytes with a pointer to the array
+          <++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
           <++> Str.step(_0, _1) // TODO: avoid this register leak (the bottom register isn't used again)
           // -> size, ------
           // -> pointer to array, nothing
@@ -163,7 +163,7 @@ object generator {
       case ast.ArrayLiter(x) => (
         Mov.step(_0, AsmInt(x.length))
           <++> Mov.step(_0, AsmInt((x.length + 1) * 4))
-          <++> genCallWithRegs("malloc", 1) // replace sizeInBytes with a pointer to the array
+          <++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
           <++> Str.step(_0, _1) // TODO: avoid this register leak (the bottom register isn't used again)
           // -> size, ------
           // -> pointer to array, nothing
@@ -179,7 +179,8 @@ object generator {
       case ArrayElem(id, index) => (genExpr(id)
         <++> genExpr(index)
         <++> asm.Add.step(_0,_0, AsmInt(1))
-        <++> asm.Mul.step(_0, _0, AsmInt(BYTE_SIZE))
+      // TODO
+//        <++> asm.Mul.step(_0, _0, AsmInt(BYTE_SIZE))
         <++> asm.Add.step(_0, _0, _1))
       case idd@Ident(id) => {
         val offset = countToOffset(symbols.getOffset(idd).get)
@@ -197,7 +198,7 @@ object generator {
       case arr@ArrayLiter(exprs) => genExpr(arr)
       case NewPair(fst, snd) => (
              Mov.step(_0, AsmInt(4 * 2))
-        <++> genCallWithRegs("malloc", 1)
+        <++> genCallWithRegs("malloc", 1, Some(r0))
         <++> genExpr(fst)
         <++> Str.step(_1, _0)
         <++> Step.discardTop
@@ -234,9 +235,9 @@ object generator {
     )
   }
 
-  def genMul: Step = (
-    asm.Mul.()
-  )
+//  def genMul: Step = (
+//    asm.Mul.()
+//  )
 
   def genDiv: Step = (
     genCallWithRegs(check_div_zero().label, 2, None)
