@@ -39,7 +39,7 @@ object PredefinedFunctions {
   case class print_int() {
     val label = "p_print_int"
     def toStep: Step = (
-      Label(label)
+           Label(label)
       <++> Push(lr)
       <++> Mov.step(r1, r0)
       <++> Ldr.step(r0, AsmInt(0))
@@ -87,7 +87,17 @@ object PredefinedFunctions {
 
   case class print_ref() {
     val label = "p_print_ref"
-    def toStep: Step = ???
+    def toStep: Step = (
+      Label(label)
+      <++> Push(lr)
+      <++> Mov.step(r1, r0)
+      <++> Ldr(r0, AsmInt(0))
+      <++> Add.step(r0, r0, AsmInt(WORD_BYTES))
+      <++> Branch("printf")("L")
+      <++> Mov.step(r0, AsmInt(0))
+      <++> Branch("fflush")("L")
+      <++> Pop(pc)
+    )
   }
 
   case class throw_overflow() {
