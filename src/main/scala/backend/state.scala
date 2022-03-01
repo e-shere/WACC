@@ -5,6 +5,7 @@ import backend.PredefinedFunctions.PredefinedFunc
 import backend.step.Step
 import backend.step.implicits.implicitStep
 
+import scala.collection.mutable
 import scala.language.implicitConversions
 
 object state {
@@ -14,7 +15,7 @@ object state {
   val PLACEHOLDER_1 = AsmReg(10)
   val PLACEHOLDER_2 = AsmReg(11)
   val STACK_POINTER = AsmReg(13)
-  val NEW_REG: State = State(REG_START, Set())
+  val NEW_REG: State = State(REG_START, mutable.Set())
 
   /*
   Reg documents the highest register of 4-9 which is not in use
@@ -23,14 +24,19 @@ object state {
   // TODO: ROB PLEASE DO SOME OFF BY ONE CHECKS HERE
   // TODO: unit test this
 
-  type funcState = Set[PredefinedFunc]
+  type funcState = mutable.Set[PredefinedFunc]
 
   case class State(reg: AsmReg, fState: funcState) {
 
-    def getPredefFuncs(): Step = {
+    def getPredefFuncs: Step = {
       fState.foldLeft(Step.identity)(
         (prev, f) => prev <++> f.toStep
       )
+    }
+
+    def addFunc(f: PredefinedFunc): Step = {
+      fState += f
+      Step.identity
     }
 
     def isReg: Boolean = reg.r >= REG_START.r && reg.r <= REG_END.r
@@ -60,17 +66,4 @@ object state {
       else (PLACEHOLDER_1, List(Push(PLACEHOLDER_1)), next)
     }
   }
-
-//  case class funcState() {
-//
-//    val includedFuncs: Set[PredefinedFunc] = Set.empty
-//
-//    def getPredefFuncs(): Step = {
-//      includedFuncs.foldLeft(Step.identity)(
-//        (prev, f) => prev <++> f.toStep
-//      )
-//    }
-//
-//  }
-
 }
