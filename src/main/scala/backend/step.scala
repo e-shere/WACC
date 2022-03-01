@@ -32,30 +32,28 @@ object step {
     val discardTop: Step = Step(state => (Nil, state.prev))
 
     def stepInstr(f: (Seq[AsmDefiniteArg]) => Step)(args: AsmArg*)(out: AsmAnyReg*): Step = Step((state: State) => {
-      // TODO: remove this?
-      val outSet = out.toSet
 
-      val (re1, re2, asm1, state1) =
+      val (re2, re1, asm1, state1) =
         if (args contains Re2) state.read2
         else if (args contains Re1) {
           val result = state.read
-          (result._1, NO_REG, result._2, result._3)
+          (NO_REG, result._1, result._2, result._3)
         }
         else (NO_REG, NO_REG, Nil, state)
 
-      val (re1w, asm2, state2) = if (out contains Re1) {
-        assert(args contains Re1)
+      val (re2w, asm2, state2) = if (out contains Re2) {
+        assert(args contains Re2)
         state1.write
       } else (NO_REG, asm1, state1)
 
-      assert(re1 == re1w)
+      assert(re2 == re2w)
 
-      val (re2w, asm3, state3) = if (out contains Re2) {
-        assert(args contains Re2)
+      val (re1w, asm3, state3) = if (out contains Re1) {
+        assert(args contains Re1)
         state1.write
       } else (NO_REG, asm2, state2)
 
-      assert(re2 == re2w)
+      assert(re1 == re1w)
 
       val (reNew, asm4, state4) = if (args contains ReNew) state1.write else (NO_REG, asm1, state1)
 

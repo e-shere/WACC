@@ -162,8 +162,8 @@ object generator {
 
       )
       case ast.ArrayLiter(x) => (
-        Step.asmInstr(asm.Mov())(Re1, AsmInt(x.length))(Re1)
-          <++> Step.asmInstr(asm.Mov())(Re1, AsmInt((x.length + 1) * 4))(Re1)
+        Step.asmInstr(asm.Mov())(ReNew, AsmInt(x.length))()
+          <++> Step.asmInstr(asm.Mov())(ReNew, AsmInt((x.length + 1) * 4))()
           <++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
           <++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt(0))(Re1)
           // -> size, ------
@@ -245,14 +245,14 @@ object generator {
     case id@Ident(_) => {
       val offset = countToOffset(symbols.getOffset(id).get)
       // TODO: check registers here are correct
-      Step.asmInstr(asm.Mov())(Re1, AsmInt(offset))(Re1)
+      Step.asmInstr(asm.Mov())(ReNew, AsmInt(offset))(ReNew)
       // TODO: account for movement in stack pointer
     }
     case ArrayElem(id, index) => (
            genExpr(id)
       <++> genExpr(index)
       <++> Step.asmInstr(asm.Adds())(Re1, Re1, AsmInt(1))(Re1)
-      <++> Step.asmInstr(asm.Mov())(Re1, AsmInt(BYTE_SIZE))(Re1)
+      <++> Step.asmInstr(asm.Mov())(Re1, AsmInt(BYTE_SIZE))(ReNew)
       <++> genMul()
       <++> Step.asmInstr(asm.Adds())(Re2, Re2, Re1)(Re2)
       )
