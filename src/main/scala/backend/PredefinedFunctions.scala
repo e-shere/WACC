@@ -45,18 +45,33 @@ object PredefinedFunctions {
 
   case class throw_overflow() {
     val label = "p_throw_overflow"
-    def toStep: Step = ???
+    def toStep: Step = (
+           Label(label)
+      /* <++> Load error message */
+      <++> Branch(throw_runtime().label)("L")
+    )
   }
 
   case class throw_runtime() {
     val label = "p_throw_runtime"
-    def toStep: Step =
-      Branch(print_string().label)("L") <++> Mov(r0, AsmInt(-1)) <++> Branch("exit")("L")
+    def toStep: Step = (
+           Label(label)
+      <++> Branch(print_string().label)("L")
+      <++> Mov(r0, AsmInt(-1))
+      <++> Branch("exit")("L")
+      )
   }
 
   case class check_div_zero() {
     val label = "p_check_div_zero"
-    def toStep: Step = ???
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Compare.step(_0, AsmInt(0))
+      /* <++> Load error message if EQ */
+      <++> Branch(throw_runtime().label)("EQ")
+      <++> Pop(pc)
+      )
   }
 
   case class free_array() {
@@ -71,7 +86,14 @@ object PredefinedFunctions {
 
   case class check_null_pointer() {
     val label = "p_check_null_pointer"
-    def toStep: Step = ???
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Compare.step(_0, AsmInt(0))
+      /* <++> Load error message if EQ */
+      <++> Branch(throw_runtime().label)("EQ")
+      <++> Pop(pc)
+    )
   }
 
   case class check_array_bound() {
