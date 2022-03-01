@@ -3,7 +3,8 @@ package backend
 import frontend.ast
 import frontend.ast._
 import asm._
-import backend.PredefinedFunctions.PredefinedFunc
+import backend.PredefinedFunctions.{PredefinedFunc, check_div_zero}
+import backend.generator.genCallWithRegs
 import step._
 import frontend.symbols.TypeTable
 
@@ -14,6 +15,7 @@ import backend.step.implicits.implicitStep
 object generator {
 
   private val r0 = AsmReg(0)
+  private val r1 = AsmReg(1)
   private val lr = AsmReg(14)
   private val pc = AsmReg(15)
 
@@ -130,8 +132,8 @@ object generator {
       case ast.Add(x, y) => genBinOp(x, y, asm.Add.step(_0, _0, _1))
       case ast.Sub(x, y) => genBinOp(x, y, asm.Sub.step(_0, _0, _1))
       case ast.Mul(x, y) => genBinOp(x, y, asm.Mul.step(_0, _0, _1))
-      //case ast.Div(x, y) => genBinOp(x, y, asm.Div.step(_0, _0, _1))
-      //case ast.Mod(x, y) => genBinOp(x, y, asm.Mod.step(_0, _0, _1))
+      case ast.Div(x, y) => genDiv
+      case ast.Mod(x, y) => genMod
       case ast.Not(x)    => genUnOp(x, asm.Not.step(_0, _0))
       case ast.Neg(x)    => genUnOp(x, asm.Neg.step(_0, _0))
       case ast.Len(x)    => genUnOp(x, asm.Len.step(_0, _0))
@@ -232,12 +234,32 @@ object generator {
     )
   }
 
-  def genCallWithRegs(name: String, argc: Int): Step = {
+  def genMul: Step = (
+    asm.Mul.()
+  )
+
+  def genDiv: Step = (
+    genCallWithRegs(check_div_zero().label, 2, None)
+    <++> genCallWithRegs("__aeabi_idiv", 0, Some(r0))
+    )
+
+  def genMod: Step = (
+    genCallWithRegs(check_div_zero().label, 2, None)
+    <++> genCallWithRegs("__aeabi_idivmod", 0, Some(r1))
+    )
+
+  // If you do two function calls consecutively, this leaks a register
+  def genCallWithRegs(name: String, argc: Int, resultReg: Option[AsmReg]): Step = {
     assert(argc >= 0 && argc <= 4)
     (0 until argc).reverse.foldLeft(Step.identity)((prev, num) => {
       prev <++> Mov.step(AsmReg(num), _0)
     })
-    Branch(name)("L")
+    Branch(name)("L") <++>
+      (resultReg match {
+      case None => Step.identity
+      case Some(reg) => assert(reg.r >= 0 && reg.r <=3)
+          Mov.step(_0, reg)
+    })
   }
 
   def genPredefFuncs: Step = {

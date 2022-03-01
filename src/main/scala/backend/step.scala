@@ -98,7 +98,7 @@ object step {
 
     def step(out: AsmMaybeReg, in: AsmMaybeReg): Step = (out, in) match {
       case (AsmAnyReg(0), inReg@AsmReg(_)) => Step.w(apply(_, inReg))
-      case (outReg@AsmReg(_), AsmAnyReg(0)) => Step.w(apply(outReg, _))
+      case (outReg@AsmReg(_), AsmAnyReg(0)) => Step.r(apply(outReg, _))
       case (AsmAnyReg(0), AsmAnyReg(0)) => Step.ro(reg => apply(reg, reg))
       case (AsmAnyReg(1), AsmAnyReg(0)) => Step.rw(apply(_, _))
     }

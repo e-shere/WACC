@@ -1,6 +1,8 @@
 package backend
 
+import backend.PredefinedFunctions.check_div_zero
 import step._
+import generator.genCallWithRegs
 
 object asm {
 
@@ -131,25 +133,15 @@ object asm {
     override def toString = s"SUBS $target, $x, $y"
   }
 
-  //case class Mul(x: AsmDefiniteArg, y: AsmDefiniteArg)(target1: AsmDefiniteArg = x, target2: AsmDefiniteArg = y) extends Asm {
-  //  override def toString = s"SMULL $x, $y, $x, $y"
-  //  // TODO: include s"CMP $y, $x ASR #31\nBLNE ${label of overflow error function}"
-  //  // result will be in register x
-  //}
-  case class Mul (target: AsmReg, x: AsmReg, y: AsmDefiniteArg) extends Asm {
-    override def toString = s"SMULL $target, $y, $x, $y"
+  case class Mul(x: AsmDefiniteArg, y: AsmDefiniteArg)(target1: AsmDefiniteArg = x, target2: AsmDefiniteArg = y) extends Asm {
+    override def toString = s"SMULL $x, $y, $x, $y"
+    // TODO: include s"CMP $y, $x ASR #31\nBLNE ${label of overflow error function}"
+    // result will be in register x
   }
 
-  //case class Div(target: AsmReg, x: AsmReg, y: AsmDefiniteArg) extends Asm {
-  //  override def toString: String = Call(List(x, y), "p_check_divide_by_zero").toString +
-  //    SEP + Call(List.empty, "__aeabi_idiv") + new Mov(target, AsmReg(0), None).toString
-  //}
-
-  //case class Mod(target: AsmReg, x: AsmReg, y: AsmDefiniteArg) extends Asm {
-  //  override def toString: String = Call(List(x, y), "p_check_divide_by_zero").toString +
-  //    SEP + Call(List.empty, "__aeabi_idivmod").toString
-  //  //TODO + put result in correct register
-  //}
+//  case class Mul (target: AsmReg, x: AsmReg, y: AsmDefiniteArg) extends Asm {
+//    override def toString = s"SMULL $target, $y, $x, $y"
+//  }
 
   case class Not(target: AsmReg, x: AsmDefiniteArg) extends Asm {
     override def toString = s"EOR $target, $x, #1"
@@ -212,8 +204,6 @@ object asm {
   object Add extends OutInImm with OutInIn
   object Sub extends OutInImm with OutInIn
   object Mul extends OutInImm with OutInIn
-  //object Div extends OutInImm with OutInIn
-  //object Mod extends OutInImm with OutInIn
 
   object Compare extends InImm with InIn
 
