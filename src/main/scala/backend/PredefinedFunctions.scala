@@ -8,8 +8,12 @@ object PredefinedFunctions {
 
   //TODO: make these not private in generator?
   private val r0 = AsmReg(0)
+  private val r1 = AsmReg(1)
+  private val r2 = AsmReg(2)
   private val lr = AsmReg(14)
   private val pc = AsmReg(15)
+  private val word_size = AsmInt(4)
+  private val zero = AsmInt(0)
 
   // TODO: enum or case classes of each type of predefined functions
   sealed trait PredefinedFunc {
@@ -19,74 +23,162 @@ object PredefinedFunctions {
 
   case class print_ln() {
     val label = "p_print_ln"
-    def toStep: Step = Label(label) <++> Push(lr) <++> ??? <++>
-      asm.Branch("fflush")("L") <++> Pop(pc)
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Ldr.step(r0, zero)
+      <++> Add.step(r0, r0, word_size)
+      <++> Branch("puts")("L")
+      <++> Mov.step(r0, zero)
+      <++> Branch("fflush")("L")
+      <++> Pop(pc)
+      )
   }
 
   case class print_int() {
     val label = "p_print_int"
-    def toStep: Step = ???
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Mov.step(r1, r0)
+      <++> Ldr.step(r0, zero)
+      <++> Add.step(r0, r0, word_size)
+      <++> Branch("printf")("L")
+      <++> Mov.step(r0, zero)
+      <++> Branch("fflush")("L")
+      <++> Pop(pc)
+    )
   }
+
+  // print_ char is just "BL putchar"
 
   case class print_string() {
     val label = "p_print_string"
-    def toStep: Step = ???
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Ldr.step(r1, r0)
+      <++> Add.step(r2, r0, word_size)
+      <++> Ldr.step(r0, zero)
+      <++> Add.step(r0, r0, word_size)
+      <++> Branch("printf")("L")
+      <++> Mov.step(r0, zero)
+      <++> Branch("fflush")("L")
+      <++> Pop(pc)
+    )
   }
 
   case class print_bool() {
     val label = "p_print_bool"
-    def toStep: Step = ???
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Compare(r0, zero)
+      /* <++> Load True if NE */
+      /* <++> Load False if EQ */
+      <++> Add.step(r0, r0, word_size)
+      <++> Branch("printf")("L")
+      <++> Ldr.step(r0, zero)
+      <++> Branch("fflush")("L")
+      <++> Pop(pc)
+    )
   }
 
   case class print_ref() {
     val label = "p_print_ref"
-    def toStep: Step = ???
+    def toStep: Step = (
+      Label(label)
+      <++> Push(lr)
+      <++> Mov.step(r1, r0)
+      <++> Ldr(r0, zero)
+      <++> Add.step(r0, r0, word_size)
+      <++> Branch("printf")("L")
+      <++> Mov.step(r0, zero)
+      <++> Branch("fflush")("L")
+      <++> Pop(pc)
+    )
   }
 
   case class throw_overflow() {
     val label = "p_throw_overflow"
-    def toStep: Step = ???
+    def toStep: Step = (
+           Label(label)
+      /* <++> Load error message */
+      <++> Branch(throw_runtime().label)("L")
+    )
   }
 
   case class throw_runtime() {
     val label = "p_throw_runtime"
-    def toStep: Step =
-      Branch(print_string().label)("L") <++> Mov(r0, AsmInt(-1)) <++> Branch("exit")("L")
+    def toStep: Step = (
+           Label(label)
+      <++> Branch(print_string().label)("L")
+      <++> Mov(r0, AsmInt(-1))
+      <++> Branch("exit")("L")
+      )
   }
 
   case class check_div_zero() {
     val label = "p_check_div_zero"
-    def toStep: Step = ???
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Compare.step(r0, zero)
+      /* <++> Load error message if EQ */
+      <++> Branch(throw_runtime().label)("EQ")
+      <++> Pop(pc)
+      )
   }
 
-  case class free_array() {
-    val label = "p_free_array"
-    def toStep: Step = ???
-  }
-
-  case class free_pair() {
-    val label = "p_free_pair"
-    def toStep: Step = ???
+  case class free() {
+    val label = "p_free"
+    def toStep: Step = (
+             Label(label)
+        <++> Push(lr)
+        <++> check_null_pointer().toStep
+        <++> Branch("free")("L")
+        <++> Pop(pc)
+      )
   }
 
   case class check_null_pointer() {
     val label = "p_check_null_pointer"
-    def toStep: Step = ???
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Compare.step(r0, zero)
+      /* <++> Load error message if EQ */
+      <++> Branch(throw_runtime().label)("EQ")
+      <++> Pop(pc)
+    )
   }
 
   case class check_array_bound() {
     val label = "p_check_array_bound"
-    def toStep: Step = ???
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Compare.step(r0, zero)
+      /* <++> Load error message if LT */
+      <++> Branch(throw_runtime.toString())("LLT") // Link, Less than
+      <++> Ldr.step(r1, r1)
+      <++> Compare.step(r0, r1)
+      /* <++> Load error message if CS */
+      <++> Branch(throw_runtime.toString())("LCS") // Link, Carry set
+      <++> Pop(pc)
+    )
   }
 
-  case class read_char() {
-    val label = "p_read_char"
-    def toStep: Step = ???
+  case class read_byte() {
+    val label = "p_read_byte"
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Mov.step(r1, r0)
+      <++> Ldr.step(r0, zero)
+      <++> Add.step(r0, r0, word_size)
+      <++> Branch("scanf")("L")
+      <++> Pop(pc)
+    )
   }
-
-  case class read_int() {
-    val label = "p_read_int"
-    def toStep: Step = ???
-  }
-
 }
