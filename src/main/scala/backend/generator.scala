@@ -235,9 +235,31 @@ object generator {
     )
   }
 
-//  def genMul: Step = (
-//    asm.Mul.()
-//  )
+  // puts the memory location of the object in question in a register
+  def genLocation(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {
+    case id@Ident(_) => {
+      val offset = countToOffset(symbols.getOffset(id).get)
+      Mov.step(_0, AsmInt(offset))
+      // TODO: account for movement in stack pointer
+    }
+    case ArrayElem(id, index) => (
+           genExpr(id)
+      <++> genExpr(index)
+      <++> asm.Add.step(_0,_0, AsmInt(1))
+      <++> Mov.step(_0, AsmInt(BYTE_SIZE))
+      <++> genMul()
+      <++> asm.Add.step(_0, _0, _1))
+    case Fst(expr) => genExpr(expr)
+    case Snd(expr) => (
+      genExpr(expr)
+      <++> asm.Add.step(_0, _0, AsmInt(BYTE_SIZE)) // Should the offset be 4 or 1?
+    )
+  }
+
+  // TODO
+  def genMul(): Step = (
+    ???
+  )
 
   def genDiv: Step = (
     genCallWithRegs(check_div_zero().label, 2, None)
@@ -249,7 +271,6 @@ object generator {
     <++> genCallWithRegs("__aeabi_idivmod", 0, Some(r1))
     )
 
-  // If you do two function calls consecutively, this leaks a register
   def genCallWithRegs(name: String, argc: Int, resultReg: Option[AsmReg]): Step = {
     assert(argc >= 0 && argc <= 4)
     (0 until argc).reverse.foldLeft(Step.identity)((prev, num) => {
