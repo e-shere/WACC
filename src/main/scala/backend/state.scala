@@ -26,6 +26,13 @@ object state {
   type funcState = Set[PredefinedFunc]
 
   case class State(reg: AsmReg, fState: funcState) {
+
+    def getPredefFuncs(): Step = {
+      fState.foldLeft(Step.identity)(
+        (prev, f) => prev <++> f.toStep
+      )
+    }
+
     def isReg: Boolean = reg.r >= REG_START.r && reg.r <= REG_END.r
     def isStack: Boolean = reg.r > REG_END.r
     def prev: State = State(AsmReg(reg.r - 1), this.fState)
