@@ -10,6 +10,7 @@ object PredefinedFunctions {
   private val r0 = AsmReg(0)
   private val lr = AsmReg(14)
   private val pc = AsmReg(15)
+  private val WORD_BYTES = 4
 
   // TODO: enum or case classes of each type of predefined functions
   sealed trait PredefinedFunc {
@@ -20,7 +21,7 @@ object PredefinedFunctions {
   case class print_ln() {
     val label = "p_print_ln"
     def toStep: Step = Label(label) <++> Push(lr) <++> ??? <++>
-      asm.Branch("fflush")("L") <++> Pop(pc)
+      Branch("fflush")("L") <++> Pop(pc)
   }
 
   case class print_int() {
@@ -103,12 +104,27 @@ object PredefinedFunctions {
 
   case class read_char() {
     val label = "p_read_char"
-    def toStep: Step = ???
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Mov.step(_1, _0)
+      <++> Ldr.step(_0, AsmInt(0))
+      <++> Add.step(_0, _0, AsmInt(WORD_BYTES))
+      <++> Branch("scanf")("L")
+      <++> Pop(pc)
+    )
   }
 
   case class read_int() {
     val label = "p_read_int"
-    def toStep: Step = ???
+    def toStep: Step = (
+           Label(label)
+      <++> Push(lr)
+      <++> Mov.step(_1, _0)
+      <++> Ldr.step(_0, AsmInt(0))
+      <++> Add.step(_0, _0, AsmInt(WORD_BYTES))
+      <++> Branch("scanf")("L")
+      <++> Pop(pc)
+    )
   }
-
 }
