@@ -63,7 +63,7 @@ object asm {
 
   sealed trait AsmInstr extends Asm {
     val opcode: String
-    val cond: String = ""
+    val cond: String
     def argsToString: String
     override def toString: String = s"$opcode$cond $argsToString"
   }
@@ -93,7 +93,10 @@ object asm {
     def argsToString: String = "$label"
   }
 
-  case class Mov(cond: String = "")(args: AsmDefiniteArg *) extends AsmInstr { val opcode = "MOV" }
+  case class Mov(cond: String = "")(args: AsmDefiniteArg *) extends AsmInstr {
+    val opcode = "MOV"
+    override def argsToString: String = ???
+  }
 
   case class Push(cond: String = "")(arg: AsmDefiniteArg) extends AsmInstr {
     val opcode = "PUSH"
@@ -105,11 +108,17 @@ object asm {
     override def argsToString = s"{$arg}"
   }
 
-  case class Or(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr { val opcode = "ORR" }
+  case class Or(cond: String = "")(val args: AsmDefiniteArg *) extends AsmStandardInstr {
+    val opcode = "ORR"
+  }
 
-  case class And(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr { val opcode = "AND" }
+  case class And(cond: String = "")(val args: AsmDefiniteArg *) extends AsmStandardInstr {
+    val opcode = "AND"
+  }
 
-  case class Compare(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr { val opcode = "CMP" }
+  case class Compare(cond: String = "")(val args: AsmDefiniteArg *) extends AsmStandardInstr {
+    val opcode = "CMP"
+  }
 
   //case class Neq(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr {
   //  override def toString: String = new Compare(x, y).toString + SEP +
@@ -136,11 +145,17 @@ object asm {
   //    Mov(target, AsmInt(1), Some("GT")).toString + Mov(target, AsmInt(0), Some("LE")).toString
   //}
 
-  case class Adds(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr { val opcode = "ADDS" }
+  case class Adds(cond: String = "")(val args: AsmDefiniteArg *) extends AsmStandardInstr {
+    val opcode = "ADDS"
+  }
 
-  case class Subs(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr { val opcode = "SUBS" }
+  case class Subs(cond: String = "")(val args: AsmDefiniteArg *) extends AsmStandardInstr {
+    val opcode = "SUBS"
+  }
 
-  case class SMull(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr { val opcode = "SMULL" }
+  case class SMull(cond: String = "")(val args: AsmDefiniteArg *) extends AsmStandardInstr {
+    val opcode = "SMULL"
+  }
 
   //case class Mul(x: AsmDefiniteArg, y: AsmDefiniteArg)(target1: AsmDefiniteArg = x, target2: AsmDefiniteArg = y) extends AsmStandardInstr {
   //  override def toString = s"SMULL $x, $y, $x, $y"
@@ -159,36 +174,34 @@ object asm {
 
   case class Neg(cond: String = "")(target: AsmReg, x: AsmReg) extends AsmInstr {
     val opcode = "RSBS"
-    override def toString = s"$target, $x, #0"
+    override def argsToString = s"$target, $x, #0"
   }
 
-  case class Ord(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr {
-    ???
-  }
+  // TODO: these shouldnt' be case classes- they'll be implemented in code gen
+//  case class Ord(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr {
+//    ???
+//  }
+//
+//  case class Chr(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr {
+//    ???
+//  }
 
-  case class Chr(cond: String = "")(args: AsmDefiniteArg *) extends AsmStandardInstr {
-    ???
-  }
-
-  //TODO: how to ? offset here are these arguments even the right way round?
-  //TODO: add intToOffset = s"#$x" ?
-  case class Ldr(cond: String = "")(target: AsmReg, source: AsmDefiniteArg, offset: AsmDefiniteArg) extends Asm {
-    override def toString = {
+  case class Ldr(cond: String = "")(target: AsmReg, source: AsmDefiniteArg, offset: AsmDefiniteArg = AsmInt(0)) extends AsmInstr {
+    override val opcode: String = "LDR"
+    override def argsToString = {
       source match {
-        case i@AsmInt(_) => s"LDR $target, ${i.toLdrString}"
-        case _ => s"LDR $target, [$source, $offset]"
+        case i@AsmInt(_) => s"$target, ${i.toLdrString}"
+        case _ => s"target, [$source, $offset]"
       }
     }
   }
 
-  //TODO: how to ? offset here
-  case class Str(source: AsmReg, dest: AsmDefiniteArg, offset: AsmDefiniteArg) extends Asm {
-    def this(target: AsmReg, dest: AsmDefiniteArg) = this(target, dest, AsmInt(0))
-
-    override def toString = {
+  case class Str(cond: String = "")(source: AsmReg, dest: AsmDefiniteArg, offset: AsmDefiniteArg = AsmInt(0)) extends AsmInstr {
+    override val opcode: String = "STR"
+    override def argsToString = {
       offset match {
-        case AsmInt(0) => s"Str $source, [$dest]"
-        case _ => s"Str $source, [$dest, $offset]"
+        case AsmInt(0) => s"$source, [$dest]"
+        case _ => s"$source, [$dest, $offset]"
       }
     }
   }
@@ -202,7 +215,7 @@ object asm {
 
   object Len {
     def apply(cond: String = "")(args: AsmDefiniteArg *) = args match {
-      case Seq(target: AsmReg, source) => new Ldr(cond)(target, source, AsmInt(0)) 
+      case Seq(target: AsmReg, source) => Ldr(cond)(target, source)
     }
   }
 
