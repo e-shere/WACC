@@ -3,11 +3,12 @@ package backend
 import frontend.ast
 import frontend.ast._
 import asm._
+import backend.PredefinedFunctions.PredefinedFunc
 import step._
 import frontend.symbols.TypeTable
 
 import scala.annotation.tailrec
-import backend.state.STACK_POINTER
+import backend.state.{STACK_POINTER, State}
 import backend.step.implicits.implicitStep
 
 object generator {
@@ -20,11 +21,13 @@ object generator {
   private var uniqueNameGen = -1
   private def getUniqueName: Int = {uniqueNameGen += 1; uniqueNameGen}
 
-  def genProgram(program: WaccProgram): Step = program match {
-    case WaccProgram(funcs, stats) => (
-      Directive("text\n") <++> Directive("global main") <++>
-        funcs.foldLeft(Step.identity)((prev, f) => prev <++> genFunc(f.id.id, f.args.length, f.body)(f.symbols.get))
-      <++> genMain(0, stats)(program.mainSymbols.get)// <++> getPredefFuncs()
+  def genProgram(program: WaccProgram): Step = {
+    val WaccProgram(funcs, stats) = program
+    ( Directive("text\n")
+      <++> Directive("global main")
+      <++> funcs.foldLeft(Step.identity)((prev, f) => prev <++> genFunc(f.id.id, f.args.length, f.body)(f.symbols.get))
+      <++> genMain(0, stats)(program.mainSymbols.get)
+      <++> genPredefFuncs
     )
   }
 
@@ -233,6 +236,15 @@ object generator {
       prev <++> Mov.step(AsmReg(num), _0)
     })
     Branch(name)("L")
+  }
+
+  def genPredefFuncs: Step = {
+    Step((s: State) => s.fState.foldLeft(Step.identity)(
+      (prev, f) => prev <++> f.toStep)(s))
+  }
+
+  def addPredefFunc(f: PredefinedFunc): Step = {
+    Step((s: State) => (Nil, s.copy(fState = s.fState + f)))
   }
 }
 

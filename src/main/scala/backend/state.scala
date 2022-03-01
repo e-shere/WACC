@@ -4,6 +4,7 @@ import asm._
 import backend.PredefinedFunctions.PredefinedFunc
 import backend.step.Step
 import backend.step.implicits.implicitStep
+import frontend.symbols.TypeTable
 
 import scala.collection.mutable
 import scala.language.implicitConversions
@@ -27,17 +28,6 @@ object state {
   type funcState = mutable.Set[PredefinedFunc]
 
   case class State(reg: AsmReg, fState: funcState) {
-
-    def getPredefFuncs: Step = {
-      fState.foldLeft(Step.identity)(
-        (prev, f) => prev <++> f.toStep
-      )
-    }
-
-    def addFunc(f: PredefinedFunc): Step = {
-      fState += f
-      Step.identity
-    }
 
     def isReg: Boolean = reg.r >= REG_START.r && reg.r <= REG_END.r
     def isStack: Boolean = reg.r > REG_END.r
