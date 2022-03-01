@@ -1,7 +1,8 @@
 package backend
 
 import backend.asm._
-import backend.state.{NEW_REG, State}
+import backend.state.{NEW_REG, REG_START, State}
+
 import scala.language.implicitConversions
 
 object step {
@@ -26,7 +27,7 @@ object step {
     val identity: Step = Step((Nil, _))
     // This step is used between steps where the state of registers needs to be reset
     // TODO: don't discard function state!
-    val discardAll: Step = Step(_ => (Nil, NEW_REG))
+    val discardAll: Step = Step(state => (Nil, State(REG_START, state.fState)))
 
     val discardTop: Step = Step(state => (Nil, state.prev))
 
