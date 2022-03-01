@@ -65,7 +65,8 @@ object generator {
       case Declare(_, id, rhs) => genStat(Assign(id, rhs)(stat.pos))
       // In the Assign case, we use genLhs to store the offset on the stack
       // that we access the given lhs variable from
-      case Assign(lhs, rhs) => genRhs(rhs) <++> genLhs(lhs) <++> Str.step(_0, STACK_POINTER, _0)
+        // TODO: check
+      case Assign(lhs, rhs) => genRhs(rhs) <++> genLhs(lhs) <++> Str.step(_0, STACK_POINTER, _1)
       case Read(lhs) => ???
       case Free(expr) =>
         ??? // TODO: add free_pair to auxState set
@@ -84,9 +85,9 @@ object generator {
         <++> Compare.step(_0, AsmInt(1))
         <++> Branch(thenLabel)("EQ")
         <++> Branch(elseLabel)("")
-        <++> Branch(doneLabel)()
         <++> Label(thenLabel)
         <++> genStats(thenStats)(s.thenTypeTable.get)
+        <++> Branch(doneLabel)()
         <++> Label(elseLabel)
         <++> genStats(elseStats)(s.elseTypeTable.get)
         <++> Label(doneLabel))
@@ -95,11 +96,12 @@ object generator {
         val l = getUniqueName
         val topLabel = s"L_while_cond_$l"
         val endLabel = s"L_while_end$l"
-            (Label(topLabel)
+          (Label(topLabel)
         <++> genExpr(expr)
         <++> Compare.step(_0, AsmInt(0))
         <++> Branch(endLabel)("EQ")
         <++> genStats(doStats)(s.doTypeTable.get)
+        <++> Branch(topLabel)()
         <++> Label(endLabel))
       case s@Scope(stats) => genStats(stats)(s.typeTable.get)
     } 
