@@ -1,16 +1,15 @@
 package backend
 
 import backend.asm._
-import backend.state.{NEW_REG, REG_START, State}
-import backend.step.Step.{discardAll, stepInstr}
-
+import backend.state.{NEW_REG, PLACEHOLDER_1, REG_START, STACK_POINTER, State}
+import backend.step.Step.discardAll
 import scala.language.implicitConversions
 
 object step {
   import implicits._
 
   case class Step(func: State => (List[Asm], State)) {
-    override def toString = mkString("\n")
+    override def toString: String = mkString("\n")
 
     def mkString(sep: String): String = this(NEW_REG)._1.mkString(sep)
 
@@ -35,9 +34,14 @@ object step {
 
     val identity: Step = Step((Nil, _))
     // This step is used between steps where the state of registers needs to be reset
-    val discardAll: Step = Step(state => (Nil, State(REG_START, state.fState, state.data)))
 
-    val discardTop: Step = Step(state => (Nil, state.prev))
+    val discardAll: Step = Step(state => {
+      (if (state.getStackOffset > 0) Step.asmInstr(Adds())(STACK_POINTER, STACK_POINTER, AsmInt(state.getStackOffset * BYTE_SIZE))()(state)._1 else Nil, State(REG_START, state.fState, state.data))
+    })
+
+    val discardTop: Step = Step(state => {
+      if (state.isReg) (Nil, state.prev) else (List(Pop()(PLACEHOLDER_1)), state.prev)
+    })
 
     //out: anyregs which are written to, not including NEWREG
     def stepInstr(f: (Seq[AsmDefiniteArg]) => Step)(args: AsmArg*)(out: AsmAnyReg*): Step = Step((state: State) => {
@@ -101,8 +105,9 @@ object step {
       (asm1 ++ asmF ++ asm2, state2)
     })
 
-    def asmInstr(f: Seq[AsmDefiniteArg] => Asm)(args: AsmArg*)(out: AsmAnyReg*): Step =
+    def asmInstr(f: Seq[AsmDefiniteArg] => Asm)(args: AsmArg*)(out: AsmAnyReg*): Step = {
       stepInstr((x: Seq[AsmDefiniteArg]) => f(x))(args: _*)(out: _*)
+    }
 
     def genericStepInstr[T](f: (Seq[AsmDefiniteArg]) => T => Step)(args: AsmArg*)(aux: T)(out: AsmAnyReg*): Step =
       stepInstr(f(_)(aux))(args: _*)(out: _*)

@@ -181,11 +181,11 @@ object generator {
 // TODO:       <++> asm.Mul.step(_0, _0, AsmInt(BYTE_SIZE))
         >++> Step.asmInstr(asm.Adds())(Re2, Re2, Re1)(Re2)
         )
-      case idd@Ident(id) => {
-        val offset = countToOffset(symbols.getOffset(idd).get)
-        Step.genericAsmInstr(asm.Ldr())(ReNew, STACK_POINTER)(AsmInt(offset))()
+      case idd@Ident(id) => Step({ state =>
+        val offset = countToOffset(symbols.getOffset(idd).get + state.getStackOffset)
+        Step.genericAsmInstr(asm.Ldr())(ReNew, STACK_POINTER)(AsmInt(offset))()(state)
         // Ldr.step(_0, STACK_POINTER, AsmInt(offset))
-      }
+      })
       case Null() => ???
       case Paren(expr) => genExpr(expr) // same symbol table?
     }
@@ -235,11 +235,11 @@ object generator {
 
   // puts the memory location of the object in question in a register
   def genLocation(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {
-    case id@Ident(_) => {
-      val offset = countToOffset(symbols.getOffset(id).get)
+    case id@Ident(_) => Step({state =>
+      val offset = countToOffset(symbols.getOffset(id).get + state.getStackOffset)
       // This stores the actual location in a new register
-      Step.asmInstr(asm.Adds())(ReNew, STACK_POINTER, AsmInt(offset))()
-    }
+      Step.asmInstr(asm.Adds())(ReNew, STACK_POINTER, AsmInt(offset))()(state)
+    })
     case ArrayElem(id, index) => (
            genExpr(id)
       >++> genExpr(index)

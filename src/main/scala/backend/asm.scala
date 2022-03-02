@@ -17,15 +17,14 @@ object asm {
   sealed trait AsmDefiniteArg extends AsmArg
 
   case class AsmReg(r: Int) extends AsmMaybeReg with AsmDefiniteArg {
-    assert(r >= -1 && r <= 15)
-
     override def toString: String = r match {
+      // Consider factoring out the magic numbers
       case -1 => "INVALID REGISTER"
       case 12 => "ip"
       case 13 => "sp"
       case 14 => "lr"
       case 15 => "pc"
-      case x  => s"r$x"
+      case x => if (11 >= x && x >= 0) s"r$x" else "INVALID REGISTER"
     }
   }
 

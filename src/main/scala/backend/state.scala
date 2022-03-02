@@ -10,8 +10,10 @@ import scala.language.implicitConversions
 
 object state {
 
+  // Consider factoring out the magic numbers
+  val NUM_BASE_REG = 9
   val REG_START = AsmReg(4)
-  val REG_END = AsmReg(9)
+  val REG_END = AsmReg(NUM_BASE_REG)
   val PLACEHOLDER_1 = AsmReg(10)
   val PLACEHOLDER_2 = AsmReg(11)
   val STACK_POINTER = AsmReg(13)
@@ -38,6 +40,8 @@ object state {
 
     def next: State = State(AsmReg(reg.r + 1), this.fState, this.data)
 
+    def getStackOffset: Int = if (reg.r - NUM_BASE_REG > 0) reg.r - NUM_BASE_REG else 0
+
     def read: (AsmReg, List[Asm], State) = {
       assert(reg.r > 4)
       if (prev.isReg) (prev.reg, Nil, prev)
@@ -53,7 +57,6 @@ object state {
 
     def write: (AsmReg, List[Asm], State) = {
       if (isReg) (reg, Nil, next)
-      // TODO: added 0 offset here. Check
       else (PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next)
     }
 
