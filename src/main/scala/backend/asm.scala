@@ -1,6 +1,7 @@
 package backend
 
 import backend.PredefinedFunctions.check_div_zero
+import backend.state.State
 import step._
 import step.implicits._
 import generator.genCallWithRegs
@@ -32,12 +33,20 @@ object asm {
 
   val NO_REG: AsmReg = AsmReg(-1)
 
-  case class AsmInt(i: Int) extends AsmDefiniteArg {
+  sealed trait AsmImmediate extends AsmDefiniteArg
+
+  case class AsmStateFunc[T <: AsmDefiniteArg](func: State => T) extends AsmArg
+
+  case class AsmInt(i: Int) extends AsmImmediate  {
     override def toString = s"#$i"
 
     def toLdrString = s"=$i"
   }
 
+  case class AsmString(s: String) extends AsmImmediate {
+    override def toString = s"#$s"
+    def toLdrString = s"=$s"
+  }
 
   sealed trait AsmAnyReg extends AsmArg
 
@@ -150,6 +159,7 @@ object asm {
     override def argsToString: String = {
       args(1) match {
         case i@AsmInt(_) => s"${args(0)}, ${i.toLdrString}"
+        case s@AsmString(_) => s"${args(0)}, ${s.toLdrString}"
         case _ => s"${args(0)}, [${args(1)}, $offset]"
       }
     }

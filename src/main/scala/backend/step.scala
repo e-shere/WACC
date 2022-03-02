@@ -84,6 +84,7 @@ object step {
         case Re2 => re2
         case ReNew => reNew
         case arg: AsmDefiniteArg => arg
+        case AsmStateFunc(func) => func(state1)
       }
 
       val (asmF, stateF) = f.apply(argsDefinite)(state1)

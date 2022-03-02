@@ -26,7 +26,7 @@ object state {
 
   type FuncState = Set[PredefinedFunc]
   // Maps from the string value we want to insert to
-  type StringData = Map[String, String]
+  type StringData = Map[String, AsmString]
 
   case class State(reg: AsmReg, fState: FuncState, data: StringData) {
 
