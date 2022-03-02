@@ -256,7 +256,9 @@ object generator {
 
   // TODO
   def genMul(): Step = (
-    ???
+    Step.asmInstr(SMull())(Re2, Re1, Re2, Re1)(Re2, Re1)
+    >++> Step.asmInstr(Compare())(Re1, Re2, AsmString("ASR 31"))(Re2)
+    >++> BranchLink(NE)(throw_overflow().label)
   )
 
   def genDiv: Step = (
