@@ -2,7 +2,7 @@ package backend
 
 import backend.asm.ConditionCode._
 import backend.asm._
-import backend.generator.addPredefFunc
+import backend.generator.{addPredefFunc, includeData}
 import backend.step.implicits.implicitStep
 import backend.step._
 
@@ -25,10 +25,12 @@ object PredefinedFunctions {
 
   case class print_ln() extends PredefinedFunc {
     val label = "p_print_ln"
+    val null_char = "\\0"
     def toStep: Step = (
            Label(label)
       >++> Push()(lr)
-      >++> Ldr()(r0, zero)()
+      >++> includeData(null_char)
+      >++> Step.genericAsmInstr(Ldr())(r0, AsmStateFunc(_.data(null_char)))(zero)()
       >++> Adds()(r0, r0, word_size)
       >++> BranchLink()("puts")
       >++> Mov()(r0, zero)
@@ -39,11 +41,13 @@ object PredefinedFunctions {
 
   case class print_int() extends PredefinedFunc {
     val label = "p_print_int"
+    val number_format = "%d\\0"
     def toStep: Step = (
            Label(label)
       >++> Push()(lr)
       >++> Mov()(r1, r0)
-      >++> Ldr()(r0, zero)()
+      >++> includeData(number_format)
+      >++> Step.genericAsmInstr(Ldr())(r0, AsmStateFunc(_.data(number_format)))(zero)()
       >++> Adds()(r0, r0, word_size)
       >++> BranchLink()("printf")
       >++> Mov()(r0, zero)
@@ -56,12 +60,14 @@ object PredefinedFunctions {
 
   case class print_string() extends PredefinedFunc {
     val label = "p_print_string"
+    val string_format = "%.*s\\0"
     def toStep: Step = (
            Label(label)
       >++> Push()(lr)
       >++> Ldr()(r1, r0)()
       >++> Adds()(r2, r0, word_size)
-      >++> Ldr()(r0, zero)()
+      >++> includeData(string_format)
+      >++> Step.genericAsmInstr(Ldr())(r0, AsmStateFunc(_.data(string_format)))(zero)()
       >++> Adds()(r0, r0, word_size)
       >++> BranchLink()("printf")
       >++> Mov()(r0, zero)
@@ -72,12 +78,16 @@ object PredefinedFunctions {
 
   case class print_bool() extends PredefinedFunc {
     val label = "p_print_bool"
+    val message_true = "true"
+    val message_false = "false"
     def toStep: Step = (
            Label(label)
       >++> Push()(lr)
       >++> Compare()(r0, zero)
-      /* <++> Load True if NE */
-      /* <++> Load False if EQ */
+      >++> includeData(message_true)
+      >++> Step.genericAsmInstr(Ldr(NE))(r0, AsmStateFunc(_.data(message_true)))(zero)()
+      >++> includeData(message_false)
+      >++> Step.genericAsmInstr(Ldr(EQ))(r0, AsmStateFunc(_.data(message_false)))(zero)()
       >++> Adds()(r0, r0, word_size)
       >++> BranchLink()("printf")
       >++> Ldr()(r0, zero)()
@@ -88,11 +98,13 @@ object PredefinedFunctions {
 
   case class print_ref() extends PredefinedFunc {
     val label = "p_print_ref"
+    val pointer_format = "%p\\0"
     def toStep: Step = (
       Label(label)
       >++> Push()(lr)
       >++> Mov()(r1, r0)
-      >++> Ldr()(r0, zero)()
+      >++> includeData(pointer_format)
+      >++> Step.genericAsmInstr(Ldr())(r0, AsmStateFunc(_.data(pointer_format)))(zero)()
       >++> Adds()(r0, r0, word_size)
       >++> BranchLink()("printf")
       >++> Mov()(r0, zero)
@@ -103,9 +115,11 @@ object PredefinedFunctions {
 
   case class throw_overflow() extends PredefinedFunc {
     val label = "p_throw_overflow"
+    val message = "OverflowError: the result is too small/large to store in a 4-byte signed-integer.\\n\\0"
     def toStep: Step = (
            Label(label)
-      /* <++> Load error message */
+      >++> includeData(message)
+      >++> Step.genericAsmInstr(Ldr())(r0, AsmStateFunc(_.data(message)))(zero)()
       >++> BranchLink()(throw_runtime().label)
     )
   }
@@ -122,11 +136,13 @@ object PredefinedFunctions {
 
   case class check_div_zero() extends PredefinedFunc {
     val label = "p_check_div_zero"
+    val message = "DivideByZeroError: divide or modulo by zero\\n\\0"
     def toStep: Step = (
            Label(label)
       >++> Push()(lr)
       >++> Compare()(r0, zero)
-      /* <++> Load error message if EQ */
+      >++> includeData(message)
+      >++> Step.genericAsmInstr(Ldr(EQ))(r0, AsmStateFunc(_.data(message)))(zero)()
       >++> Branch(EQ)(throw_runtime().label)
       >++> Pop()(pc)
       )
@@ -145,11 +161,13 @@ object PredefinedFunctions {
 
   case class check_null_pointer() extends PredefinedFunc {
     val label = "p_check_null_pointer"
+    val message = "NullReferenceError: dereference a null reference\\n\\0"
     def toStep: Step = (
            Label(label)
       >++> Push()(lr)
       >++> Compare()(r0, zero)
-      /* <++> Load error message if EQ */
+      >++> includeData(message)
+      >++> Step.genericAsmInstr(Ldr(EQ))(r0, AsmStateFunc(_.data(message)))(zero)()
       >++> Branch(EQ)(throw_runtime().label)
       >++> Pop()(pc)
     )
@@ -157,30 +175,51 @@ object PredefinedFunctions {
 
   case class check_array_bound() extends PredefinedFunc {
     val label = "p_check_array_bound"
+    val message_LT = "ArrayIndexOutOfBoundsError: negative index\\n\\0"
+    val message_GT = "ArrayIndexOutOfBoundsError: index too large\\n\\0"
     def toStep: Step = (
            Label(label)
       >++> Push()(lr)
       >++> Compare()(r0, zero)
-      /* <++> Load error message if LT */
+      >++> includeData(message_LT)
+      >++> Step.genericAsmInstr(Ldr(LT))(r0, AsmStateFunc(_.data(message_LT)))(zero)()
       >++> BranchLink(LT)(throw_runtime.toString()) // Link, Less than
       >++> Ldr()(r1, r1)()
       >++> Compare()(r0, r1)
-      /* <++> Load error message if CS */
+      >++> includeData(message_GT)
+      >++> Step.genericAsmInstr(Ldr(CS))(r0, AsmStateFunc(_.data(message_GT)))(zero)()
       >++> BranchLink(CS)(throw_runtime.toString()) // Link, Carry set
       >++> Pop()(pc)
     )
   }
 
-  case class read_byte() extends PredefinedFunc {
-    val label = "p_read_byte"
+  case class read_char() extends PredefinedFunc {
+    val label = "p_read_char"
+    val char_format =" %c\\0"
     def toStep: Step = (
            Label(label)
       >++> Push()(lr)
       >++> Mov()(r1, r0)
-      >++> Ldr()(r0, zero)()
+      >++> includeData(char_format)
+      >++> Step.genericAsmInstr(Ldr())(r0, AsmStateFunc(_.data(char_format)))(zero)()
       >++> Adds()(r0, r0, word_size)
       >++> BranchLink()("scanf")
       >++> Pop()(pc)
     )
+  }
+
+  case class read_int() extends PredefinedFunc {
+    val label = "p_read_int"
+    val number_format = "%d\\0"
+    def toStep: Step = (
+      Label(label)
+        >++> Push()(lr)
+        >++> Mov()(r1, r0)
+        >++> includeData(number_format)
+        >++> Step.genericAsmInstr(Ldr())(r0, AsmStateFunc(_.data(number_format)))(zero)()
+        >++> Adds()(r0, r0, word_size)
+        >++> BranchLink()("scanf")
+        >++> Pop()(pc)
+      )
   }
 }
