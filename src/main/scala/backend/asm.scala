@@ -44,7 +44,7 @@ object asm {
   }
 
   case class AsmString(s: String) extends AsmImmediate {
-    override def toString = s"#$s"
+    override def toString = s"$s"
     def toLdrString = s"=$s"
   }
 

@@ -275,9 +275,15 @@ object generator {
     Step((s: State) => (Nil, s.copy(fState = s.fState + f)))
   }
 
-  def genData: Step = {
-    ???
-  }
+  def genData: Step = (
+         Directive("data")
+    <++> Step((s: State) => s.data.foldLeft(Step.identity)(
+      (prevStep, entry) => prevStep
+        <++> Label(entry._2.toString)
+        <++> Directive(s"word ${entry._1.length}")
+        <++> Directive(s"ascii ${entry._1}")
+    )(s))
+  )
 
   def includeData(msg: String): Step = {
     Step((s: State) => (Nil, s.copy(data = s.data + (msg -> AsmString(s"msg_$getUniqueName")))))
