@@ -10,14 +10,13 @@ import scala.language.implicitConversions
 
 object state {
 
+  val NUM_BASE_REG = 9
   val REG_START = AsmReg(4)
-  val REG_END = AsmReg(9)
+  val REG_END = AsmReg(NUM_BASE_REG)
   val PLACEHOLDER_1 = AsmReg(10)
   val PLACEHOLDER_2 = AsmReg(11)
   val STACK_POINTER = AsmReg(13)
   val NEW_REG: State = State(REG_START, Set())
-
-  var stackOffset = 0
 
   /*
   Reg documents the highest register of 4-9 which is not in use
@@ -38,46 +37,30 @@ object state {
 
     def next: State = State(AsmReg(reg.r + 1), this.fState)
 
+    def getStackOffset: Int = if (reg.r - NUM_BASE_REG > 0) reg.r - NUM_BASE_REG else 0
+
     def read: (AsmReg, List[Asm], State) = {
       assert(reg.r > 4)
       if (prev.isReg) (prev.reg, Nil, prev)
-      else {
-        stackOffset -= 1
-        (PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev)
-      }
+      else (PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev)
     }
 
     def read2: (AsmReg, AsmReg, List[Asm], State) = {
       assert(reg.r > 5)
       if (prev.isReg) (prev.prev.reg, prev.reg, Nil, prev.prev)
-      else if (prev.prev.isReg) {
-        stackOffset -= 1
-        (prev.prev.reg, PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev.prev)
-      }
-      else {
-        stackOffset -= 2
-        (PLACEHOLDER_1, PLACEHOLDER_2, List(Pop()(PLACEHOLDER_2), Pop()(PLACEHOLDER_1)), prev.prev)
-      }
+      else if (prev.prev.isReg) (prev.prev.reg, PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev.prev)
+      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Pop()(PLACEHOLDER_2), Pop()(PLACEHOLDER_1)), prev.prev)
     }
 
     def write: (AsmReg, List[Asm], State) = {
       if (isReg) (reg, Nil, next)
-      else {
-        stackOffset += 1
-        (PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next)
-      }
+      else (PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next)
     }
 
     def write2: (AsmReg, AsmReg, List[Asm], State) = {
       if (next.isReg) (reg, next.reg, Nil, next.next)
-      else if (isReg) {
-        stackOffset += 1
-        (reg, PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next.next)
-      }
-      else {
-        stackOffset += 2
-        (PLACEHOLDER_1, PLACEHOLDER_2, List(Push()(PLACEHOLDER_1), Push()(PLACEHOLDER_2)), next.next)
-      }
+      else if (isReg) (reg, PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next.next)
+      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Push()(PLACEHOLDER_1), Push()(PLACEHOLDER_2)), next.next)
     }
   }
 }

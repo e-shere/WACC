@@ -18,6 +18,7 @@ object asm {
   sealed trait AsmDefiniteArg extends AsmArg
 
   case class AsmReg(r: Int) extends AsmMaybeReg with AsmDefiniteArg {
+    // This prevents us from exceeding r15, which state requires
     assert(r >= -1 && r <= 15)
 
     override def toString: String = r match {
