@@ -28,12 +28,12 @@ class StateTests extends AnyFlatSpec {
   }
 
   "a full register state" should "use stack" in {
-    assert(State(AsmReg(10), mutable.Set()).isStack)
-    assert(!State(AsmReg(10), mutable.Set()).isReg)
+    assert(State(AsmReg(10), Set()).isStack)
+    assert(!State(AsmReg(10), Set()).isReg)
   }
 
   "top register" should "used in full stack" in {
-    val reg = State(AsmReg(9), mutable.Set())
+    val reg = State(AsmReg(9), Set())
     assert(reg.isReg)
     reg.write._1 shouldBe AsmReg(9)
     assert(reg.isReg)
