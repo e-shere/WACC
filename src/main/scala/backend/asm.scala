@@ -1,12 +1,11 @@
 package backend
 
-import backend.PredefinedFunctions.check_div_zero
+import backend.asm.ConditionCode.{AL, EQ, NE, LT, LE, GT, GE, CS, Value}
+import backend.state.State
 import step._
 import step.implicits._
-import generator.genCallWithRegs
 
 object asm {
-
   val BYTE_SIZE = 4
 
   def countToOffset(count: Int): Int = count * BYTE_SIZE
@@ -31,10 +30,19 @@ object asm {
 
   val NO_REG: AsmReg = AsmReg(-1)
 
-  case class AsmInt(i: Int) extends AsmDefiniteArg {
+  sealed trait AsmImmediate extends AsmDefiniteArg
+
+  case class AsmStateFunc[T <: AsmDefiniteArg](func: State => T) extends AsmArg
+
+  case class AsmInt(i: Int) extends AsmImmediate  {
     override def toString = s"#$i"
 
     def toLdrString = s"=$i"
+  }
+
+  case class AsmString(s: String) extends AsmImmediate {
+    override def toString = s"$s"
+    def toLdrString = s"=$s"
   }
 
   sealed trait AsmAnyReg extends AsmArg
@@ -54,7 +62,7 @@ object asm {
 
   sealed trait AsmInstr extends Asm {
     val opcode: String
-    val cond: String
+    val cond: ConditionCode.Value
     def argsToString: String
     override def toString: String = s"$opcode$cond $argsToString"
   }
@@ -62,6 +70,12 @@ object asm {
   sealed trait AsmStandardInstr extends AsmInstr {
     val args: Seq[AsmDefiniteArg]
     def argsToString: String = args.mkString(", ")
+  }
+
+  object ConditionCode extends Enumeration {
+    type Cond = Value
+    val EQ, NE, LT, LE, GT, GE, CS = Value
+    val AL: ConditionCode.Value = Value("")
   }
 
   // TODO: consider separators- which file
@@ -79,47 +93,52 @@ object asm {
     override def toString: String = value + ":"
   }
 
-  case class Branch(cond: String = "")(label: String) extends AsmInstr {
+  case class Branch(cond: ConditionCode.Value = AL)(label: String) extends AsmInstr {
     val opcode = "B"
     def argsToString: String = s"$label"
   }
 
-  case class Mov(cond: String = "")(args: AsmDefiniteArg *) extends AsmInstr {
+  case class BranchLink(cond: ConditionCode.Value = AL)(label: String) extends AsmInstr {
+    val opcode = "BL"
+    def argsToString: String = s"$label"
+  }
+
+  case class Mov(cond: ConditionCode.Value = AL)(args: AsmDefiniteArg *) extends AsmInstr {
     val opcode = "MOV"
     override def argsToString: String = s"${args(0)}, ${args(1)}"
   }
 
-  case class Push(cond: String = "")(arg: AsmDefiniteArg) extends AsmInstr {
+  case class Push(cond: ConditionCode.Value = AL)(arg: AsmDefiniteArg) extends AsmInstr {
     val opcode = "PUSH"
     override def argsToString = s"{$arg}"
   }
 
-  case class Pop(cond: String = "")(arg: AsmDefiniteArg) extends AsmInstr {
+  case class Pop(cond: ConditionCode.Value = AL)(arg: AsmDefiniteArg) extends AsmInstr {
     val opcode = "POP"
     override def argsToString = s"{$arg}"
   }
 
-  case class Or(cond: String = "")(val args: AsmDefiniteArg *) extends AsmStandardInstr {
+  case class Or(cond: ConditionCode.Value = AL)(val args: AsmDefiniteArg *) extends AsmStandardInstr {
     val opcode = "ORR"
   }
 
-  case class And(cond: String = "")(val args: AsmDefiniteArg *) extends AsmStandardInstr {
+  case class And(cond: ConditionCode.Value = AL)(val args: AsmDefiniteArg *) extends AsmStandardInstr {
     val opcode = "AND"
   }
 
-  case class Compare(cond: String = "")(val args: AsmDefiniteArg *) extends AsmStandardInstr {
+  case class Compare(cond: ConditionCode.Value = AL)(val args: AsmDefiniteArg *) extends AsmStandardInstr {
     val opcode = "CMP"
   }
 
-  case class Adds(cond: String = "")(val args: AsmDefiniteArg *) extends AsmStandardInstr {
+  case class Adds(cond: ConditionCode.Value = AL)(val args: AsmDefiniteArg *) extends AsmStandardInstr {
     val opcode = "ADDS"
   }
 
-  case class Subs(cond: String = "")(val args: AsmDefiniteArg *) extends AsmStandardInstr {
+  case class Subs(cond: ConditionCode.Value = AL)(val args: AsmDefiniteArg *) extends AsmStandardInstr {
     val opcode = "SUBS"
   }
 
-  case class SMull(cond: String = "")(val args: AsmDefiniteArg *) extends AsmStandardInstr {
+  case class SMull(cond: ConditionCode.Value = AL)(val args: AsmDefiniteArg *) extends AsmStandardInstr {
     val opcode = "SMULL"
   }
 
@@ -129,32 +148,33 @@ object asm {
   //  // result will be in register x
   //}
 
-//  case class Mul (cond: String = "")(target: AsmReg, x: AsmReg, y: AsmDefiniteArg) extends AsmStandardInstr {
+//  case class Mul (cond: ConditionCode.Value = AL)(target: AsmReg, x: AsmReg, y: AsmDefiniteArg) extends AsmStandardInstr {
 //    override def toString = s"SMULL $target, $y, $x, $y"
 //  }
 
-  case class Not(cond: String = "")(args: AsmDefiniteArg *) extends AsmInstr {
+  case class Not(cond: ConditionCode.Value = AL)(args: AsmDefiniteArg *) extends AsmInstr {
     val opcode = "EOR"
     def argsToString = s"${args(0)}, ${args(1)}, #1"
   }
 
-  case class Neg(cond: String = "")(args: AsmDefiniteArg *)  extends AsmInstr {
+  case class Neg(cond: ConditionCode.Value = AL)(args: AsmDefiniteArg *)  extends AsmInstr {
     val opcode = "RSBS"
     override def argsToString = s"${args(0)}, ${args(1)}, #0"
   }
 
-  case class Ldr(cond: String = "")(args: AsmDefiniteArg *)(offset: AsmInt = AsmInt(0)) extends AsmInstr {
+  case class Ldr(cond: ConditionCode.Value = AL)(args: AsmDefiniteArg *)(offset: AsmInt = AsmInt(0)) extends AsmInstr {
     override val opcode: String = "LDR"
     override def argsToString: String = {
       args(1) match {
         case i@AsmInt(_) => s"${args(0)}, ${i.toLdrString}"
+        case s@AsmString(_) => s"${args(0)}, ${s.toLdrString}"
         case _ => s"${args(0)}, [${args(1)}, $offset]"
       }
     }
   }
 
   // args(0): source, args(1): dest
-  case class Str(cond: String = "")(args: AsmDefiniteArg *)(offset: AsmInt = AsmInt(0))extends AsmInstr {
+  case class Str(cond: ConditionCode.Value = AL)(args: AsmDefiniteArg *)(offset: AsmInt = AsmInt(0))extends AsmInstr {
     override val opcode: String = "STR"
     override def argsToString: String = {
       offset match {
@@ -165,56 +185,56 @@ object asm {
   }
 
   object Len {
-    def apply(cond: String = "")(args: AsmDefiniteArg *): Step = args match {
+    def apply(cond: ConditionCode.Value = AL)(args: AsmDefiniteArg *): Step = args match {
       case Seq(target: AsmReg, source) => Ldr(cond)(target, source)()
     }
   }
 
   object Eq {
-    def apply(cond: String = "")(args: AsmDefiniteArg *): Step = (
+    def apply(cond: ConditionCode.Value = AL)(args: AsmDefiniteArg *): Step = (
            Compare(cond)(args.tail: _*)
-      <++> Mov("EQ")(args.head, AsmInt(1))
-      <++> Mov("NE")(args.head, AsmInt(0))
+      >++> Mov(EQ)(args.head, AsmInt(1))
+      >++> Mov(NE)(args.head, AsmInt(0))
     )
   }
 
   object Neq {
-    def apply(cond: String = "")(args: AsmDefiniteArg *): Step = (
+    def apply(cond: ConditionCode.Value = AL)(args: AsmDefiniteArg *): Step = (
       Compare(cond)(args.tail: _*)
-        <++> Mov("NE")(args.head, AsmInt(1))
-        <++> Mov("EQ")(args.head, AsmInt(0))
+        >++> Mov(NE)(args.head, AsmInt(1))
+        >++> Mov(EQ)(args.head, AsmInt(0))
       )
   }
 
   object Leq {
-    def apply(cond: String = "")(args: AsmDefiniteArg *): Step = (
+    def apply(cond: ConditionCode.Value = AL)(args: AsmDefiniteArg *): Step = (
       Compare(cond)(args.tail: _*)
-        <++> Mov("LE")(args.head, AsmInt(1))
-        <++> Mov("GT")(args.head, AsmInt(0))
+        >++> Mov(LE)(args.head, AsmInt(1))
+        >++> Mov(GT)(args.head, AsmInt(0))
     )
   }
 
   object Lt {
-    def apply(cond: String = "")(args: AsmDefiniteArg *): Step = (
+    def apply(cond: ConditionCode.Value = AL)(args: AsmDefiniteArg *): Step = (
       Compare(cond)(args.tail: _*)
-        <++> Mov("LT")(args.head, AsmInt(1))
-        <++> Mov("GE")(args.head, AsmInt(0))
+        >++> Mov(LT)(args.head, AsmInt(1))
+        >++> Mov(GE)(args.head, AsmInt(0))
       )
   }
 
   object Geq {
-    def apply(cond: String = "")(args: AsmDefiniteArg *): Step = (
+    def apply(cond: ConditionCode.Value = AL)(args: AsmDefiniteArg *): Step = (
       Compare(cond)(args.tail: _*)
-        <++> Mov("GE")(args.head, AsmInt(1))
-        <++> Mov("LT")(args.head, AsmInt(0))
+        >++> Mov(GE)(args.head, AsmInt(1))
+        >++> Mov(LT)(args.head, AsmInt(0))
       )
   }
 
   object Gt {
-    def apply(cond: String = "")(args: AsmDefiniteArg *): Step = (
+    def apply(cond: ConditionCode.Value = AL)(args: AsmDefiniteArg *): Step = (
       Compare(cond)(args.tail: _*)
-        <++> Mov("GT")(args.head, AsmInt(1))
-        <++> Mov("LE")(args.head, AsmInt(0))
+        >++> Mov(GT)(args.head, AsmInt(1))
+        >++> Mov(LE)(args.head, AsmInt(0))
       )
   }
 

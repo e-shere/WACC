@@ -2,25 +2,31 @@ package backend
 
 import backend.asm._
 import backend.state.{NEW_REG, PLACEHOLDER_1, REG_START, STACK_POINTER, State}
-import backend.step.Step.stepInstr
-
-import scala.collection.mutable.ListBuffer
+import backend.step.Step.discardAll
 import scala.language.implicitConversions
 
 object step {
   import implicits._
 
   case class Step(func: State => (List[Asm], State)) {
-    override def toString = mkString("\n")
+    override def toString: String = mkString("\n")
 
-    def mkString(sep: String): String = this (NEW_REG)._1.mkString(sep)
+    def mkString(sep: String): String = this(NEW_REG)._1.mkString(sep)
 
     def apply(state: State): (List[Asm], State) = func(state)
 
-    def <++>(next: Step): Step = Step((state: State) => {
-      val (asm1, state1) = this (state)
+    // >++> append
+    // <++< prepend
+    def >++>(next: Step): Step = Step((state: State) => {
+      val (asm1, state1) = this(state)
       val (asm2, state2) = next(state1)
       (asm1 ++ asm2, state2)
+    })
+
+    def <++<(next: Step): Step = Step((state: State) => {
+      val (asm1, state1) = (this >++> discardAll)(state)
+      val (asm2, state2) = next(state1)
+      (asm2 ++ asm1, state2)
     })
   }
 
@@ -28,8 +34,9 @@ object step {
 
     val identity: Step = Step((Nil, _))
     // This step is used between steps where the state of registers needs to be reset
+
     val discardAll: Step = Step(state => {
-      (if (state.getStackOffset > 0) Step.asmInstr(Adds())(STACK_POINTER, STACK_POINTER, AsmInt(state.getStackOffset * BYTE_SIZE))()(state)._1 else Nil, State(REG_START, state.fState))
+      (if (state.getStackOffset > 0) Step.asmInstr(Adds())(STACK_POINTER, STACK_POINTER, AsmInt(state.getStackOffset * BYTE_SIZE))()(state)._1 else Nil, State(REG_START, state.fState, state.data))
     })
 
     val discardTop: Step = Step(state => {
@@ -89,6 +96,7 @@ object step {
         case Re2 => re2
         case ReNew => reNew
         case arg: AsmDefiniteArg => arg
+        case AsmStateFunc(func) => func(state1)
       }
 
       val (asmF, stateF) = f.apply(argsDefinite)(state1)
