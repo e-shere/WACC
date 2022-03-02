@@ -80,7 +80,7 @@ object generator {
         >++> addPredefFunc(print_string())
         )
       case Return(expr) => genExpr(expr) >++> Step.asmInstr(Mov())(r0, Re1)()
-      case Exit(expr) => genExpr(expr) >++> Step.asmInstr(Mov())(r0, Re1)() >++> genCallWithRegs("exit", 1, None)
+      case Exit(expr) => genExpr(expr) >++> genCallWithRegs("exit", 1, None)
       // TODO: call the right print function
       case Print(expr) => (genExpr(expr)
         >++> genCallWithRegs("???", 1, None)
