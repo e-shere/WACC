@@ -31,6 +31,7 @@ object step {
 
     val discardTop: Step = Step(state => (Nil, state.prev))
 
+    //out: anyregs which are written to, not including NEWREG
     def stepInstr(f: (Seq[AsmDefiniteArg]) => Step)(args: AsmArg*)(out: AsmAnyReg*): Step = Step((state: State) => {
       if (args contains Re2) assert(!(args contains ReNew))
 
@@ -88,7 +89,6 @@ object step {
       val (asmF, stateF) = f.apply(argsDefinite)(state1)
 
       assert(state1.reg == stateF.reg)
-
       (asm1 ++ asmF ++ asm2, state2)
     })
 

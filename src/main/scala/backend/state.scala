@@ -44,24 +44,9 @@ object state {
 
     def read2: (AsmReg, AsmReg, List[Asm], State) = {
       assert(reg.r > 5)
-      if (isReg) (prev.reg, reg, Nil, prev.prev)
-      else if (prev.isReg) (prev.reg, PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev.prev)
+      if (prev.isReg) (prev.prev.reg, prev.reg, Nil, prev.prev)
+      else if (prev.prev.isReg) (prev.prev.reg, PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev.prev)
       else (PLACEHOLDER_1, PLACEHOLDER_2, List(Pop()(PLACEHOLDER_2), Pop()(PLACEHOLDER_1)), prev.prev)
-    }
-
-    def peek: (AsmReg, List[Asm], State) = {
-      assert(reg.r > 4)
-      if (isReg) (prev.reg, Nil, this)
-      // TODO: added 0 offset here. Check
-      else (PLACEHOLDER_1, List(Ldr()(PLACEHOLDER_1, STACK_POINTER)(AsmInt(0))), this)
-    }
-
-    def peek2: (AsmReg, AsmReg, List[Asm], State) = {
-      assert(reg.r > 5)
-      if (isReg) (prev.reg, reg, Nil, this)
-      // TODO: added 0 offset here. Check
-      else if (prev.isReg) (prev.reg, PLACEHOLDER_1, List(Ldr()(PLACEHOLDER_1, STACK_POINTER)(AsmInt(0))), this)
-      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Ldr()(PLACEHOLDER_2, STACK_POINTER)(AsmInt(0)), Ldr()(PLACEHOLDER_1, STACK_POINTER)(AsmInt(4))), this)
     }
 
     def write: (AsmReg, List[Asm], State) = {

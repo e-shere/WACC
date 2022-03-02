@@ -128,7 +128,7 @@ object generator {
       case ast.Gt(x, y)  => genBinOp(x, y, Step.stepInstr(asm.Gt())(Re2, Re2, Re1)(Re2))
       case ast.Add(x, y) => genBinOp(x, y, Step.asmInstr(asm.Adds())(Re2, Re2, Re1)(Re2))
       case ast.Sub(x, y) => genBinOp(x, y, Step.asmInstr(asm.Subs())(Re2, Re2, Re1)(Re2))
-      case ast.Mul(x, y) => genBinOp(x, y, genMul)
+      case ast.Mul(x, y) => genBinOp(x, y, genMul())
       case ast.Div(x, y) => genBinOp(x, y, genDiv)
       case ast.Mod(x, y) => genBinOp(x, y, genDiv)
       case ast.Not(x)    => genUnOp(x, Step.asmInstr(asm.Not())(Re1, Re1)(Re1))
@@ -223,16 +223,17 @@ object generator {
 
   def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable): Step = (
     genLocation(lhs)
-      <++> Step.genericAsmInstr(asm.Str())(Re1, STACK_POINTER)(AsmInt(4))(Re1)
+    // re1 contains offset
+    // re2 contains the value
+      <++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt(0))()
   )
 
   // puts the memory location of the object in question in a register
   def genLocation(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {
     case id@Ident(_) => {
       val offset = countToOffset(symbols.getOffset(id).get)
-      // TODO: check registers here are correct
-      Step.asmInstr(asm.Mov())(ReNew, AsmInt(offset))(ReNew)
-      // TODO: account for movement in stack pointer
+      // This stores the actual location in a new register
+      Step.asmInstr(asm.Adds())(ReNew, STACK_POINTER, AsmInt(offset))()
     }
     case ArrayElem(id, index) => (
            genExpr(id)
