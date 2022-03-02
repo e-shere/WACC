@@ -1,15 +1,23 @@
 package backend
 
 import asm._
+import backend.PredefinedFunctions.PredefinedFunc
+import backend.step.Step
+import backend.step.implicits.implicitStep
+import frontend.symbols.TypeTable
+
 import scala.language.implicitConversions
 
 object state {
 
-  val REG_START = 4
-  val REG_END = 9
-  val PLACEHOLDER_1 = "r10"
-  val PLACEHOLDER_2 = "r11"
-  val STACK_POINTER = "sp"
+  // Consider factoring out the magic numbers
+  val NUM_BASE_REG = 9
+  val REG_START = AsmReg(4)
+  val REG_END = AsmReg(NUM_BASE_REG)
+  val PLACEHOLDER_1 = AsmReg(10)
+  val PLACEHOLDER_2 = AsmReg(11)
+  val STACK_POINTER = AsmReg(13)
+  val NEW_REG: State = State(REG_START, Set(), Map.empty)
 
   /*
   Reg documents the highest register of 4-9 which is not in use
@@ -17,107 +25,45 @@ object state {
    */
   // TODO: ROB PLEASE DO SOME OFF BY ONE CHECKS HERE
   // TODO: unit test this
-  case class RegState(reg: Int) {
-    def isReg: Boolean = reg >= REG_START && reg <= REG_END
-    def isStack: Boolean = reg > REG_END
-    def prev: RegState = RegState(reg - 1)
-    def next: RegState = RegState(reg + 1)
-    def read: (String, List[Asm], RegState) = {
-      if (prev.isReg) (regToString(prev.reg), Nil, prev)
-      else (PLACEHOLDER_1, List(Pop(PLACEHOLDER_1)), prev)
+
+  type FuncState = Set[PredefinedFunc]
+  // Maps from the string value we want to insert to
+  type StringData = Map[String, AsmString]
+
+  case class State(reg: AsmReg, fState: FuncState, data: StringData) {
+
+    def isReg: Boolean = reg.r >= REG_START.r && reg.r <= REG_END.r
+
+    def isStack: Boolean = reg.r > REG_END.r
+
+    def prev: State = State(AsmReg(reg.r - 1), this.fState, this.data)
+
+    def next: State = State(AsmReg(reg.r + 1), this.fState, this.data)
+
+    def getStackOffset: Int = if (reg.r - NUM_BASE_REG > 0) reg.r - NUM_BASE_REG else 0
+
+    def read: (AsmReg, List[Asm], State) = {
+      assert(reg.r > 4)
+      if (prev.isReg) (prev.reg, Nil, prev)
+      else (PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev)
     }
-    def read2: (String, String, List[Asm], RegState) = {
-      if (isReg) (regToString(prev.reg), regToString(reg), Nil, prev.prev)
-      else if (prev.isReg) (regToString(prev.reg), PLACEHOLDER_1, List(Pop(PLACEHOLDER_1)), prev.prev)
-      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Pop(PLACEHOLDER_2), Pop(PLACEHOLDER_1)), prev.prev)
+
+    def read2: (AsmReg, AsmReg, List[Asm], State) = {
+      assert(reg.r > 5)
+      if (prev.isReg) (prev.prev.reg, prev.reg, Nil, prev.prev)
+      else if (prev.prev.isReg) (prev.prev.reg, PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev.prev)
+      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Pop()(PLACEHOLDER_2), Pop()(PLACEHOLDER_1)), prev.prev)
     }
-    def peek: (String, List[Asm], RegState) = {
-      if (isReg) (regToString(prev.reg), Nil, this)
-      else (PLACEHOLDER_1, List(Ldr(PLACEHOLDER_1, STACK_POINTER)()), this)
+
+    def write: (AsmReg, List[Asm], State) = {
+      if (isReg) (reg, Nil, next)
+      else (PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next)
     }
-    def peek2: (String, String, List[Asm], RegState) = {
-      if (isReg) (regToString(prev.reg), regToString(reg), Nil, this)
-      else if (prev.isReg) (regToString(prev.reg), PLACEHOLDER_1, List(Ldr(PLACEHOLDER_1, STACK_POINTER)()), this)
-      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Ldr(PLACEHOLDER_2, STACK_POINTER)(), Ldr(PLACEHOLDER_1, STACK_POINTER)(intToAsmLit(4))), this)
-    }
-    def write: (String, List[Asm], RegState) = {
-      if (isReg) (regToString(reg), Nil, next)
-      else (PLACEHOLDER_1, List(Push(PLACEHOLDER_1)), next)
+
+    def write2: (AsmReg, AsmReg, List[Asm], State) = {
+      if (next.isReg) (reg, next.reg, Nil, next.next)
+      else if (isReg) (reg, PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next.next)
+      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Push()(PLACEHOLDER_1), Push()(PLACEHOLDER_2)), next.next)
     }
   }
-  
-  case class Step(func: RegState => (List[Asm], RegState)) {
-    override def toString = mkString("\n")
-
-    def mkString(sep: String): String = this(NEW_REG)._1.mkString(sep) 
-
-    def apply(state: RegState): (List[Asm], RegState) = func(state)
-
-    def <++>(next: Step): Step = Step((state: RegState) => {
-      val (asm1, state1) = this(state)
-      val (asm2, state2) = next(state1)
-      (asm1 ++ asm2, state2)
-    })
-  }
-
-  object Step {
-    val identity: Step = Step((Nil, _))
-    // This step is used between steps where the state of registers needs to be reset
-    val discard: Step = Step(_ => (Nil, NEW_REG))
-
-    // Read from register, then free the register
-    def r(fs: (String) => Asm *): Step = Step((state: RegState) => {
-      val (reg, asm1, state1) = state.read
-      (asm1 ++ fs.map(_(reg)), state1)
-    })
-    
-    // Write to a new register
-    def w(f: (String) => Asm): Step = Step((state: RegState) => {
-      val (reg, asm1, state1) = state.write
-      (f(reg) +: asm1, state1)
-    })
-
-    // Read from a register and overwrite it
-    def ro(fs: (String) => Asm *): Step = Step((state: RegState) => {
-      val (reg1, asm1, state1) = state.read
-      val (reg2, asm2, state2) = state1.write
-      assert(reg1 == reg2)
-      (asm1 ++ fs.map(_(reg1)) ++ asm2, state2)
-    })
-
-    // Read from a register, preserve it, write to a new one
-    def rw(fs: (String, String) => Asm *): Step = Step((state: RegState) => {
-      val (reg1, asm1, state1) = state.peek
-      val (reg2, asm2, state2) = state1.write
-      (asm1 ++ fs.map(_(reg2, reg1)) ++ asm2, state2)
-    })
-
-    // Read two registers, free one and overwrite the other
-    def rro(fs: (String, String) => Asm *): Step = Step((state: RegState) => {
-      val (xReg, yReg, asm1, state1) = state.read2
-      val (tReg, asm2, state2) = state1.write
-      assert(xReg == tReg)
-      (asm1 ++ fs.map(_(xReg, yReg)) ++ asm2, state2)
-    })
-  }
-
-  // Compose several steps into one
-  //def combineSteps(steps: List[Step]): Step = (state: RegState) => {
-  //  steps.foldLeft[(List[Asm], RegState)]((Nil, state))((prev, step) => prev match {
-  //    case (asm1, state1) => {
-  //      val (asm2, state2) = step(state1)
-  //      (asm1 ++ asm2, state2)
-  //    }
-  //  })
-  //}
-  
-  def regToString(reg: Int): String = "r" + reg
-
-  val NEW_REG: RegState = RegState(REG_START)
-
-
-  object implicits {
-    implicit def implicitStep(node: Asm): Step = Step((List(node), _))
-  }
-
 }
