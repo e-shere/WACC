@@ -3,7 +3,7 @@ package backend
 import frontend.ast
 import frontend.ast._
 import asm._
-import backend.PredefinedFunctions.{PredefinedFunc, check_div_zero}
+import backend.PredefinedFunctions._
 import step._
 import frontend.symbols.TypeTable
 
@@ -67,16 +67,14 @@ object generator {
       // In the Assign case, we use genLhs to store the offset on the stack
       // that we access the given lhs variable from
         // TODO: check
-      case Assign(lhs, rhs) => genRhs(rhs) <++> genLhs(lhs) // <++> Str.step(&(-2), STACK_POINTER, &(-1))
-      case Read(lhs) => ???
-      case Free(expr) =>
-        ??? // TODO: add free_pair to auxState set
-        // TODO: switch on free array vs free pair
-//        genExpr(expr) <++> genCallWithRegs(free_pair().label, 1)
+      case Assign(lhs, rhs) => genRhs(rhs) <++> genLhs(lhs) //<++> Step.genericAsmInstr(asm.Str())(Re1, STACK_POINTER)(AsmInt(4))(Re1)
+      case Read(lhs) => genLhs(lhs) <++> genCallWithRegs(read_byte.toString(), 1, Some(r0))
+      case Free(expr) => genExpr(expr) <++> genCallWithRegs(free.toString(), 1, None)
       case Return(expr) => genExpr(expr) <++> Step.asmInstr(Mov() _)(r0, Re1)()
       case Exit(expr) => genExpr(expr) <++> Step.asmInstr(Mov() _)(r0, Re1)() <++> genCallWithRegs("exit", 1, None)
-      case Print(expr) => ???
-      case Println(expr) => ???
+      // TODO: call the right print function
+      case Print(expr) => genExpr(expr) <++> genCallWithRegs("???", 1, None)
+      case Println(expr) => genExpr(expr) <++> genCallWithRegs("???", 1, None)
       case s@If(expr, thenStats, elseStats) => {
         val l = getUniqueName
         val thenLabel = s"L_then_$l"
@@ -130,9 +128,9 @@ object generator {
       case ast.Gt(x, y)  => genBinOp(x, y, Step.stepInstr(asm.Gt())(Re2, Re2, Re1)(Re2))
       case ast.Add(x, y) => genBinOp(x, y, Step.asmInstr(asm.Adds())(Re2, Re2, Re1)(Re2))
       case ast.Sub(x, y) => genBinOp(x, y, Step.asmInstr(asm.Subs())(Re2, Re2, Re1)(Re2))
-      case ast.Mul(x, y) => ??? //genBinOp(x, y, asm.Mul.step(_0, _0, _1))
-      case ast.Div(x, y) => genDiv /*TODO: deal with x and y*/
-      case ast.Mod(x, y) => genMod /*TODO: deal with x and y*/
+      case ast.Mul(x, y) => genBinOp(x, y, genMul)
+      case ast.Div(x, y) => genBinOp(x, y, genDiv)
+      case ast.Mod(x, y) => genBinOp(x, y, genDiv)
       case ast.Not(x)    => genUnOp(x, Step.asmInstr(asm.Not())(Re1, Re1)(Re1))
       case ast.Neg(x)    => genUnOp(x, Step.asmInstr(asm.Neg())(Re1, Re1)(Re1))
       case ast.Len(x)    => genUnOp(x, Step.stepInstr(asm.Len())(Re1, Re1)(Re1))
@@ -143,23 +141,20 @@ object generator {
         // TODO: let ldr take a char directly
       case ast.CharLiter(x) => Step.genericAsmInstr(asm.Ldr())(ReNew, AsmInt(x.toInt))(AsmInt(0))()
       // There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
-      case ast.StrLiter(x) => ( ???
-//        Step.asmInstr(asm.Mov())(Re1, AsmInt(x.length))(Re1)
-//          <++> Step.asmInstr(asm.Mov())(Re1, AsmInt((x.length + 1) * 4))(Re1)
-//          <++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
-//          <++> Step.genericAsmInstr(asm.Str())(Re1, Re2)(AsmInt(0))(Re1)
-//          //Str.step(_0, _1) // TODO: avoid this register leak (the bottom register isn't used again)
-//          // -> size, ------
-//          // -> pointer to array, nothing
-//          <++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
-//          prev
-//            // <++> asm.Chr.step(_0, AsmInt(v._1)) // Presumably this adds the char to the top of regState?
-//            // Does this not lose the place where we malloc? Solved on line 168
-//            // TODO: intToOffset
-//            <++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt((v._2 + 1) * 4))(Re2)
-//            //Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
-//            <++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
-
+      case ast.StrLiter(x) => (
+        Step.asmInstr(asm.Mov())(ReNew, AsmInt(x.length))()
+          <++> Step.asmInstr(asm.Mov())(ReNew, AsmInt((x.length + 1) * 4))()
+          <++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
+          <++> Step.genericAsmInstr(asm.Str())(Re1, Re2)(AsmInt(0))(Re1)
+          <++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
+          prev
+            // <++> asm.Chr.step(_0, AsmInt(v._1)) // Presumably this adds the char to the top of regState?
+            // Does this not lose the place where we malloc? Solved on line 168
+            // TODO: intToOffset
+            <++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt((v._2 + 1) * 4))(Re2)
+            //Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
+            <++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
+          ))
       )
       case ast.ArrayLiter(x) => (
         Step.asmInstr(asm.Mov())(ReNew, AsmInt(x.length))()
@@ -186,7 +181,7 @@ object generator {
         )
       case idd@Ident(id) => {
         val offset = countToOffset(symbols.getOffset(idd).get)
-        Step.genericAsmInstr(asm.Ldr())(Re1, STACK_POINTER)(AsmInt(offset))(Re1)
+        Step.genericAsmInstr(asm.Ldr())(ReNew, STACK_POINTER)(AsmInt(offset))()
         // Ldr.step(_0, STACK_POINTER, AsmInt(offset))
       }
       case Null() => ???
@@ -213,7 +208,7 @@ object generator {
       )
       case Fst(expr) => (
              genExpr(expr)
-        <++> Step.genericAsmInstr(asm.Ldr())(Re1, Re1)(AsmInt(0))(Re1)
+        <++> Step.genericAsmInstr(asm.Ldr())(Re2, Re1)(AsmInt(0))(Re1)
       )
       case Snd(expr) => (
              genExpr(expr)
@@ -226,19 +221,10 @@ object generator {
     }
   }
 
-  def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {
-    case id@Ident(_) => {
-      val offset = countToOffset(symbols.getOffset(id).get)
-      Step.asmInstr(asm.Mov())(Re1, AsmInt(offset))(Re1)
-      // TODO: account for movement in stack pointer
-    }
-    case arrElem@ArrayElem(id, index) => genExpr(arrElem)
-    case Fst(id@Ident(_)) => genExpr(id)
-    case Snd(id@Ident(_)) => (
-      genExpr(id)
-      <++> Step.asmInstr(asm.Adds())(Re1, Re1, AsmInt(BYTE_SIZE))(Re1) // Should the offset be 4 or 1?
-    )
-  }
+  def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable): Step = (
+    genLocation(lhs)
+      <++> Step.genericAsmInstr(asm.Str())(Re1, STACK_POINTER)(AsmInt(4))(Re1)
+  )
 
   // puts the memory location of the object in question in a register
   def genLocation(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {

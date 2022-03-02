@@ -33,6 +33,10 @@ object step {
 
     def stepInstr(f: (Seq[AsmDefiniteArg]) => Step)(args: AsmArg*)(out: AsmAnyReg*): Step = Step((state: State) => {
       if (args contains Re2) assert(!(args contains ReNew))
+
+      println(s"args: ${args.mkString(" ")}")
+      println(s"out: ${out.mkString(" ")}\n")
+
       val (re2, re1, asm1, state1) =
         if (args contains Re2) state.read2
         else if (args contains Re1) {

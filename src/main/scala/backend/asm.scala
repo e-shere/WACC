@@ -149,7 +149,7 @@ object asm {
     override def argsToString: String = {
       args(1) match {
         case i@AsmInt(_) => s"${args(0)}, ${i.toLdrString}"
-        case _ => s"target, [${args(1)}, $offset]"
+        case _ => s"${args(0)}, [${args(1)}, $offset]"
       }
     }
   }
