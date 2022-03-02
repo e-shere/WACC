@@ -69,14 +69,29 @@ object generator {
       // In the Assign case, we use genLhs to store the offset on the stack
       // that we access the given lhs variable from
         // TODO: check
-      case Assign(lhs, rhs) => genRhs(rhs) >++> genLhs(lhs) //<++> Step.genericAsmInstr(asm.Str())(Re1, STACK_POINTER)(AsmInt(4))(Re1)
-      case Read(lhs) => genLhs(lhs) >++> genCallWithRegs(read_byte.toString(), 1, Some(r0))
-      case Free(expr) => genExpr(expr) >++> genCallWithRegs(free.toString(), 1, None)
-      case Return(expr) => genExpr(expr) >++> Step.asmInstr(Mov() _)(r0, Re1)()
-      case Exit(expr) => genExpr(expr) >++> Step.asmInstr(Mov() _)(r0, Re1)() >++> genCallWithRegs("exit", 1, None)
+      case Assign(lhs, rhs) => (genRhs(rhs) >++> genLhs(lhs))
+      case Read(lhs) => (genLhs(lhs)
+        >++> genCallWithRegs(read_byte.toString(), 1, Some(r0))
+        >++> addPredefFunc(read_byte())
+        )
+      case Free(expr) => (genExpr(expr)
+        >++> genCallWithRegs(free.toString(), 1, None)
+        >++> addPredefFunc(free())
+        >++> addPredefFunc(check_null_pointer())
+        >++> addPredefFunc(throw_runtime())
+        >++> addPredefFunc(print_string())
+        )
+      case Return(expr) => genExpr(expr) >++> Step.asmInstr(Mov())(r0, Re1)()
+      case Exit(expr) => genExpr(expr) >++> Step.asmInstr(Mov())(r0, Re1)() >++> genCallWithRegs("exit", 1, None)
       // TODO: call the right print function
-      case Print(expr) => genExpr(expr) >++> genCallWithRegs("???", 1, None)
-      case Println(expr) => genExpr(expr) >++> genCallWithRegs("???", 1, None)
+      case Print(expr) => (genExpr(expr)
+        >++> genCallWithRegs("???", 1, None)
+        >++> addPredefFunc(print_string())
+        )
+      case Println(expr) => (genExpr(expr)
+        >++> genCallWithRegs(print_ln.toString(), 1, None)
+        >++> addPredefFunc(print_ln())
+        )
       case s@If(expr, thenStats, elseStats) => {
         val l = getUniqueName
         val thenLabel = s"L_then_$l"
@@ -247,11 +262,17 @@ object generator {
   def genDiv: Step = (
     genCallWithRegs(check_div_zero().label, 2, None)
     >++> genCallWithRegs("__aeabi_idiv", 0, Some(r0))
+    >++> addPredefFunc(check_div_zero())
+    >++> addPredefFunc(throw_runtime())
+    >++> addPredefFunc(print_string())
     )
 
   def genMod: Step = (
     genCallWithRegs(check_div_zero().label, 2, None)
     >++> genCallWithRegs("__aeabi_idivmod", 0, Some(r1))
+      >++> addPredefFunc(check_div_zero())
+      >++> addPredefFunc(throw_runtime())
+      >++> addPredefFunc(print_string())
     )
 
   def genCallWithRegs(name: String, argc: Int, resultReg: Option[AsmReg]): Step = {

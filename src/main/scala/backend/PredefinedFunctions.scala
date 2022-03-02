@@ -2,6 +2,7 @@ package backend
 
 import backend.asm.ConditionCode._
 import backend.asm._
+import backend.generator.addPredefFunc
 import backend.step.implicits.implicitStep
 import backend.step._
 
@@ -22,7 +23,7 @@ object PredefinedFunctions {
     val label: String
   }
 
-  case class print_ln() {
+  case class print_ln() extends PredefinedFunc {
     val label = "p_print_ln"
     def toStep: Step = (
            Label(label)
@@ -36,7 +37,7 @@ object PredefinedFunctions {
       )
   }
 
-  case class print_int() {
+  case class print_int() extends PredefinedFunc {
     val label = "p_print_int"
     def toStep: Step = (
            Label(label)
@@ -53,7 +54,7 @@ object PredefinedFunctions {
 
   // print_ char is just "BL putchar"
 
-  case class print_string() {
+  case class print_string() extends PredefinedFunc {
     val label = "p_print_string"
     def toStep: Step = (
            Label(label)
@@ -69,7 +70,7 @@ object PredefinedFunctions {
     )
   }
 
-  case class print_bool() {
+  case class print_bool() extends PredefinedFunc {
     val label = "p_print_bool"
     def toStep: Step = (
            Label(label)
@@ -85,7 +86,7 @@ object PredefinedFunctions {
     )
   }
 
-  case class print_ref() {
+  case class print_ref() extends PredefinedFunc {
     val label = "p_print_ref"
     def toStep: Step = (
       Label(label)
@@ -100,7 +101,7 @@ object PredefinedFunctions {
     )
   }
 
-  case class throw_overflow() {
+  case class throw_overflow() extends PredefinedFunc {
     val label = "p_throw_overflow"
     def toStep: Step = (
            Label(label)
@@ -109,7 +110,7 @@ object PredefinedFunctions {
     )
   }
 
-  case class throw_runtime() {
+  case class throw_runtime() extends PredefinedFunc {
     val label = "p_throw_runtime"
     def toStep: Step = (
            Label(label)
@@ -119,7 +120,7 @@ object PredefinedFunctions {
       )
   }
 
-  case class check_div_zero() {
+  case class check_div_zero() extends PredefinedFunc {
     val label = "p_check_div_zero"
     def toStep: Step = (
            Label(label)
@@ -131,7 +132,7 @@ object PredefinedFunctions {
       )
   }
 
-  case class free() {
+  case class free() extends PredefinedFunc {
     val label = "p_free"
     def toStep: Step = (
              Label(label)
@@ -142,7 +143,7 @@ object PredefinedFunctions {
       )
   }
 
-  case class check_null_pointer() {
+  case class check_null_pointer() extends PredefinedFunc {
     val label = "p_check_null_pointer"
     def toStep: Step = (
            Label(label)
@@ -154,7 +155,7 @@ object PredefinedFunctions {
     )
   }
 
-  case class check_array_bound() {
+  case class check_array_bound() extends PredefinedFunc {
     val label = "p_check_array_bound"
     def toStep: Step = (
            Label(label)
@@ -170,7 +171,7 @@ object PredefinedFunctions {
     )
   }
 
-  case class read_byte() {
+  case class read_byte() extends PredefinedFunc {
     val label = "p_read_byte"
     def toStep: Step = (
            Label(label)
