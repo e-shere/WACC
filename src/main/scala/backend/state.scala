@@ -10,6 +10,7 @@ import scala.language.implicitConversions
 
 object state {
 
+  // Consider factoring out the magic numbers
   val NUM_BASE_REG = 9
   val REG_START = AsmReg(4)
   val REG_END = AsmReg(NUM_BASE_REG)
