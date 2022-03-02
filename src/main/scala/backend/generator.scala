@@ -8,7 +8,7 @@ import step._
 import frontend.symbols.TypeTable
 
 import scala.annotation.tailrec
-import backend.state.{STACK_POINTER, State, stackOffset}
+import backend.state.{STACK_POINTER, State}
 import backend.step.implicits.implicitStep
 
 object generator {
