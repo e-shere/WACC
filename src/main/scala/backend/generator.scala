@@ -73,8 +73,8 @@ object generator {
         ??? // TODO: add free_pair to auxState set
         // TODO: switch on free array vs free pair
 //        genExpr(expr) <++> genCallWithRegs(free_pair().label, 1)
-      case Return(expr) => genExpr(expr) <++> Step.instr2(Mov() _)(r0, Re1)()
-      case Exit(expr) => genExpr(expr) <++> Step.instr2(Mov() _)(r0, Re1)() <++> genCallWithRegs("exit", 1, None)
+      case Return(expr) => genExpr(expr) <++> Step.instr2[AsmDefReg, AsmDefArg](Mov())(r0, Re1)()
+      case Exit(expr) => genExpr(expr) <++> Step.instr2(Mov())(r0, Re1)() <++> genCallWithRegs("exit", 1, None)
       case Print(expr) => ???
       case Println(expr) => ???
       case s@If(expr, thenStats, elseStats) => {
@@ -83,7 +83,7 @@ object generator {
         val elseLabel = s"L_else_$l"
         val doneLabel = s"L_done_$l"
             (genExpr(expr)
-        <++> Step.instr2(Compare() _)(Re1, AsmInt(1))()
+        <++> Step.instr2(Compare())(Re1, AsmInt(1))()
         <++> Branch(thenLabel)("EQ")
         <++> Branch(elseLabel)("")
         <++> Label(thenLabel)
@@ -99,7 +99,7 @@ object generator {
         val endLabel = s"L_while_end$l"
           (Label(topLabel)
         <++> genExpr(expr)
-        <++> Step.instr2(Compare() _)(Re1, AsmInt(0))()
+        <++> Step.instr2(Compare())(Re1, AsmInt(0))()
         <++> Branch(endLabel)("EQ")
         <++> genStats(doStats)(s.doTypeTable.get)
         <++> Branch()(topLabel)

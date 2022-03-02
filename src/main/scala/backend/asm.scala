@@ -14,7 +14,7 @@ object asm {
   sealed trait AsmArg {
     type Indef <: AsmIndefArg
     type Def <: AsmDefArg
-    type Maybe = AsmMaybeArg
+    type Maybe <: AsmMaybeArg
     def makeDefinite(re2: AsmDefReg, re1: AsmDefReg, reNew: AsmDefReg): Def
   }
 
@@ -24,13 +24,13 @@ object asm {
     override type Maybe = AsmMaybeArg
   }
 
-  sealed trait AsmDefArg extends AsmArg {
+  sealed trait AsmDefArg extends AsmMaybeArg {
     override type Indef = AsmIndefArg
     override type Def = AsmDefArg
     override type Maybe = AsmMaybeArg
   }
 
-  sealed trait AsmIndefArg extends AsmArg {
+  sealed trait AsmIndefArg extends AsmMaybeArg {
     override type Indef = AsmIndefArg
     override type Def = AsmDefArg
     override type Maybe = AsmMaybeArg
@@ -61,7 +61,7 @@ object asm {
       case 12 => "ip"
       case 13 => "sp"
       case 14 => "lr"
-      case 15 => "pc
+      case 15 => "pc"
       case x  => s"r$x"
     }
 
@@ -70,7 +70,7 @@ object asm {
 
   val NO_REG: AsmDefReg = AsmDefReg(-1)
 
-  case class AsmInt(i: Int) extends AsmDefArg with AsmIndefArg {
+  case class AsmInt(i: Int) extends AsmDefArg with AsmIndefArg with AsmMaybeArg {
     override type Indef = AsmInt
     override type Def = AsmInt
     override type Maybe = AsmInt
