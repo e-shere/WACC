@@ -82,12 +82,12 @@ object asm {
 
   case class Branch(cond: String = "")(label: String) extends AsmInstr {
     val opcode = "B"
-    def argsToString: String = "$label"
+    def argsToString: String = s"$label"
   }
 
   case class Mov(cond: String = "")(args: AsmDefiniteArg *) extends AsmInstr {
     val opcode = "MOV"
-    override def argsToString: String = ???
+    override def argsToString: String = s"${args(0)}, ${args(1)}"
   }
 
   case class Push(cond: String = "")(arg: AsmDefiniteArg) extends AsmInstr {

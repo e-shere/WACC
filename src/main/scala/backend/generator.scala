@@ -284,7 +284,7 @@ object generator {
       // TODO: check this is correct
       prev <++> Step.asmInstr(asm.Mov())(AsmReg(num), Re1)(Re1) //Mov.step(AsmReg(num), _0)
     })
-    Branch(name)("L") <++>
+    Branch("L")(name) <++>
       (resultReg match {
       case None => Step.identity
       case Some(reg) => assert(reg.r >= 0 && reg.r <=3)

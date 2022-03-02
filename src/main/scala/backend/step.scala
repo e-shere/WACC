@@ -43,19 +43,19 @@ object step {
 
       val (re2w, asm2, state2) = if (out contains Re2) {
         assert(args contains Re2)
-        state1.write
-      } else (NO_REG, asm1, state1)
+        state1.writeTo(re2)
+      } else (NO_REG, Nil, state1)
 
-      assert(re2 == re2w)
+      if (out contains Re2) assert(re2 == re2w)
 
       val (re1w, asm3, state3) = if (out contains Re1) {
         assert(args contains Re1)
-        state1.write
-      } else (NO_REG, asm2, state2)
+        state1.writeTo(re1)
+      } else (NO_REG, Nil, state2)
 
-      assert(re1 == re1w)
+      if (out contains Re1) assert(re1 == re1w)
 
-      val (reNew, asm4, state4) = if (args contains ReNew) state1.write else (NO_REG, asm1, state1)
+      val (reNew, asm4, state4) = if (args contains ReNew) state1.write else (NO_REG, Nil, state3)
 
       val argsDefinite: Seq[AsmDefiniteArg] = args.map {
         case Re1 => re1
