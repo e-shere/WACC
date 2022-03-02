@@ -29,21 +29,36 @@ class AssemblyCompileTests extends AnyFlatSpec {
     }
   }
 
-  def getOutput(path: String): String = {
+  def getOutput(path: String): Array[String] = {
     scala.io.Source.fromFile(path).mkString
       .split('\n')
       .dropWhile(x => !x.startsWith("# Output"))
       .takeWhile(x => x.startsWith("#"))
       .drop(1)
       .map(x => x.substring(2))
-      .mkString("\n")
+  }
+
+  def matchLine(expectedLine: String, actualLine: String): Boolean = {
+    // TODO: Return a matchLine bool
+    ???
+  }
+
+  def matchOutput(expected: String, actual: String): Boolean = {
+    var matches = true
+    val expectedArr = getOutput(expected)
+    if (expectedArr(0).equals("#empty#")) return actual.isEmpty
+    val actualArr = actual.split('\n')
+    if (!(expectedArr.length == actualArr.length)) return false
+    for ((expectedLine, actualLine) <- expectedArr zip actualArr) {
+      matches = matchLine(expectedLine, actualLine)
+    }
+    matches
   }
 
   def allCompile(srcPath: String) = {
     val allValidProgramPaths = getListOfFilesRecursively(srcPath)
     for (path <- allValidProgramPaths) {
       // parse wacc program
-      val test = getOutput(path)
       val maybeAst = parse(new java.io.File(path))
       maybeAst should matchPattern { case Success(_) => }
       val ast = maybeAst.get
@@ -57,7 +72,7 @@ class AssemblyCompileTests extends AnyFlatSpec {
       val cmd = s"arm-linux-gnueabi-gcc -o ${path.split("\\.").head} -mcpu=arm1176jzf-s -mtune=arm1176jzf-s ${assemblyPath}"
       cmd.! shouldBe 0
       val out = s"qemu-arm -L /usr/arm-linux-gnueabi/ ${path.split("\\.").head}"
-      out.!! shouldBe getOutput(out)
+      matchOutput(path, out.!!) shouldBe true
     }
   }
 
