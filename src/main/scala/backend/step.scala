@@ -29,18 +29,18 @@ object step {
 
     val discardTop: Step = Step(state => (Nil, state.prev))
 
-    def instr2[T1 <: AsmArg, T2 <: AsmArg](f: (T1#Definite, T2#Definite) => Step)(arg1: T1, arg2: T2)(out: AsmAnyReg *): Step = {
-      val f4: (T1#Definite, T2#Definite, AsmInt#Definite, AsmInt#Definite) => Step = (a, b, _, _) => f(a, b)
+    def instr2[T1 <: AsmDefArg, T2 <: AsmDefArg](f: (T1, T2) => Step)(arg1: T1#Maybe, arg2: T2#Maybe)(out: AsmIndefReg *): Step = {
+      val f4: (T1, T2, AsmInt, AsmInt) => Step = (a, b, _, _) => f(a, b)
       instr4[T1, T2, AsmInt, AsmInt](f4)(arg1, arg2, AsmInt(0), AsmInt(0))(out: _*)
     }
 
-    def instr3[T1 <: AsmArg, T2 <: AsmArg, T3 <: AsmArg](f: (T1#Definite, T2#Definite, T3#Definite) => Step)(arg1: T1, arg2: T2, arg3: T3)(out: AsmAnyReg *): Step = {
-      val f4: (T1#Definite, T2#Definite, T3#Definite, AsmInt#Definite) => Step = (a, b, c, _) => f(a, b, c)
+    def instr3[T1 <: AsmDefArg, T2 <: AsmDefArg, T3 <: AsmDefArg](f: (T1, T2, T3) => Step)(arg1: T1#Maybe, arg2: T2#Maybe, arg3: T3#Maybe)(out: AsmIndefReg *): Step = {
+      val f4: (T1, T2, T3, AsmInt) => Step = (a, b, c, _) => f(a, b, c)
       instr4[T1, T2, T3, AsmInt](f4)(arg1, arg2, arg3, AsmInt(0))(out: _*)
     }
 
-    def instr4[T1 <: AsmArg, T2 <: AsmArg, T3 <: AsmArg, T4 <: AsmArg](f: (T1#Definite, T2#Definite, T3#Definite, T4#Definite) => Step)(arg1: T1, arg2: T2, arg3: T3, arg4: T4)(out: AsmAnyReg *): Step = Step((state: State) => {
-      val args = Set(arg1, arg2, arg3, arg4)
+    def instr4[T1 <: AsmDefArg, T2 <: AsmDefArg, T3 <: AsmDefArg, T4 <: AsmDefArg](f: (T1, T2, T3, T4) => Step)(arg1: T1#Maybe, arg2: T2#Maybe, arg3: T3#Maybe, arg4: T4#Maybe)(out: AsmIndefReg *): Step = Step((state: State) => {
+      val args: Set[AsmMaybeArg] = Set(arg1, arg2, arg3, arg4)
 
       if (args contains Re2) assert(!(args contains ReNew))
       val (re2, re1, asm1, state1) =
@@ -96,17 +96,17 @@ object step {
       (asm1 ++ asmF ++ asm2, stateF.copy(reg = state2.reg))
     })
 
-    def instr2Aux[T1 <: AsmArg, T2 <: AsmArg, T](f: (T1#Definite, T2#Definite) => T => Step)(arg1: T1, arg2: T2)(aux: T)(out: AsmAnyReg *): Step = {
+    def instr2Aux[T1 <: AsmDefArg, T2 <: AsmDefArg, T](f: (T1, T2) => T => Step)(arg1: T1#Maybe, arg2: T2#Maybe)(aux: T)(out: AsmIndefReg *): Step = {
       instr2[T1, T2](f(_, _)(aux))(arg1, arg2)(out: _*)
     }
 
-    def instr3Aux[T1 <: AsmArg, T2 <: AsmArg, T3 <: AsmArg, T](f: (T1#Definite, T2#Definite, T3#Definite) => T => Step)(arg1: T1, arg2: T2, arg3: T3)(aux: T)(out: AsmAnyReg *): Step = {
-      val fAux: (T1#Definite, T2#Definite, T3#Definite) => Step = f(_, _, _)(aux)
+    def instr3Aux[T1 <: AsmDefArg, T2 <: AsmDefArg, T3 <: AsmDefArg, T](f: (T1, T2, T3) => T => Step)(arg1: T1#Maybe, arg2: T2#Maybe, arg3: T3#Maybe)(aux: T)(out: AsmIndefReg *): Step = {
+      val fAux: (T1, T2, T3) => Step = f(_, _, _)(aux)
       instr3[T1, T2, T3](fAux)(arg1, arg2, arg3)(out: _*)
     }
 
-    def instr4Aux[T1 <: AsmArg, T2 <: AsmArg, T3 <: AsmArg, T4 <: AsmArg, T](f: (T1#Definite, T2#Definite, T3#Definite, T4#Definite) => T => Step)(arg1: T1, arg2: T2, arg3: T3, arg4: T4)(aux: T)(out: AsmAnyReg *): Step = {
-      val fAux: (T1#Definite, T2#Definite, T3#Definite, T4#Definite) => Step = f(_, _, _, _)(aux)
+    def instr4Aux[T1 <: AsmDefArg, T2 <: AsmDefArg, T3 <: AsmDefArg, T4 <: AsmDefArg, T](f: (T1, T2, T3, T4) => T => Step)(arg1: T1#Maybe, arg2: T2#Maybe, arg3: T3#Maybe, arg4: T4#Maybe)(aux: T)(out: AsmIndefReg *): Step = {
+      val fAux: (T1, T2, T3, T4) => Step = f(_, _, _, _)(aux)
       instr4[T1, T2, T3, T4](fAux)(arg1, arg2, arg3, arg4)(out: _*)
     }
 

@@ -11,17 +11,48 @@ object asm {
 
   def countToOffset(count: Int): Int = count * BYTE_SIZE
 
-  sealed trait AsmArg { 
-    type Definite 
-    def makeDefinite(re2: AsmReg, re1: AsmReg, reNew: AsmReg): Definite
+  sealed trait AsmArg {
+    type Indef <: AsmIndefArg
+    type Def <: AsmDefArg
+    type Maybe = AsmMaybeArg
+    def makeDefinite(re2: AsmDefReg, re1: AsmDefReg, reNew: AsmDefReg): Def
   }
 
-  sealed trait AsmMaybeReg extends AsmArg { type Definite = AsmReg }
+  sealed trait AsmMaybeArg extends AsmArg {
+    override type Indef = AsmIndefArg
+    override type Def = AsmDefArg
+    override type Maybe = AsmMaybeArg
+  }
 
-  sealed trait AsmDefiniteArg extends AsmArg { type Definite = AsmDefiniteArg }
+  sealed trait AsmDefArg extends AsmArg {
+    override type Indef = AsmIndefArg
+    override type Def = AsmDefArg
+    override type Maybe = AsmMaybeArg
+  }
 
-  case class AsmReg(r: Int) extends AsmMaybeReg with AsmDefiniteArg {
-    type Definite = AsmReg
+  sealed trait AsmIndefArg extends AsmArg {
+    override type Indef = AsmIndefArg
+    override type Def = AsmDefArg
+    override type Maybe = AsmMaybeArg
+  }
+
+  sealed trait AsmMaybeReg extends AsmMaybeArg {
+    override type Indef = AsmIndefReg
+    override type Def = AsmDefReg
+    override type Maybe = AsmMaybeReg
+  }
+
+  sealed trait AsmIndefReg extends AsmMaybeReg with AsmIndefArg {
+    override type Indef = AsmIndefReg
+    override type Def = AsmDefReg
+    override type Maybe = AsmMaybeReg
+  }
+
+  case class AsmDefReg(r: Int) extends AsmMaybeReg with AsmDefArg {
+
+    override type Indef = AsmIndefReg
+    override type Def = AsmDefReg
+    override type Maybe = AsmMaybeReg
 
     assert(r >= -1 && r <= 15)
 
@@ -30,39 +61,36 @@ object asm {
       case 12 => "ip"
       case 13 => "sp"
       case 14 => "lr"
-      case 15 => "pc"
+      case 15 => "pc
       case x  => s"r$x"
     }
 
-    def makeDefinite(re2: AsmReg, re1: AsmReg, reNew: AsmReg): AsmReg = this
+    def makeDefinite(re2: AsmDefReg, re1: AsmDefReg, reNew: AsmDefReg): AsmDefReg = this
   }
 
-  val NO_REG: AsmReg = AsmReg(-1)
+  val NO_REG: AsmDefReg = AsmDefReg(-1)
 
-  case class AsmInt(i: Int) extends AsmDefiniteArg {
-    type Definite = AsmInt
+  case class AsmInt(i: Int) extends AsmDefArg with AsmIndefArg {
+    override type Indef = AsmInt
+    override type Def = AsmInt
+    override type Maybe = AsmInt
     override def toString = s"#$i"
 
     def toLdrString = s"=$i"
 
-    def makeDefinite(re2: AsmReg, re1: AsmReg, reNew: AsmReg): AsmInt = this
+    def makeDefinite(re2: AsmDefReg, re1: AsmDefReg, reNew: AsmDefReg): AsmInt = this
   }
 
-  sealed trait AsmAnyReg extends AsmMaybeReg
-
-  case object Re2 extends AsmAnyReg {
-    type Definite = AsmReg
-    def makeDefinite(re2: AsmReg, re1: AsmReg, reNew: AsmReg): Definite = re2
+  case object Re2 extends AsmIndefReg {
+    def makeDefinite(re2: AsmDefReg, re1: AsmDefReg, reNew: AsmDefReg): AsmDefReg = re2
   }
 
-  case object Re1 extends AsmAnyReg {
-    type Definite = AsmReg
-    def makeDefinite(re2: AsmReg, re1: AsmReg, reNew: AsmReg): Definite = re1
+  case object Re1 extends AsmIndefReg {
+    def makeDefinite(re2: AsmDefReg, re1: AsmDefReg, reNew: AsmDefReg): AsmDefReg = re1
   }
 
-  case object ReNew extends AsmAnyReg {
-    type Definite = AsmReg
-    def makeDefinite(re2: AsmReg, re1: AsmReg, reNew: AsmReg): Definite = reNew
+  case object ReNew extends AsmIndefReg {
+    def makeDefinite(re2: AsmDefReg, re1: AsmDefReg, reNew: AsmDefReg): AsmDefReg = reNew
   }
 
   // Handling Chars separately would produce nicer assembly but requires ugly code
@@ -71,7 +99,7 @@ object asm {
   // case class AsmChar(c: Char) {
   //   override def toString = s"#'$c'"
   // }
-  
+
   sealed trait Asm
 
   sealed trait AsmInstr extends Asm {
@@ -101,47 +129,47 @@ object asm {
     def argsToString: String = s"$label"
   }
 
-  case class Mov(cond: String = "")(target: AsmReg, source: AsmDefiniteArg) extends AsmInstr {
+  case class Mov(cond: String = "")(target: AsmDefReg, source: AsmDefArg) extends AsmInstr {
     val opcode = "MOV"
     override def argsToString: String = s"$target, $source"
   }
 
-  case class Push(cond: String = "")(arg: AsmDefiniteArg) extends AsmInstr {
+  case class Push(cond: String = "")(arg: AsmDefArg) extends AsmInstr {
     val opcode = "PUSH"
     override def argsToString = s"{$arg}"
   }
 
-  case class Pop(cond: String = "")(arg: AsmDefiniteArg) extends AsmInstr {
+  case class Pop(cond: String = "")(arg: AsmDefArg) extends AsmInstr {
     val opcode = "POP"
     override def argsToString = s"{$arg}"
   }
 
-  case class Or(cond: String = "")(target: AsmReg, x: AsmReg, y: AsmDefiniteArg) extends AsmInstr {
+  case class Or(cond: String = "")(target: AsmDefReg, x: AsmDefReg, y: AsmDefArg) extends AsmInstr {
     val opcode = "ORR"
     override def argsToString: String = s"$target, $x, $y"
   }
 
-  case class And(cond: String = "")(target: AsmReg, x: AsmReg, y: AsmDefiniteArg) extends AsmInstr {
+  case class And(cond: String = "")(target: AsmDefReg, x: AsmDefReg, y: AsmDefArg) extends AsmInstr {
     val opcode = "AND"
     override def argsToString: String = s"$target, $x, $y"
   }
 
-  case class Compare(cond: String = "")(x: AsmReg, y: AsmDefiniteArg) extends AsmInstr {
+  case class Compare(cond: String = "")(x: AsmDefReg, y: AsmDefArg) extends AsmInstr {
     val opcode = "CMP"
     override def argsToString: String = s"$x, $y"
   }
 
-  case class Adds(cond: String = "")(target: AsmReg, x: AsmReg, y: AsmDefiniteArg) extends AsmInstr {
+  case class Adds(cond: String = "")(target: AsmDefReg, x: AsmDefReg, y: AsmDefArg) extends AsmInstr {
     val opcode = "ADDS"
     override def argsToString: String = s"$target, $x, $y"
   }
 
-  case class Subs(cond: String = "")(target: AsmReg, x: AsmReg, y: AsmDefiniteArg) extends AsmInstr {
+  case class Subs(cond: String = "")(target: AsmDefReg, x: AsmDefReg, y: AsmDefArg) extends AsmInstr {
     val opcode = "SUBS"
     override def argsToString: String = s"$target, $x, $y"
   }
 
-  case class SMull(cond: String = "")(target1: AsmReg, target2: AsmReg, x: AsmReg, y: AsmReg) extends AsmInstr {
+  case class SMull(cond: String = "")(target1: AsmDefReg, target2: AsmDefReg, x: AsmDefReg, y: AsmDefReg) extends AsmInstr {
     val opcode = "SMULL"
     override def argsToString: String = s"$target1, $target2, $x, $y"
   }
@@ -156,17 +184,17 @@ object asm {
 //    override def toString = s"SMULL $target, $y, $x, $y"
 //  }
 
-  case class Not(cond: String = "")(target: AsmReg, x: AsmDefiniteArg) extends AsmInstr {
+  case class Not(cond: String = "")(target: AsmDefReg, x: AsmDefArg) extends AsmInstr {
     val opcode = "EOR"
     def argsToString = s"$target, $x, #1"
   }
 
-  case class Neg(cond: String = "")(target: AsmReg, x: AsmDefiniteArg)  extends AsmInstr {
+  case class Neg(cond: String = "")(target: AsmDefReg, x: AsmDefArg)  extends AsmInstr {
     val opcode = "RSBS"
     override def argsToString = s"$target, $x, #0"
   }
 
-  case class Ldr(cond: String = "")(target: AsmReg, source: AsmDefiniteArg)(offset: AsmInt = AsmInt(0)) extends AsmInstr {
+  case class Ldr(cond: String = "")(target: AsmDefReg, source: AsmDefArg)(offset: AsmInt = AsmInt(0)) extends AsmInstr {
     override val opcode: String = "LDR"
     override def argsToString: String = {
       source match {
@@ -177,7 +205,7 @@ object asm {
   }
 
   // args(0): source, args(1): dest
-  case class Str(cond: String = "")(source: AsmReg, target: AsmDefiniteArg)(offset: AsmInt = AsmInt(0)) extends AsmInstr {
+  case class Str(cond: String = "")(source: AsmDefReg, target: AsmDefArg)(offset: AsmInt = AsmInt(0)) extends AsmInstr {
     override val opcode: String = "STR"
     override def argsToString: String = {
       offset match {
@@ -188,11 +216,11 @@ object asm {
   }
 
   object Len {
-    def apply(cond: String = "")(target: AsmReg, x: AsmDefiniteArg): Step = Ldr(cond)(target, x)()
+    def apply(cond: String = "")(target: AsmDefReg, x: AsmDefArg): Step = Ldr(cond)(target, x)()
   }
 
   object Eq {
-    def apply(cond: String = "")(target: AsmReg, x: AsmReg, y: AsmDefiniteArg): Step = (
+    def apply(cond: String = "")(target: AsmDefReg, x: AsmDefReg, y: AsmDefArg): Step = (
            Compare(cond)(x, y)
       <++> Mov("EQ")(target, AsmInt(1))
       <++> Mov("NE")(target, AsmInt(0))
@@ -200,7 +228,7 @@ object asm {
   }
 
   object Neq {
-    def apply(cond: String = "")(target: AsmReg, x: AsmReg, y: AsmDefiniteArg): Step = (
+    def apply(cond: String = "")(target: AsmDefReg, x: AsmDefReg, y: AsmDefArg): Step = (
            Compare(cond)(x, y)
         <++> Mov("NE")(target, AsmInt(1))
         <++> Mov("EQ")(target, AsmInt(0))
@@ -208,7 +236,7 @@ object asm {
   }
 
   object Leq {
-    def apply(cond: String = "")(target: AsmReg, x: AsmReg, y: AsmDefiniteArg): Step = (
+    def apply(cond: String = "")(target: AsmDefReg, x: AsmDefReg, y: AsmDefArg): Step = (
            Compare(cond)(x, y)
         <++> Mov("LE")(target, AsmInt(1))
         <++> Mov("GT")(target, AsmInt(0))
@@ -216,7 +244,7 @@ object asm {
   }
 
   object Lt {
-    def apply(cond: String = "")(target: AsmReg, x: AsmReg, y: AsmDefiniteArg): Step = (
+    def apply(cond: String = "")(target: AsmDefReg, x: AsmDefReg, y: AsmDefArg): Step = (
            Compare(cond)(x, y)
         <++> Mov("LT")(target, AsmInt(1))
         <++> Mov("GE")(target, AsmInt(0))
@@ -224,7 +252,7 @@ object asm {
   }
 
   object Geq {
-    def apply(cond: String = "")(target: AsmReg, x: AsmReg, y: AsmDefiniteArg): Step = (
+    def apply(cond: String = "")(target: AsmDefReg, x: AsmDefReg, y: AsmDefArg): Step = (
            Compare(cond)(x, y)
         <++> Mov("GE")(target, AsmInt(1))
         <++> Mov("LT")(target, AsmInt(0))
@@ -232,7 +260,7 @@ object asm {
   }
 
   object Gt {
-    def apply(cond: String = "")(target: AsmReg, x: AsmReg, y: AsmDefiniteArg): Step = (
+    def apply(cond: String = "")(target: AsmDefReg, x: AsmDefReg, y: AsmDefArg): Step = (
            Compare(cond)(x, y)
         <++> Mov("GT")(target, AsmInt(1))
         <++> Mov("LE")(target, AsmInt(0))

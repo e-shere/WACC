@@ -10,11 +10,11 @@ import scala.language.implicitConversions
 
 object state {
 
-  val REG_START = AsmReg(4)
-  val REG_END = AsmReg(9)
-  val PLACEHOLDER_1 = AsmReg(10)
-  val PLACEHOLDER_2 = AsmReg(11)
-  val STACK_POINTER = AsmReg(13)
+  val REG_START = AsmDefReg(4)
+  val REG_END = AsmDefReg(9)
+  val PLACEHOLDER_1 = AsmDefReg(10)
+  val PLACEHOLDER_2 = AsmDefReg(11)
+  val STACK_POINTER = AsmDefReg(13)
   val NEW_REG: State = State(REG_START, Set())
 
   /*
@@ -26,37 +26,37 @@ object state {
 
   type FuncState = Set[PredefinedFunc]
 
-  case class State(reg: AsmReg, fState: FuncState) {
+  case class State(reg: AsmDefReg, fState: FuncState) {
 
     def isReg: Boolean = reg.r >= REG_START.r && reg.r <= REG_END.r
 
     def isStack: Boolean = reg.r > REG_END.r
 
-    def prev: State = State(AsmReg(reg.r - 1), this.fState)
+    def prev: State = State(AsmDefReg(reg.r - 1), this.fState)
 
-    def next: State = State(AsmReg(reg.r + 1), this.fState)
+    def next: State = State(AsmDefReg(reg.r + 1), this.fState)
 
-    def read: (AsmReg, List[Asm], State) = {
+    def read: (AsmDefReg, List[Asm], State) = {
       assert(reg.r > 4)
       if (prev.isReg) (prev.reg, Nil, prev)
       else (PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev)
     }
 
-    def read2: (AsmReg, AsmReg, List[Asm], State) = {
+    def read2: (AsmDefReg, AsmDefReg, List[Asm], State) = {
       assert(reg.r > 5)
       if (isReg) (prev.reg, reg, Nil, prev.prev)
       else if (prev.isReg) (prev.reg, PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev.prev)
       else (PLACEHOLDER_1, PLACEHOLDER_2, List(Pop()(PLACEHOLDER_2), Pop()(PLACEHOLDER_1)), prev.prev)
     }
 
-    def peek: (AsmReg, List[Asm], State) = {
+    def peek: (AsmDefReg, List[Asm], State) = {
       assert(reg.r > 4)
       if (isReg) (prev.reg, Nil, this)
       // TODO: added 0 offset here. Check
       else (PLACEHOLDER_1, List(Ldr()(PLACEHOLDER_1, STACK_POINTER)(AsmInt(0))), this)
     }
 
-    def peek2: (AsmReg, AsmReg, List[Asm], State) = {
+    def peek2: (AsmDefReg, AsmDefReg, List[Asm], State) = {
       assert(reg.r > 5)
       if (isReg) (prev.reg, reg, Nil, this)
       // TODO: added 0 offset here. Check
@@ -64,13 +64,13 @@ object state {
       else (PLACEHOLDER_1, PLACEHOLDER_2, List(Ldr()(PLACEHOLDER_2, STACK_POINTER)(AsmInt(0)), Ldr()(PLACEHOLDER_1, STACK_POINTER)(AsmInt(4))), this)
     }
 
-    def write: (AsmReg, List[Asm], State) = {
+    def write: (AsmDefReg, List[Asm], State) = {
       if (isReg) (reg, Nil, next)
       // TODO: added 0 offset here. Check
       else (PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next)
     }
 
-    def write2: (AsmReg, AsmReg, List[Asm], State) = {
+    def write2: (AsmDefReg, AsmDefReg, List[Asm], State) = {
       if (next.isReg) (reg, next.reg, Nil, next.next)
       else if (isReg) (reg, PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next.next)
       else (PLACEHOLDER_1, PLACEHOLDER_2, List(Push()(PLACEHOLDER_1), Push()(PLACEHOLDER_2)), next.next)

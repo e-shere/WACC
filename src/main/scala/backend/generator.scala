@@ -13,10 +13,10 @@ import backend.step.implicits.implicitStep
 
 object generator {
 
-  private val r0 = AsmReg(0)
-  private val r1 = AsmReg(1)
-  private val lr = AsmReg(14)
-  private val pc = AsmReg(15)
+  private val r0 = AsmDefReg(0)
+  private val r1 = AsmDefReg(1)
+  private val lr = AsmDefReg(14)
+  private val pc = AsmDefReg(15)
 
   // TODO: consider naming conventions for dynamically created unique labels
   private var uniqueNameGen = -1
@@ -278,11 +278,11 @@ object generator {
     <++> genCallWithRegs("__aeabi_idivmod", 0, Some(r1))
     )
 
-  def genCallWithRegs(name: String, argc: Int, resultReg: Option[AsmReg]): Step = {
+  def genCallWithRegs(name: String, argc: Int, resultReg: Option[AsmDefReg]): Step = {
     assert(argc >= 0 && argc <= 4)
     (0 until argc).reverse.foldLeft(Step.identity)((prev, num) => {
       // TODO: check this is correct
-      prev <++> Step.instr2(asm.Mov())(AsmReg(num), Re1)(Re1) //Mov.step(AsmReg(num), _0)
+      prev <++> Step.instr2(asm.Mov())(AsmDefReg(num), Re1)(Re1) //Mov.step(AsmReg(num), _0)
     })
     Branch("L")(name) <++>
       (resultReg match {
