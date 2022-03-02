@@ -1,7 +1,7 @@
 package backend
 
 import backend.asm._
-import backend.state.{NEW_REG, PLACEHOLDER_1, REG_START, State}
+import backend.state.{NEW_REG, PLACEHOLDER_1, REG_START, STACK_POINTER, State}
 import backend.step.Step.stepInstr
 
 import scala.collection.mutable.ListBuffer
@@ -29,9 +29,7 @@ object step {
     val identity: Step = Step((Nil, _))
     // This step is used between steps where the state of registers needs to be reset
     val discardAll: Step = Step(state => {
-      var asmList: ListBuffer[Asm] = new ListBuffer[Asm] ()
-      1 to state.getStackOffset foreach {_ => asmList += Pop()(PLACEHOLDER_1)}
-      (asmList.toList, State(REG_START, state.fState))
+      (if (state.getStackOffset > 0) Step.asmInstr(Adds())(STACK_POINTER, STACK_POINTER, AsmInt(state.getStackOffset * BYTE_SIZE))()(state)._1 else Nil, State(REG_START, state.fState))
     })
 
     val discardTop: Step = Step(state => {
