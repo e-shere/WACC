@@ -104,8 +104,9 @@ object step {
       (asm1 ++ asmF ++ asm2, state2)
     })
 
-    def asmInstr(f: Seq[AsmDefiniteArg] => Asm)(args: AsmArg*)(out: AsmAnyReg*): Step =
+    def asmInstr(f: Seq[AsmDefiniteArg] => Asm)(args: AsmArg*)(out: AsmAnyReg*): Step = {
       stepInstr((x: Seq[AsmDefiniteArg]) => f(x))(args: _*)(out: _*)
+    }
 
     def genericStepInstr[T](f: (Seq[AsmDefiniteArg]) => T => Step)(args: AsmArg*)(aux: T)(out: AsmAnyReg*): Step =
       stepInstr(f(_)(aux))(args: _*)(out: _*)
