@@ -57,9 +57,9 @@ object generator {
   )
 
   def genBlock(stats: List[Stat])(implicit symbols: TypeTable): Step = (
-    Step.asmInstr(Subs())(STACK_POINTER, STACK_POINTER, AsmInt(countToOffset(symbols.symbols.size)))()
+    Subs()(STACK_POINTER, STACK_POINTER, AsmInt(countToOffset(symbols.symbols.size)))
     >++> stats.foldLeft(Step.identity)(_ >++> genStat(_) >++> Step.discardAll)
-    >++> Step.asmInstr(Adds())(STACK_POINTER, STACK_POINTER, AsmInt(countToOffset(symbols.symbols.size)))()
+    >++> Adds()(STACK_POINTER, STACK_POINTER, AsmInt(countToOffset(symbols.symbols.size)))
     )
 
   @tailrec
@@ -145,7 +145,7 @@ object generator {
       case ast.Sub(x, y) => genBinOp(x, y, Step.asmInstr(asm.Subs())(Re2, Re2, Re1)(Re2))
       case ast.Mul(x, y) => genBinOp(x, y, genMul())
       case ast.Div(x, y) => genBinOp(x, y, genDiv)
-      case ast.Mod(x, y) => genBinOp(x, y, genDiv)
+      case ast.Mod(x, y) => genBinOp(x, y, genMod)
       case ast.Not(x)    => genUnOp(x, Step.asmInstr(asm.Not())(Re1, Re1)(Re1))
       case ast.Neg(x)    => genUnOp(x, Step.asmInstr(asm.Neg())(Re1, Re1)(Re1))
       case ast.Len(x)    => genUnOp(x, Step.stepInstr(asm.Len())(Re1, Re1)(Re1))
@@ -181,13 +181,12 @@ object generator {
 // TODO:       <++> asm.Mul.step(_0, _0, AsmInt(BYTE_SIZE))
         >++> Step.asmInstr(asm.Adds())(Re2, Re2, Re1)(Re2)
         )
-      case idd@Ident(id) => Step({ state =>
-        val offset = countToOffset(symbols.getOffset(idd).get + state.getStackOffset)
-        Step.genericAsmInstr(asm.Ldr())(ReNew, STACK_POINTER)(AsmInt(offset))()(state)
-        // Ldr.step(_0, STACK_POINTER, AsmInt(offset))
-      })
+      case idd@Ident(id) => (
+        genLocation(idd)
+        >++> Step.genericAsmInstr(Ldr())(Re1, Re1)(AsmInt(0))(Re1)
+      )
       case Null() => ???
-      case Paren(expr) => genExpr(expr) // same symbol table?
+      case Paren(expr) => genExpr(expr)
     }
   }
 
@@ -219,7 +218,7 @@ object generator {
       case ast.Call(id, args) => (
           args.foldLeft(Step.identity)(_ >++> genExpr(_) >++> Step.asmInstr(Push())(Re1)())
           >++> BranchLink()(id.id)
-          >++> Step.asmInstr(Adds())(STACK_POINTER, STACK_POINTER, AsmInt(countToOffset(args.length)))()
+          >++> Adds()(STACK_POINTER, STACK_POINTER, AsmInt(countToOffset(args.length)))
           >++> Step.asmInstr(Mov())(ReNew, r0)()
         )
       case expr: Expr => genExpr(expr)
@@ -278,16 +277,17 @@ object generator {
 
   def genCallWithRegs(name: String, argc: Int, resultReg: Option[AsmReg]): Step = {
     assert(argc >= 0 && argc <= 4)
-    (0 until argc).reverse.foldLeft(Step.identity)((prev, num) => {
-      // TODO: check this is correct
-      prev >++> Step.asmInstr(asm.Mov())(AsmReg(num), Re1)(Re1) //Mov.step(AsmReg(num), _0)
+    (
+      (0 until argc).reverse.foldLeft(Step.identity)((prev, num) => {
+      prev >++> Step.asmInstr(asm.Mov())(AsmReg(num), Re1)()
     })
-    BranchLink()(name) >++>
-      (resultReg match {
-      case None => Step.identity
-      case Some(reg) => assert(reg.r >= 0 && reg.r <=3)
-          Step.asmInstr(asm.Mov())(Re1, reg)(Re1)
-    })
+      >++> BranchLink()(name)
+      >++> (resultReg match {
+        case None => Step.identity
+        case Some(reg) => assert(reg.r >= 0 && reg.r <=3)
+          Step.asmInstr(asm.Mov())(ReNew, reg)()
+      })
+    )
   }
 
   def genPredefFuncs: Step = {
@@ -300,13 +300,14 @@ object generator {
   }
 
   def genData: Step = (
-         Directive("data")
-    >++> Step((s: State) => s.data.foldLeft(Step.identity)(
+    Step((s: State) => (if (s.data.isEmpty) Step.identity else
+      Directive("data")
+      >++> s.data.foldLeft(Step.identity)(
       (prevStep, entry) => prevStep
         >++> Label(entry._2.toString)
         >++> Directive(s"word ${entry._1.length}")
         >++> Directive(s"ascii \"${entry._1}\"")
-    )(s))
+    ))(s))
   )
 
   def includeData(msg: String): Step = {
