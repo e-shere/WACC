@@ -38,7 +38,7 @@ object generator {
   def genMain(argc: Int, stats: List[Stat])(implicit symbols: TypeTable): Step = (
          Label("main")
     >++> Push()(lr)
-    >++> genStats(stats)
+    >++> genBlock(stats)
     >++> Ldr()(r0, AsmInt(0))(AsmInt(0))
     >++> Pop()(pc)
     >++> Directive("ltorg")
@@ -50,25 +50,23 @@ object generator {
   def genFunc(name: String, argc: Int, stats: List[Stat])(implicit symbols: TypeTable): Step = (
          Label(name)
     >++> Push()(lr)
-    >++> genStats(stats)
+    >++> genBlock(stats)
     >++> Pop()(pc)
     >++> Directive("ltorg")
     >++> Step.discardAll
   )
 
-  def genStats(stats: List[Stat])(implicit symbols: TypeTable): Step = {
-    stats.foldLeft(Step.identity)(_ >++> genStat(_) >++> Step.discardAll)
-  }
+  def genBlock(stats: List[Stat])(implicit symbols: TypeTable): Step = (
+    Step.asmInstr(Subs())(STACK_POINTER, STACK_POINTER, AsmInt(countToOffset(symbols.symbols.size)))()
+    >++> stats.foldLeft(Step.identity)(_ >++> genStat(_) >++> Step.discardAll)
+    >++> Step.asmInstr(Adds())(STACK_POINTER, STACK_POINTER, AsmInt(countToOffset(symbols.symbols.size)))()
+    )
 
-  // TODO: dynamically add doStats, thenStats and elseStats as functions instead?
   @tailrec
   def genStat(stat: Stat)(implicit symbols: TypeTable): Step = {
     stat match {
       case Skip() => Step.identity
       case Declare(_, id, rhs) => genStat(Assign(id, rhs)(stat.pos))
-      // In the Assign case, we use genLhs to store the offset on the stack
-      // that we access the given lhs variable from
-        // TODO: check
       case Assign(lhs, rhs) => (genRhs(rhs) >++> genLhs(lhs))
       case Read(lhs) => (genLhs(lhs)
         >++> genCallWithRegs(read_byte.toString(), 1, Some(r0))
@@ -102,10 +100,10 @@ object generator {
         >++> Branch(EQ)(thenLabel)
         >++> Branch()(elseLabel)
         >++> Label(thenLabel)
-        >++> genStats(thenStats)(s.thenTypeTable.get)
+        >++> genBlock(thenStats)(s.thenTypeTable.get)
         >++> Branch()(doneLabel)
         >++> Label(elseLabel)
-        >++> genStats(elseStats)(s.elseTypeTable.get)
+        >++> genBlock(elseStats)(s.elseTypeTable.get)
         >++> Label(doneLabel))
       }
       case s@While(expr, doStats) =>
@@ -116,10 +114,10 @@ object generator {
         >++> genExpr(expr)
         >++> Step.asmInstr(Compare())(Re1, AsmInt(0))()
         >++> Branch(EQ)(endLabel)
-        >++> genStats(doStats)(s.doTypeTable.get)
+        >++> genBlock(doStats)(s.doTypeTable.get)
         >++> Branch()(topLabel)
         >++> Label(endLabel))
-      case s@Scope(stats) => genStats(stats)(s.typeTable.get)
+      case s@Scope(stats) => genBlock(stats)(s.typeTable.get)
     } 
   }
 
@@ -218,9 +216,12 @@ object generator {
              genExpr(expr)
         >++> Step.genericAsmInstr(asm.Ldr())(Re1, Re1)(AsmInt(4))(Re1)
       )
-      case ast.Call(id, args) => //TODO: a variable number of reads into the Nil
-          args.foldLeft(Step.identity)(_ >++> genExpr(_)) //<++>
-//          rn(regs => Call(regs, id.id)) // regs is a list of registers of size n
+      case ast.Call(id, args) => (
+          args.foldLeft(Step.identity)(_ >++> genExpr(_) >++> Step.asmInstr(Push())(Re1)())
+          >++> BranchLink()(id.id)
+          >++> Step.asmInstr(Adds())(STACK_POINTER, STACK_POINTER, AsmInt(countToOffset(args.length)))()
+          >++> Step.asmInstr(Mov())(ReNew, r0)()
+        )
       case expr: Expr => genExpr(expr)
     }
   }

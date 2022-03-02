@@ -109,14 +109,14 @@ object asm {
     override def argsToString: String = s"${args(0)}, ${args(1)}"
   }
 
-  case class Push(cond: ConditionCode.Value = AL)(arg: AsmDefiniteArg) extends AsmInstr {
+  case class Push(cond: ConditionCode.Value = AL)(args: AsmDefiniteArg *) extends AsmInstr {
     val opcode = "PUSH"
-    override def argsToString = s"{$arg}"
+    override def argsToString = s"{${args(0)}}"
   }
 
-  case class Pop(cond: ConditionCode.Value = AL)(arg: AsmDefiniteArg) extends AsmInstr {
+  case class Pop(cond: ConditionCode.Value = AL)(args: AsmDefiniteArg *) extends AsmInstr {
     val opcode = "POP"
-    override def argsToString = s"{$arg}"
+    override def argsToString = s"{${args(0)}}"
   }
 
   case class Or(cond: ConditionCode.Value = AL)(val args: AsmDefiniteArg *) extends AsmStandardInstr {
