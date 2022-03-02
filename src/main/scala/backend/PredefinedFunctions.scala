@@ -1,5 +1,6 @@
 package backend
 
+import backend.asm.ConditionCode._
 import backend.asm._
 import backend.step.implicits.implicitStep
 import backend.step._
@@ -28,9 +29,9 @@ object PredefinedFunctions {
       >++> Push()(lr)
       >++> Ldr()(r0, zero)()
       >++> Adds()(r0, r0, word_size)
-      >++> Branch("L")("puts")
+      >++> BranchLink()("puts")
       >++> Mov()(r0, zero)
-      >++> Branch("L")("fflush")
+      >++> BranchLink()("fflush")
       >++> Pop()(pc)
       )
   }
@@ -43,9 +44,9 @@ object PredefinedFunctions {
       >++> Mov()(r1, r0)
       >++> Ldr()(r0, zero)()
       >++> Adds()(r0, r0, word_size)
-      >++> Branch("L")("printf")
+      >++> BranchLink()("printf")
       >++> Mov()(r0, zero)
-      >++> Branch("L")("fflush")
+      >++> BranchLink()("fflush")
       >++> Pop()(pc)
     )
   }
@@ -61,9 +62,9 @@ object PredefinedFunctions {
       >++> Adds()(r2, r0, word_size)
       >++> Ldr()(r0, zero)()
       >++> Adds()(r0, r0, word_size)
-      >++> Branch("L")("printf")
+      >++> BranchLink()("printf")
       >++> Mov()(r0, zero)
-      >++> Branch("L")("fflush")
+      >++> BranchLink()("fflush")
       >++> Pop()(pc)
     )
   }
@@ -77,9 +78,9 @@ object PredefinedFunctions {
       /* <++> Load True if NE */
       /* <++> Load False if EQ */
       >++> Adds()(r0, r0, word_size)
-      >++> Branch("L")("printf")
+      >++> BranchLink()("printf")
       >++> Ldr()(r0, zero)()
-      >++> Branch("L")("fflush")
+      >++> BranchLink()("fflush")
       >++> Pop()(pc)
     )
   }
@@ -92,9 +93,9 @@ object PredefinedFunctions {
       >++> Mov()(r1, r0)
       >++> Ldr()(r0, zero)()
       >++> Adds()(r0, r0, word_size)
-      >++> Branch("L")("printf")
+      >++> BranchLink()("printf")
       >++> Mov()(r0, zero)
-      >++> Branch("L")("fflush")
+      >++> BranchLink()("fflush")
       >++> Pop()(pc)
     )
   }
@@ -104,7 +105,7 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       /* <++> Load error message */
-      >++> Branch("L")(throw_runtime().label)
+      >++> BranchLink()(throw_runtime().label)
     )
   }
 
@@ -112,9 +113,9 @@ object PredefinedFunctions {
     val label = "p_throw_runtime"
     def toStep: Step = (
            Label(label)
-      >++> Branch("L")(print_string().label)
+      >++> BranchLink()(print_string().label)
       >++> Mov()(r0, AsmInt(-1))
-      >++> Branch("L")("exit")
+      >++> BranchLink()("exit")
       )
   }
 
@@ -125,7 +126,7 @@ object PredefinedFunctions {
       >++> Push()(lr)
       >++> Compare()(r0, zero)
       /* <++> Load error message if EQ */
-      >++> Branch("EQ")(throw_runtime().label)
+      >++> Branch(EQ)(throw_runtime().label)
       >++> Pop()(pc)
       )
   }
@@ -136,7 +137,7 @@ object PredefinedFunctions {
              Label(label)
         >++> Push()(lr)
         >++> check_null_pointer().toStep
-        >++> Branch("L")("free")
+        >++> BranchLink()("free")
         >++> Pop()(pc)
       )
   }
@@ -148,7 +149,7 @@ object PredefinedFunctions {
       >++> Push()(lr)
       >++> Compare()(r0, zero)
       /* <++> Load error message if EQ */
-      >++> Branch("EQ")(throw_runtime().label)
+      >++> Branch(EQ)(throw_runtime().label)
       >++> Pop()(pc)
     )
   }
@@ -160,11 +161,11 @@ object PredefinedFunctions {
       >++> Push()(lr)
       >++> Compare()(r0, zero)
       /* <++> Load error message if LT */
-      >++> Branch("LLT")(throw_runtime.toString()) // Link, Less than
+      >++> BranchLink(LT)(throw_runtime.toString()) // Link, Less than
       >++> Ldr()(r1, r1)()
       >++> Compare()(r0, r1)
       /* <++> Load error message if CS */
-      >++> Branch("LCS")(throw_runtime.toString()) // Link, Carry set
+      >++> BranchLink(CS)(throw_runtime.toString()) // Link, Carry set
       >++> Pop()(pc)
     )
   }
@@ -177,7 +178,7 @@ object PredefinedFunctions {
       >++> Mov()(r1, r0)
       >++> Ldr()(r0, zero)()
       >++> Adds()(r0, r0, word_size)
-      >++> Branch("L")("scanf")
+      >++> BranchLink()("scanf")
       >++> Pop()(pc)
     )
   }

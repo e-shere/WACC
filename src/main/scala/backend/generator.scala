@@ -4,6 +4,7 @@ import frontend.ast
 import frontend.ast._
 import asm._
 import backend.PredefinedFunctions._
+import backend.asm.ConditionCode._
 import step._
 import frontend.symbols.TypeTable
 
@@ -82,9 +83,9 @@ object generator {
         val elseLabel = s"L_else_$l"
         val doneLabel = s"L_done_$l"
             (genExpr(expr)
-        >++> Step.asmInstr(Compare() _)(Re1, AsmInt(1))()
-        >++> Branch(thenLabel)("EQ")
-        >++> Branch(elseLabel)("")
+        >++> Step.asmInstr(Compare())(Re1, AsmInt(1))()
+        >++> Branch(EQ)(thenLabel)
+        >++> Branch()(elseLabel)
         >++> Label(thenLabel)
         >++> genStats(thenStats)(s.thenTypeTable.get)
         >++> Branch()(doneLabel)
@@ -98,8 +99,8 @@ object generator {
         val endLabel = s"L_while_end$l"
           (Label(topLabel)
         >++> genExpr(expr)
-        >++> Step.asmInstr(Compare() _)(Re1, AsmInt(0))()
-        >++> Branch(endLabel)("EQ")
+        >++> Step.asmInstr(Compare())(Re1, AsmInt(0))()
+        >++> Branch(EQ)(endLabel)
         >++> genStats(doStats)(s.doTypeTable.get)
         >++> Branch()(topLabel)
         >++> Label(endLabel))
@@ -259,7 +260,7 @@ object generator {
       // TODO: check this is correct
       prev >++> Step.asmInstr(asm.Mov())(AsmReg(num), Re1)(Re1) //Mov.step(AsmReg(num), _0)
     })
-    Branch("L")(name) >++>
+    BranchLink()(name) >++>
       (resultReg match {
       case None => Step.identity
       case Some(reg) => assert(reg.r >= 0 && reg.r <=3)
