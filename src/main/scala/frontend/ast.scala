@@ -135,6 +135,7 @@ object ast {
       val pos: (Int, Int)) extends NodeWithPosition {
     var mainSymbols: Option[TypeTable] = None
     var funcSymbols: Option[Map[Ident, FuncType]] = None
+    var printSymbols: Map[(Int, Int), Type] = Map[(Int, Int), Type]()
   }
 
   case class Func(ty: Type, id: Ident, args: List[Param], body: List[Stat])(

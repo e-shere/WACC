@@ -32,6 +32,7 @@ object semanticChecker {
     program match {
       case WaccProgram(funcs, stats) => {
         // generate function table
+        implicit var printSymbols: mutable.Map[(Int, Int), Type] = mutable.Map()
         val funcTableMut: mutable.Map[Ident, FuncType] = mutable.Map.empty
         for (Func(ty, id, args, _) <- funcs) {
           if (funcTableMut contains id)
@@ -52,12 +53,13 @@ object semanticChecker {
             None,
             args.length
           )
-          val (typeTable, newErrors) = validateBlock(Some(argsTable), body, Some(ty))
+          val (typeTable, newErrors, _) = validateBlock(Some(argsTable), body, Some(ty))
           f.symbols = Some(typeTable)
           errors ++= newErrors
         }
-        val (typeTable, newErrors) = validateBlock(None, stats, None)
+        val (typeTable, newErrors, finalPrintSymbols) = validateBlock(None, stats, None)
         program.mainSymbols = Some(typeTable)
+        program.printSymbols = finalPrintSymbols.toMap
         errors ++= newErrors
       }
     }
@@ -73,8 +75,9 @@ object semanticChecker {
   )(implicit
       file: String,
       fileLines: Array[String],
-      funcTable: Map[Ident, FuncType]
-  ): (TypeTable, List[WaccError]) = {
+      funcTable: Map[Ident, FuncType],
+      printSymbols: mutable.Map[(Int, Int), Type]
+  ): (TypeTable, List[WaccError], mutable.Map[(Int, Int), Type]) = {
     val errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer.empty
     implicit var localSymbols: TypeTable = TypeTable(Map.empty, parentSymbols, if (parentSymbols.isEmpty) 0 else parentSymbols.get.counter + 1)
     for (stat <- stats) {
@@ -126,7 +129,8 @@ object semanticChecker {
             typeOfLhs(lhs)
           errors ++= lhsErrors
           maybeType match {
-            case Some(IntType()) | Some(CharType()) =>
+            case Some(IntType()) => printSymbols += lhs.pos -> INT_TYPE
+            case Some(CharType()) => printSymbols += lhs.pos -> CHAR_TYPE
             case Some(ty) =>
               errors += TypeError.mkError(
                 "argument of read statement",
@@ -186,9 +190,19 @@ object semanticChecker {
           }
         }
         case Print(expr) =>
-          errors ++= typeOfExpr(expr)._2
+          val (maybeType, maybeErrors) = typeOfExpr(expr)
+          errors ++= maybeErrors
+          maybeType match {
+            case Some(exprType) => printSymbols += expr.pos -> exprType
+            case _ =>
+          }
         case Println(expr) =>
-          errors ++= typeOfExpr(expr)._2
+          val (maybeType, maybeErrors) = typeOfExpr(expr)
+          errors ++= maybeErrors
+          maybeType match {
+            case Some(exprType) => printSymbols += expr.pos -> exprType
+            case _ =>
+          }
         case s@If(expr, thenStats, elseStats) => {
           val (maybeExpr, exprErrors) =
             typeOfExpr(expr)
@@ -203,10 +217,10 @@ object semanticChecker {
               )
             case _ =>
           }
-          val (thenTypeTable, thenErrors) = validateBlock(Some(localSymbols), thenStats, returnType)
+          val (thenTypeTable, thenErrors, _) = validateBlock(Some(localSymbols), thenStats, returnType)
           errors ++= thenErrors
           s.thenTypeTable = Some(thenTypeTable)
-          val (elseTypeTable, elseErrors) = validateBlock(Some(localSymbols), elseStats, returnType)
+          val (elseTypeTable, elseErrors, _) = validateBlock(Some(localSymbols), elseStats, returnType)
           errors ++= elseErrors
           s.elseTypeTable = Some(elseTypeTable)
         }
@@ -224,17 +238,17 @@ object semanticChecker {
               )
             case _ =>
           }
-          val (doTypeTable, doErrors) = validateBlock(Some(localSymbols), doStats, returnType)
+          val (doTypeTable, doErrors, _) = validateBlock(Some(localSymbols), doStats, returnType)
           errors ++= doErrors
           s.doTypeTable = Some(doTypeTable)
         }
         case s@Scope(innerStats) =>
-          val (statsTypeTable, statsErrors) = validateBlock(Some(localSymbols), innerStats, returnType)
+          val (statsTypeTable, statsErrors, _) = validateBlock(Some(localSymbols), innerStats, returnType)
           errors ++= statsErrors
           s.typeTable = Some(statsTypeTable)
       }
     }
-    (localSymbols, errors.toList)
+    (localSymbols, errors.toList, printSymbols)
   }
 
   // validate arguments for a given binary operator, returning type ret if arguments type-check
