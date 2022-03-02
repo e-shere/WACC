@@ -2,7 +2,7 @@ package backend
 
 import backend.asm._
 import backend.state.{NEW_REG, REG_START, State}
-import backend.step.Step.stepInstr
+import backend.step.Step.{discardAll, stepInstr}
 
 import scala.language.implicitConversions
 
@@ -12,14 +12,22 @@ object step {
   case class Step(func: State => (List[Asm], State)) {
     override def toString = mkString("\n")
 
-    def mkString(sep: String): String = this (NEW_REG)._1.mkString(sep)
+    def mkString(sep: String): String = this(NEW_REG)._1.mkString(sep)
 
     def apply(state: State): (List[Asm], State) = func(state)
 
-    def <++>(next: Step): Step = Step((state: State) => {
-      val (asm1, state1) = this (state)
+    // >++> append
+    // <++< prepend
+    def >++>(next: Step): Step = Step((state: State) => {
+      val (asm1, state1) = this(state)
       val (asm2, state2) = next(state1)
       (asm1 ++ asm2, state2)
+    })
+
+    def <++<(next: Step): Step = Step((state: State) => {
+      val (asm1, state1) = (this >++> discardAll)(state)
+      val (asm2, state2) = next(state1)
+      (asm2 ++ asm1, state2)
     })
   }
 

@@ -25,37 +25,38 @@ object generator {
   def genProgram(program: WaccProgram): Step = {
     val WaccProgram(funcs, stats) = program
     ( Directive("text\n")
-      <++> Directive("global main")
-      <++> funcs.foldLeft(Step.identity)((prev, f) => prev <++> genFunc(f.id.id, f.args.length, f.body)(f.symbols.get))
-      <++> genMain(0, stats)(program.mainSymbols.get)
-      <++> genPredefFuncs
+      >++> Directive("global main")
+      >++> funcs.foldLeft(Step.identity)((prev, f) => prev >++> genFunc(f.id.id, f.args.length, f.body)(f.symbols.get))
+      >++> genMain(0, stats)(program.mainSymbols.get)
+      >++> genPredefFuncs
+      <++< genData
     )
   }
 
   // TODO: set sp
   def genMain(argc: Int, stats: List[Stat])(implicit symbols: TypeTable): Step = (
          Label("main")
-    <++> Push()(lr)
-    <++> genStats(stats)
-    <++> Ldr()(r0, AsmInt(0))(AsmInt(0))
-    <++> Pop()(pc)
-    <++> Directive("ltorg")
-    <++> Step.discardAll
+    >++> Push()(lr)
+    >++> genStats(stats)
+    >++> Ldr()(r0, AsmInt(0))(AsmInt(0))
+    >++> Pop()(pc)
+    >++> Directive("ltorg")
+    >++> Step.discardAll
   )
 
   // TODO: set sp
   // Note that each ASM node here is implicitly converted to a step
   def genFunc(name: String, argc: Int, stats: List[Stat])(implicit symbols: TypeTable): Step = (
          Label(name)
-    <++> Push()(lr)
-    <++> genStats(stats)
-    <++> Pop()(pc)
-    <++> Directive("ltorg")
-    <++> Step.discardAll
+    >++> Push()(lr)
+    >++> genStats(stats)
+    >++> Pop()(pc)
+    >++> Directive("ltorg")
+    >++> Step.discardAll
   )
 
   def genStats(stats: List[Stat])(implicit symbols: TypeTable): Step = {
-    stats.foldLeft(Step.identity)(_ <++> genStat(_) <++> Step.discardAll)
+    stats.foldLeft(Step.identity)(_ >++> genStat(_) >++> Step.discardAll)
   }
 
   // TODO: dynamically add doStats, thenStats and elseStats as functions instead?
@@ -67,53 +68,53 @@ object generator {
       // In the Assign case, we use genLhs to store the offset on the stack
       // that we access the given lhs variable from
         // TODO: check
-      case Assign(lhs, rhs) => genRhs(rhs) <++> genLhs(lhs) //<++> Step.genericAsmInstr(asm.Str())(Re1, STACK_POINTER)(AsmInt(4))(Re1)
-      case Read(lhs) => genLhs(lhs) <++> genCallWithRegs(read_byte.toString(), 1, Some(r0))
-      case Free(expr) => genExpr(expr) <++> genCallWithRegs(free.toString(), 1, None)
-      case Return(expr) => genExpr(expr) <++> Step.asmInstr(Mov() _)(r0, Re1)()
-      case Exit(expr) => genExpr(expr) <++> Step.asmInstr(Mov() _)(r0, Re1)() <++> genCallWithRegs("exit", 1, None)
+      case Assign(lhs, rhs) => genRhs(rhs) >++> genLhs(lhs) //<++> Step.genericAsmInstr(asm.Str())(Re1, STACK_POINTER)(AsmInt(4))(Re1)
+      case Read(lhs) => genLhs(lhs) >++> genCallWithRegs(read_byte.toString(), 1, Some(r0))
+      case Free(expr) => genExpr(expr) >++> genCallWithRegs(free.toString(), 1, None)
+      case Return(expr) => genExpr(expr) >++> Step.asmInstr(Mov() _)(r0, Re1)()
+      case Exit(expr) => genExpr(expr) >++> Step.asmInstr(Mov() _)(r0, Re1)() >++> genCallWithRegs("exit", 1, None)
       // TODO: call the right print function
-      case Print(expr) => genExpr(expr) <++> genCallWithRegs("???", 1, None)
-      case Println(expr) => genExpr(expr) <++> genCallWithRegs("???", 1, None)
+      case Print(expr) => genExpr(expr) >++> genCallWithRegs("???", 1, None)
+      case Println(expr) => genExpr(expr) >++> genCallWithRegs("???", 1, None)
       case s@If(expr, thenStats, elseStats) => {
         val l = getUniqueName
         val thenLabel = s"L_then_$l"
         val elseLabel = s"L_else_$l"
         val doneLabel = s"L_done_$l"
             (genExpr(expr)
-        <++> Step.asmInstr(Compare() _)(Re1, AsmInt(1))()
-        <++> Branch(thenLabel)("EQ")
-        <++> Branch(elseLabel)("")
-        <++> Label(thenLabel)
-        <++> genStats(thenStats)(s.thenTypeTable.get)
-        <++> Branch()(doneLabel)
-        <++> Label(elseLabel)
-        <++> genStats(elseStats)(s.elseTypeTable.get)
-        <++> Label(doneLabel))
+        >++> Step.asmInstr(Compare() _)(Re1, AsmInt(1))()
+        >++> Branch(thenLabel)("EQ")
+        >++> Branch(elseLabel)("")
+        >++> Label(thenLabel)
+        >++> genStats(thenStats)(s.thenTypeTable.get)
+        >++> Branch()(doneLabel)
+        >++> Label(elseLabel)
+        >++> genStats(elseStats)(s.elseTypeTable.get)
+        >++> Label(doneLabel))
       }
       case s@While(expr, doStats) =>
         val l = getUniqueName
         val topLabel = s"L_while_cond_$l"
         val endLabel = s"L_while_end$l"
           (Label(topLabel)
-        <++> genExpr(expr)
-        <++> Step.asmInstr(Compare() _)(Re1, AsmInt(0))()
-        <++> Branch(endLabel)("EQ")
-        <++> genStats(doStats)(s.doTypeTable.get)
-        <++> Branch()(topLabel)
-        <++> Label(endLabel))
+        >++> genExpr(expr)
+        >++> Step.asmInstr(Compare() _)(Re1, AsmInt(0))()
+        >++> Branch(endLabel)("EQ")
+        >++> genStats(doStats)(s.doTypeTable.get)
+        >++> Branch()(topLabel)
+        >++> Label(endLabel))
       case s@Scope(stats) => genStats(stats)(s.typeTable.get)
     } 
   }
 
   def genBinOp(x: Expr, y: Expr, step: Step)(implicit symbols: TypeTable): Step = (
            genExpr(x) 
-      <++> genExpr(y)
-      <++> step
+      >++> genExpr(y)
+      >++> step
     )
 
   def genUnOp(x: Expr, step: Step)(implicit symbols: TypeTable): Step = {
-    genExpr(x) <++> step
+    genExpr(x) >++> step
   }
 
   def genExpr(expr: Expr)(implicit symbols: TypeTable): Step = {
@@ -142,29 +143,29 @@ object generator {
       case ast.CharLiter(x) => Step.genericAsmInstr(asm.Ldr())(ReNew, AsmInt(x.toInt))(AsmInt(0))()
       // There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
       case ast.StrLiter(x) =>
-        includeData(x) <++> Step.genericAsmInstr(asm.Ldr())(ReNew, AsmStateFunc(_.data(x)))(AsmInt(0))()
+        includeData(x) >++> Step.genericAsmInstr(asm.Ldr())(ReNew, AsmStateFunc(_.data(x)))(AsmInt(0))()
       case ast.ArrayLiter(x) => (
         Step.asmInstr(asm.Mov())(ReNew, AsmInt(x.length))()
-          <++> Step.asmInstr(asm.Mov())(ReNew, AsmInt((x.length + 1) * 4))()
-          <++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
-          <++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt(0))(Re1)
+          >++> Step.asmInstr(asm.Mov())(ReNew, AsmInt((x.length + 1) * 4))()
+          >++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
+          >++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt(0))(Re1)
           // -> size, ------
           // -> pointer to array, nothing
-          <++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
+          >++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
           prev
-            <++> genExpr(v._1) // put value in a register
+            >++> genExpr(v._1) // put value in a register
             // Does this not lose the place where we malloc? Solved on line 168
             // TODO: intToOffset
-            <++> Step.genericAsmInstr(asm.Str())(Re1, Re2)(AsmInt((v._2 + 1) * 4))(Re2)
+            >++> Step.genericAsmInstr(asm.Str())(Re1, Re2)(AsmInt((v._2 + 1) * 4))(Re2)
             // Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
-            <++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
+            >++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
           ))
       )
       case ArrayElem(id, index) => (genExpr(id)
-        <++> genExpr(index)
-        <++> Step.asmInstr(asm.Adds())(Re1, Re1, AsmInt(1))(Re1)
+        >++> genExpr(index)
+        >++> Step.asmInstr(asm.Adds())(Re1, Re1, AsmInt(1))(Re1)
 // TODO:       <++> asm.Mul.step(_0, _0, AsmInt(BYTE_SIZE))
-        <++> Step.asmInstr(asm.Adds())(Re2, Re2, Re1)(Re2)
+        >++> Step.asmInstr(asm.Adds())(Re2, Re2, Re1)(Re2)
         )
       case idd@Ident(id) => {
         val offset = countToOffset(symbols.getOffset(idd).get)
@@ -183,26 +184,26 @@ object generator {
       case arr@ArrayLiter(exprs) => genExpr(arr)
       case NewPair(fst, snd) => (
         Step.asmInstr(asm.Mov())(Re1, AsmInt(4 * 2))(Re1)
-        <++> genCallWithRegs("malloc", 1, Some(r0))
-        <++> genExpr(fst)
-        <++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt(0))(Re2)
+        >++> genCallWithRegs("malloc", 1, Some(r0))
+        >++> genExpr(fst)
+        >++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt(0))(Re2)
           // Str.step(_1, _0)
-        <++> Step.discardTop
-        <++> genExpr(snd)
+        >++> Step.discardTop
+        >++> genExpr(snd)
              // TODO: intToOffset
-        <++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt(4))(Re2)
+        >++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt(4))(Re2)
           //Str.step(_1, _0, AsmInt(4))
       )
       case Fst(expr) => (
              genExpr(expr)
-        <++> Step.genericAsmInstr(asm.Ldr())(Re2, Re1)(AsmInt(0))(Re1)
+        >++> Step.genericAsmInstr(asm.Ldr())(Re2, Re1)(AsmInt(0))(Re1)
       )
       case Snd(expr) => (
              genExpr(expr)
-        <++> Step.genericAsmInstr(asm.Ldr())(Re1, Re1)(AsmInt(4))(Re1)
+        >++> Step.genericAsmInstr(asm.Ldr())(Re1, Re1)(AsmInt(4))(Re1)
       )
       case ast.Call(id, args) => //TODO: a variable number of reads into the Nil
-          args.foldLeft(Step.identity)(_ <++> genExpr(_)) //<++>
+          args.foldLeft(Step.identity)(_ >++> genExpr(_)) //<++>
 //          rn(regs => Call(regs, id.id)) // regs is a list of registers of size n
       case expr: Expr => genExpr(expr)
     }
@@ -212,7 +213,7 @@ object generator {
     genLocation(lhs)
     // re1 contains offset
     // re2 contains the value
-      <++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt(0))()
+      >++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt(0))()
   )
 
   // puts the memory location of the object in question in a register
@@ -224,16 +225,16 @@ object generator {
     }
     case ArrayElem(id, index) => (
            genExpr(id)
-      <++> genExpr(index)
-      <++> Step.asmInstr(asm.Adds())(Re1, Re1, AsmInt(1))(Re1)
-      <++> Step.asmInstr(asm.Mov())(Re1, AsmInt(BYTE_SIZE))(ReNew)
-      <++> genMul()
-      <++> Step.asmInstr(asm.Adds())(Re2, Re2, Re1)(Re2)
+      >++> genExpr(index)
+      >++> Step.asmInstr(asm.Adds())(Re1, Re1, AsmInt(1))(Re1)
+      >++> Step.asmInstr(asm.Mov())(Re1, AsmInt(BYTE_SIZE))(ReNew)
+      >++> genMul()
+      >++> Step.asmInstr(asm.Adds())(Re2, Re2, Re1)(Re2)
       )
     case Fst(expr) => genExpr(expr)
     case Snd(expr) => (
       genExpr(expr)
-      <++> Step.asmInstr(asm.Adds())(Re1, Re1, AsmInt(BYTE_SIZE))(Re1) // Should the offset be 4 or 1?
+      >++> Step.asmInstr(asm.Adds())(Re1, Re1, AsmInt(BYTE_SIZE))(Re1) // Should the offset be 4 or 1?
     )
   }
 
@@ -244,21 +245,21 @@ object generator {
 
   def genDiv: Step = (
     genCallWithRegs(check_div_zero().label, 2, None)
-    <++> genCallWithRegs("__aeabi_idiv", 0, Some(r0))
+    >++> genCallWithRegs("__aeabi_idiv", 0, Some(r0))
     )
 
   def genMod: Step = (
     genCallWithRegs(check_div_zero().label, 2, None)
-    <++> genCallWithRegs("__aeabi_idivmod", 0, Some(r1))
+    >++> genCallWithRegs("__aeabi_idivmod", 0, Some(r1))
     )
 
   def genCallWithRegs(name: String, argc: Int, resultReg: Option[AsmReg]): Step = {
     assert(argc >= 0 && argc <= 4)
     (0 until argc).reverse.foldLeft(Step.identity)((prev, num) => {
       // TODO: check this is correct
-      prev <++> Step.asmInstr(asm.Mov())(AsmReg(num), Re1)(Re1) //Mov.step(AsmReg(num), _0)
+      prev >++> Step.asmInstr(asm.Mov())(AsmReg(num), Re1)(Re1) //Mov.step(AsmReg(num), _0)
     })
-    Branch("L")(name) <++>
+    Branch("L")(name) >++>
       (resultReg match {
       case None => Step.identity
       case Some(reg) => assert(reg.r >= 0 && reg.r <=3)
@@ -268,7 +269,7 @@ object generator {
 
   def genPredefFuncs: Step = {
     Step((s: State) => s.fState.foldLeft(Step.identity)(
-      (prev, f) => prev <++> f.toStep)(s))
+      (prev, f) => prev >++> f.toStep)(s))
   }
 
   def addPredefFunc(f: PredefinedFunc): Step = {
@@ -277,11 +278,11 @@ object generator {
 
   def genData: Step = (
          Directive("data")
-    <++> Step((s: State) => s.data.foldLeft(Step.identity)(
+    >++> Step((s: State) => s.data.foldLeft(Step.identity)(
       (prevStep, entry) => prevStep
-        <++> Label(entry._2.toString)
-        <++> Directive(s"word ${entry._1.length}")
-        <++> Directive(s"ascii ${entry._1}")
+        >++> Label(entry._2.toString)
+        >++> Directive(s"word ${entry._1.length}")
+        >++> Directive(s"ascii \"${entry._1}\"")
     )(s))
   )
 

@@ -185,48 +185,48 @@ object asm {
   object Eq {
     def apply(cond: String = "")(args: AsmDefiniteArg *): Step = (
            Compare(cond)(args.tail: _*)
-      <++> Mov("EQ")(args.head, AsmInt(1))
-      <++> Mov("NE")(args.head, AsmInt(0))
+      >++> Mov("EQ")(args.head, AsmInt(1))
+      >++> Mov("NE")(args.head, AsmInt(0))
     )
   }
 
   object Neq {
     def apply(cond: String = "")(args: AsmDefiniteArg *): Step = (
       Compare(cond)(args.tail: _*)
-        <++> Mov("NE")(args.head, AsmInt(1))
-        <++> Mov("EQ")(args.head, AsmInt(0))
+        >++> Mov("NE")(args.head, AsmInt(1))
+        >++> Mov("EQ")(args.head, AsmInt(0))
       )
   }
 
   object Leq {
     def apply(cond: String = "")(args: AsmDefiniteArg *): Step = (
       Compare(cond)(args.tail: _*)
-        <++> Mov("LE")(args.head, AsmInt(1))
-        <++> Mov("GT")(args.head, AsmInt(0))
+        >++> Mov("LE")(args.head, AsmInt(1))
+        >++> Mov("GT")(args.head, AsmInt(0))
     )
   }
 
   object Lt {
     def apply(cond: String = "")(args: AsmDefiniteArg *): Step = (
       Compare(cond)(args.tail: _*)
-        <++> Mov("LT")(args.head, AsmInt(1))
-        <++> Mov("GE")(args.head, AsmInt(0))
+        >++> Mov("LT")(args.head, AsmInt(1))
+        >++> Mov("GE")(args.head, AsmInt(0))
       )
   }
 
   object Geq {
     def apply(cond: String = "")(args: AsmDefiniteArg *): Step = (
       Compare(cond)(args.tail: _*)
-        <++> Mov("GE")(args.head, AsmInt(1))
-        <++> Mov("LT")(args.head, AsmInt(0))
+        >++> Mov("GE")(args.head, AsmInt(1))
+        >++> Mov("LT")(args.head, AsmInt(0))
       )
   }
 
   object Gt {
     def apply(cond: String = "")(args: AsmDefiniteArg *): Step = (
       Compare(cond)(args.tail: _*)
-        <++> Mov("GT")(args.head, AsmInt(1))
-        <++> Mov("LE")(args.head, AsmInt(0))
+        >++> Mov("GT")(args.head, AsmInt(1))
+        >++> Mov("LE")(args.head, AsmInt(0))
       )
   }
 

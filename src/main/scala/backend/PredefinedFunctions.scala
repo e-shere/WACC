@@ -25,13 +25,13 @@ object PredefinedFunctions {
     val label = "p_print_ln"
     def toStep: Step = (
            Label(label)
-      <++> Push()(lr)
-      <++> Ldr()(r0, zero)()
-      <++> Adds()(r0, r0, word_size)
-      <++> Branch("L")("puts")
-      <++> Mov()(r0, zero)
-      <++> Branch("L")("fflush")
-      <++> Pop()(pc)
+      >++> Push()(lr)
+      >++> Ldr()(r0, zero)()
+      >++> Adds()(r0, r0, word_size)
+      >++> Branch("L")("puts")
+      >++> Mov()(r0, zero)
+      >++> Branch("L")("fflush")
+      >++> Pop()(pc)
       )
   }
 
@@ -39,14 +39,14 @@ object PredefinedFunctions {
     val label = "p_print_int"
     def toStep: Step = (
            Label(label)
-      <++> Push()(lr)
-      <++> Mov()(r1, r0)
-      <++> Ldr()(r0, zero)()
-      <++> Adds()(r0, r0, word_size)
-      <++> Branch("L")("printf")
-      <++> Mov()(r0, zero)
-      <++> Branch("L")("fflush")
-      <++> Pop()(pc)
+      >++> Push()(lr)
+      >++> Mov()(r1, r0)
+      >++> Ldr()(r0, zero)()
+      >++> Adds()(r0, r0, word_size)
+      >++> Branch("L")("printf")
+      >++> Mov()(r0, zero)
+      >++> Branch("L")("fflush")
+      >++> Pop()(pc)
     )
   }
 
@@ -56,15 +56,15 @@ object PredefinedFunctions {
     val label = "p_print_string"
     def toStep: Step = (
            Label(label)
-      <++> Push()(lr)
-      <++> Ldr()(r1, r0)()
-      <++> Adds()(r2, r0, word_size)
-      <++> Ldr()(r0, zero)()
-      <++> Adds()(r0, r0, word_size)
-      <++> Branch("L")("printf")
-      <++> Mov()(r0, zero)
-      <++> Branch("L")("fflush")
-      <++> Pop()(pc)
+      >++> Push()(lr)
+      >++> Ldr()(r1, r0)()
+      >++> Adds()(r2, r0, word_size)
+      >++> Ldr()(r0, zero)()
+      >++> Adds()(r0, r0, word_size)
+      >++> Branch("L")("printf")
+      >++> Mov()(r0, zero)
+      >++> Branch("L")("fflush")
+      >++> Pop()(pc)
     )
   }
 
@@ -72,15 +72,15 @@ object PredefinedFunctions {
     val label = "p_print_bool"
     def toStep: Step = (
            Label(label)
-      <++> Push()(lr)
-      <++> Compare()(r0, zero)
+      >++> Push()(lr)
+      >++> Compare()(r0, zero)
       /* <++> Load True if NE */
       /* <++> Load False if EQ */
-      <++> Adds()(r0, r0, word_size)
-      <++> Branch("L")("printf")
-      <++> Ldr()(r0, zero)()
-      <++> Branch("L")("fflush")
-      <++> Pop()(pc)
+      >++> Adds()(r0, r0, word_size)
+      >++> Branch("L")("printf")
+      >++> Ldr()(r0, zero)()
+      >++> Branch("L")("fflush")
+      >++> Pop()(pc)
     )
   }
 
@@ -88,14 +88,14 @@ object PredefinedFunctions {
     val label = "p_print_ref"
     def toStep: Step = (
       Label(label)
-      <++> Push()(lr)
-      <++> Mov()(r1, r0)
-      <++> Ldr()(r0, zero)()
-      <++> Adds()(r0, r0, word_size)
-      <++> Branch("L")("printf")
-      <++> Mov()(r0, zero)
-      <++> Branch("L")("fflush")
-      <++> Pop()(pc)
+      >++> Push()(lr)
+      >++> Mov()(r1, r0)
+      >++> Ldr()(r0, zero)()
+      >++> Adds()(r0, r0, word_size)
+      >++> Branch("L")("printf")
+      >++> Mov()(r0, zero)
+      >++> Branch("L")("fflush")
+      >++> Pop()(pc)
     )
   }
 
@@ -104,7 +104,7 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       /* <++> Load error message */
-      <++> Branch("L")(throw_runtime().label)
+      >++> Branch("L")(throw_runtime().label)
     )
   }
 
@@ -112,9 +112,9 @@ object PredefinedFunctions {
     val label = "p_throw_runtime"
     def toStep: Step = (
            Label(label)
-      <++> Branch("L")(print_string().label)
-      <++> Mov()(r0, AsmInt(-1))
-      <++> Branch("L")("exit")
+      >++> Branch("L")(print_string().label)
+      >++> Mov()(r0, AsmInt(-1))
+      >++> Branch("L")("exit")
       )
   }
 
@@ -122,11 +122,11 @@ object PredefinedFunctions {
     val label = "p_check_div_zero"
     def toStep: Step = (
            Label(label)
-      <++> Push()(lr)
-      <++> Compare()(r0, zero)
+      >++> Push()(lr)
+      >++> Compare()(r0, zero)
       /* <++> Load error message if EQ */
-      <++> Branch("EQ")(throw_runtime().label)
-      <++> Pop()(pc)
+      >++> Branch("EQ")(throw_runtime().label)
+      >++> Pop()(pc)
       )
   }
 
@@ -134,10 +134,10 @@ object PredefinedFunctions {
     val label = "p_free"
     def toStep: Step = (
              Label(label)
-        <++> Push()(lr)
-        <++> check_null_pointer().toStep
-        <++> Branch("L")("free")
-        <++> Pop()(pc)
+        >++> Push()(lr)
+        >++> check_null_pointer().toStep
+        >++> Branch("L")("free")
+        >++> Pop()(pc)
       )
   }
 
@@ -145,11 +145,11 @@ object PredefinedFunctions {
     val label = "p_check_null_pointer"
     def toStep: Step = (
            Label(label)
-      <++> Push()(lr)
-      <++> Compare()(r0, zero)
+      >++> Push()(lr)
+      >++> Compare()(r0, zero)
       /* <++> Load error message if EQ */
-      <++> Branch("EQ")(throw_runtime().label)
-      <++> Pop()(pc)
+      >++> Branch("EQ")(throw_runtime().label)
+      >++> Pop()(pc)
     )
   }
 
@@ -157,15 +157,15 @@ object PredefinedFunctions {
     val label = "p_check_array_bound"
     def toStep: Step = (
            Label(label)
-      <++> Push()(lr)
-      <++> Compare()(r0, zero)
+      >++> Push()(lr)
+      >++> Compare()(r0, zero)
       /* <++> Load error message if LT */
-      <++> Branch("LLT")(throw_runtime.toString()) // Link, Less than
-      <++> Ldr()(r1, r1)()
-      <++> Compare()(r0, r1)
+      >++> Branch("LLT")(throw_runtime.toString()) // Link, Less than
+      >++> Ldr()(r1, r1)()
+      >++> Compare()(r0, r1)
       /* <++> Load error message if CS */
-      <++> Branch("LCS")(throw_runtime.toString()) // Link, Carry set
-      <++> Pop()(pc)
+      >++> Branch("LCS")(throw_runtime.toString()) // Link, Carry set
+      >++> Pop()(pc)
     )
   }
 
@@ -173,12 +173,12 @@ object PredefinedFunctions {
     val label = "p_read_byte"
     def toStep: Step = (
            Label(label)
-      <++> Push()(lr)
-      <++> Mov()(r1, r0)
-      <++> Ldr()(r0, zero)()
-      <++> Adds()(r0, r0, word_size)
-      <++> Branch("L")("scanf")
-      <++> Pop()(pc)
+      >++> Push()(lr)
+      >++> Mov()(r1, r0)
+      >++> Ldr()(r0, zero)()
+      >++> Adds()(r0, r0, word_size)
+      >++> Branch("L")("scanf")
+      >++> Pop()(pc)
     )
   }
 }
