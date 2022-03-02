@@ -78,11 +78,6 @@ object asm {
     val AL: ConditionCode.Value = Value("")
   }
 
-  // TODO: consider separators- which file
-  // somewhere I'm giving literals as a register........
-  // TODO: discuss calling assembly functions vs calling wacc functions
-  // TODO: discuss passing around List[Asm] implicitly in generator
-
   val SEP = "\n\t"
 
   case class Directive(value: String) extends Asm {
