@@ -32,7 +32,7 @@ object step {
     val discardTop: Step = Step(state => (Nil, state.prev))
 
     def stepInstr(f: (Seq[AsmDefiniteArg]) => Step)(args: AsmArg*)(out: AsmAnyReg*): Step = Step((state: State) => {
-
+      if (args contains Re2) assert(!(args contains ReNew))
       val (re2, re1, asm1, state1) =
         if (args contains Re2) state.read2
         else if (args contains Re1) {
@@ -41,21 +41,38 @@ object step {
         }
         else (NO_REG, NO_REG, Nil, state)
 
-      val (re2w, asm2, state2) = if (out contains Re2) {
-        assert(args contains Re2)
-        state1.writeTo(re2)
-      } else (NO_REG, Nil, state1)
-
-      if (out contains Re2) assert(re2 == re2w)
-
-      val (re1w, asm3, state3) = if (out contains Re1) {
-        assert(args contains Re1)
-        state1.writeTo(re1)
-      } else (NO_REG, Nil, state2)
-
-      if (out contains Re1) assert(re1 == re1w)
-
-      val (reNew, asm4, state4) = if (args contains ReNew) state1.write else (NO_REG, Nil, state3)
+      val (reNew, asm2, state2) = (out contains Re2, out contains Re1, args contains ReNew) match {
+        case (true, true, false) => {
+          assert((args contains Re1) && (args contains Re2))
+          val (re2w, re1w, asm2, state2) = state1.write2
+          assert(re2w == re2)
+          assert(re1w == re1)
+          (NO_REG, asm2, state2)
+        }
+        case (true, false, false) => {
+          assert(args contains Re2)
+          val (re2w, asm2, state2) = state1.prev.write
+          assert(re2w == re2)
+          (NO_REG, asm2, state2)
+        }
+        case (false, true, false) => {
+          assert(args contains Re1)
+          val (re1w, asm2, state2) = state1.write
+          assert(re1w == re1)
+          (NO_REG, asm2, state2)
+        }
+        case (false, true, true) => {
+          assert(args contains Re1)
+          val (re1w, reNw, asm2, state2) = state1.write2
+          assert(re1w == re1)
+          (reNw, asm2, state2)
+        }
+        case (false, false, true) => {
+          val (reNw, asm2, state2) = state1.write
+          (reNw, asm2, state2)
+        }
+        case (false, false, false) => (NO_REG, Nil, state1)
+      }
 
       val argsDefinite: Seq[AsmDefiniteArg] = args.map {
         case Re1 => re1
@@ -66,9 +83,9 @@ object step {
 
       val (asmF, stateF) = f.apply(argsDefinite)(state1)
 
-      assert(state1 == stateF)
+      assert(state1.reg == stateF.reg)
 
-      (asm1 ++ asmF ++ asm2 ++ asm3 ++ asm4, state4)
+      (asm1 ++ asmF ++ asm2, state2)
     })
 
     def asmInstr(f: Seq[AsmDefiniteArg] => Asm)(args: AsmArg*)(out: AsmAnyReg*): Step =

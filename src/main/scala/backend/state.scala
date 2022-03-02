@@ -70,8 +70,10 @@ object state {
       else (PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next)
     }
 
-    def writeTo(reg: AsmReg): (AsmReg, List[Asm], State) = {
-      (reg, Nil, State(AsmReg(reg.r + 1), fState))
+    def write2: (AsmReg, AsmReg, List[Asm], State) = {
+      if (next.isReg) (reg, next.reg, Nil, next.next)
+      else if (isReg) (reg, PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next.next)
+      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Push()(PLACEHOLDER_1), Push()(PLACEHOLDER_2)), next.next)
     }
   }
 }

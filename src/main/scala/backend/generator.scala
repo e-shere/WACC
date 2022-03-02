@@ -138,10 +138,10 @@ object generator {
       case ast.Len(x)    => genUnOp(x, Step.stepInstr(asm.Len())(Re1, Re1)(Re1))
       case ast.Ord(x)    => ???
       case ast.Chr(x)    => ???
-      case ast.IntLiter(x) => Step.genericAsmInstr(asm.Ldr())(Re1, AsmInt(x))(AsmInt(0))(Re1)
-      case ast.BoolLiter(x) => Step.genericAsmInstr(asm.Ldr())(Re1, AsmInt(x.compare(false)))(AsmInt(0))(Re1)
+      case ast.IntLiter(x) => Step.genericAsmInstr(asm.Ldr())(ReNew, AsmInt(x))(AsmInt(0))()
+      case ast.BoolLiter(x) => Step.genericAsmInstr(asm.Ldr())(ReNew, AsmInt(x.compare(false)))(AsmInt(0))()
         // TODO: let ldr take a char directly
-      case ast.CharLiter(x) => Step.genericAsmInstr(asm.Ldr())(Re1, AsmInt(x.toInt))(AsmInt(0))(Re1)
+      case ast.CharLiter(x) => Step.genericAsmInstr(asm.Ldr())(ReNew, AsmInt(x.toInt))(AsmInt(0))()
       // There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
       case ast.StrLiter(x) => ( ???
 //        Step.asmInstr(asm.Mov())(Re1, AsmInt(x.length))(Re1)
