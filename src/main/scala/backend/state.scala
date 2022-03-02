@@ -15,7 +15,7 @@ object state {
   val PLACEHOLDER_1 = AsmReg(10)
   val PLACEHOLDER_2 = AsmReg(11)
   val STACK_POINTER = AsmReg(13)
-  val NEW_REG: State = State(REG_START, Set())
+  val NEW_REG: State = State(REG_START, Set(), Map.empty)
 
   /*
   Reg documents the highest register of 4-9 which is not in use
@@ -25,16 +25,18 @@ object state {
   // TODO: unit test this
 
   type FuncState = Set[PredefinedFunc]
+  // Maps from the string value we want to insert to
+  type StringData = Map[String, String]
 
-  case class State(reg: AsmReg, fState: FuncState) {
+  case class State(reg: AsmReg, fState: FuncState, data: StringData) {
 
     def isReg: Boolean = reg.r >= REG_START.r && reg.r <= REG_END.r
 
     def isStack: Boolean = reg.r > REG_END.r
 
-    def prev: State = State(AsmReg(reg.r - 1), this.fState)
+    def prev: State = State(AsmReg(reg.r - 1), this.fState, this.data)
 
-    def next: State = State(AsmReg(reg.r + 1), this.fState)
+    def next: State = State(AsmReg(reg.r + 1), this.fState, this.data)
 
     def read: (AsmReg, List[Asm], State) = {
       assert(reg.r > 4)

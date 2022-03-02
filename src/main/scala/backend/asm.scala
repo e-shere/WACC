@@ -38,6 +38,7 @@ object asm {
     def toLdrString = s"=$i"
   }
 
+
   sealed trait AsmAnyReg extends AsmArg
 
   case object Re1 extends AsmAnyReg

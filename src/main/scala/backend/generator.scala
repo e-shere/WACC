@@ -142,19 +142,20 @@ object generator {
       case ast.CharLiter(x) => Step.genericAsmInstr(asm.Ldr())(ReNew, AsmInt(x.toInt))(AsmInt(0))()
       // There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
       case ast.StrLiter(x) => (
-        Step.asmInstr(asm.Mov())(ReNew, AsmInt(x.length))()
-          <++> Step.asmInstr(asm.Mov())(ReNew, AsmInt((x.length + 1) * 4))()
-          <++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
-          <++> Step.genericAsmInstr(asm.Str())(Re1, Re2)(AsmInt(0))(Re1)
-          <++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
-          prev
-            // <++> asm.Chr.step(_0, AsmInt(v._1)) // Presumably this adds the char to the top of regState?
-            // Does this not lose the place where we malloc? Solved on line 168
-            // TODO: intToOffset
-            <++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt((v._2 + 1) * 4))(Re2)
-            //Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
-            <++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
-          ))
+        includeData(x) <++> Step.genericAsmInstr(asm.Ldr())(ReNew, ???)(AsmInt(0))()
+//        Step.asmInstr(asm.Mov())(ReNew, AsmInt(x.length))()
+//          <++> Step.asmInstr(asm.Mov())(ReNew, AsmInt((x.length + 1) * 4))()
+//          <++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
+//          <++> Step.genericAsmInstr(asm.Str())(Re1, Re2)(AsmInt(0))()
+//          <++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
+//          prev
+//            // <++> asm.Chr.step(_0, AsmInt(v._1)) // Presumably this adds the char to the top of regState?
+//            // Does this not lose the place where we malloc? Solved on line 168
+//            // TODO: intToOffset
+//            <++> Step.genericAsmInstr(asm.Str())(Re2, Re1)(AsmInt((v._2 + 1) * 4))()
+//            //Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
+//            <++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
+//          ))
       )
       case ast.ArrayLiter(x) => (
         Step.asmInstr(asm.Mov())(ReNew, AsmInt(x.length))()
@@ -286,6 +287,10 @@ object generator {
 
   def addPredefFunc(f: PredefinedFunc): Step = {
     Step((s: State) => (Nil, s.copy(fState = s.fState + f)))
+  }
+
+  def includeData(msg: String): Step = {
+    Step((s: State) => (Nil, s.copy(data = s.data + (msg -> s"msg_$getUniqueName"))))
   }
 }
 

@@ -27,7 +27,7 @@ object step {
 
     val identity: Step = Step((Nil, _))
     // This step is used between steps where the state of registers needs to be reset
-    val discardAll: Step = Step(state => (Nil, State(REG_START, state.fState)))
+    val discardAll: Step = Step(state => (Nil, State(REG_START, state.fState, state.data)))
 
     val discardTop: Step = Step(state => (Nil, state.prev))
 
