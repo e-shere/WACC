@@ -178,7 +178,6 @@ object generator {
       case ArrayElem(id, index) => (genExpr(id)
         >++> genExpr(index)
         >++> Step.asmInstr(asm.Adds())(Re1, Re1, AsmInt(1))(Re1)
-// TODO:       <++> asm.Mul.step(_0, _0, AsmInt(BYTE_SIZE))
         >++> Step.asmInstr(asm.Adds())(Re2, Re2, Re1)(Re2)
         )
       case idd@Ident(id) => (
