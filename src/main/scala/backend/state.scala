@@ -17,6 +17,8 @@ object state {
   val STACK_POINTER = AsmReg(13)
   val NEW_REG: State = State(REG_START, Set())
 
+  var stackOffset = 0
+
   /*
   Reg documents the highest register of 4-9 which is not in use
   If reg > 9, reg documents the number of things in the stack + REG_END + 1
@@ -39,26 +41,43 @@ object state {
     def read: (AsmReg, List[Asm], State) = {
       assert(reg.r > 4)
       if (prev.isReg) (prev.reg, Nil, prev)
-      else (PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev)
+      else {
+        stackOffset -= 1
+        (PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev)
+      }
     }
 
     def read2: (AsmReg, AsmReg, List[Asm], State) = {
       assert(reg.r > 5)
       if (prev.isReg) (prev.prev.reg, prev.reg, Nil, prev.prev)
-      else if (prev.prev.isReg) (prev.prev.reg, PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev.prev)
-      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Pop()(PLACEHOLDER_2), Pop()(PLACEHOLDER_1)), prev.prev)
+      else if (prev.prev.isReg) {
+        stackOffset -= 1
+        (prev.prev.reg, PLACEHOLDER_1, List(Pop()(PLACEHOLDER_1)), prev.prev)
+      }
+      else {
+        stackOffset -= 2
+        (PLACEHOLDER_1, PLACEHOLDER_2, List(Pop()(PLACEHOLDER_2), Pop()(PLACEHOLDER_1)), prev.prev)
+      }
     }
 
     def write: (AsmReg, List[Asm], State) = {
       if (isReg) (reg, Nil, next)
-      // TODO: added 0 offset here. Check
-      else (PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next)
+      else {
+        stackOffset += 1
+        (PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next)
+      }
     }
 
     def write2: (AsmReg, AsmReg, List[Asm], State) = {
       if (next.isReg) (reg, next.reg, Nil, next.next)
-      else if (isReg) (reg, PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next.next)
-      else (PLACEHOLDER_1, PLACEHOLDER_2, List(Push()(PLACEHOLDER_1), Push()(PLACEHOLDER_2)), next.next)
+      else if (isReg) {
+        stackOffset += 1
+        (reg, PLACEHOLDER_1, List(Push()(PLACEHOLDER_1)), next.next)
+      }
+      else {
+        stackOffset += 2
+        (PLACEHOLDER_1, PLACEHOLDER_2, List(Push()(PLACEHOLDER_1), Push()(PLACEHOLDER_2)), next.next)
+      }
     }
   }
 }
