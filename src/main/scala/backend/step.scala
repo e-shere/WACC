@@ -8,7 +8,7 @@ import scala.language.implicitConversions
 object step {
   import implicits._
 
-  val DEBUG = false
+  val DEBUG = true
 
   case class ResolutionData(state: State, re2: AsmReg, re1: AsmReg, reNew: AsmReg)
 

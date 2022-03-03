@@ -181,11 +181,7 @@ object generator {
             >++> Step.instr2Aux(asm.Str())(Re1, Re2)(AsmInt((v._2 + 1) * WORD_BYTES))(Re2)
           ))
       )
-      case ArrayElem(id, index) => (genExpr(id)
-        >++> genExpr(index)
-        >++> Step.instr3(asm.Adds())(Re1, Re1, AsmInt(1))(Re1)
-        >++> Step.instr3(asm.Adds())(Re2, Re2, Re1)(Re2)
-        )
+      case s@ArrayElem(id, index) => genLhs(s)
       case idd@Ident(_) => genLhs(idd) >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(zero)(Re1)
       case Null() => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(0))(zero)()
       case Paren(expr) => genExpr(expr)
@@ -230,13 +226,18 @@ object generator {
       (Step.instr3(asm.Adds())
       (ReNew, STACK_POINTER, AsmStateFunc(
         (s: State) => AsmInt(countToOffset(symbols.getOffset(id).get + s.getStackOffset))))())
-    case ArrayElem(id, index) => (
-           genExpr(id)
+    case ArrayElem(id, index) => (genExpr(id)
       >++> genExpr(index)
+      >++> Step.instr2(Mov())(ReNew, Re2)(Re2)
+      >++> Step.instr2(Mov())(ReNew, Re2)(Re2)
+      >++> genCallWithRegs(check_array_bound().label, 2, None)
       >++> Step.instr3(asm.Adds())(Re1, Re1, AsmInt(1))(Re1)
-      >++> Step.instr2(asm.Mov())(Re1, word_size)(ReNew)
+      >++> Step.instr2(asm.Mov())(ReNew, AsmInt(4))()
       >++> genMul()
       >++> Step.instr3(asm.Adds())(Re2, Re2, Re1)(Re2)
+      >++> addPredefFunc(check_array_bound())
+      >++> addPredefFunc(throw_runtime())
+      >++> addPredefFunc(print_string())
       )
     case Fst(expr) => genExpr(expr)
     case Snd(expr) => (
@@ -264,11 +265,13 @@ object generator {
   def genMod: Step = (
     genCallWithRegs(check_div_zero().label, 2, None)
     >++> genCallWithRegs("__aeabi_idivmod", 0, Some(r1))
-      >++> addPredefFunc(check_div_zero())
-      >++> addPredefFunc(throw_runtime())
-      >++> addPredefFunc(print_string())
+    >++> addPredefFunc(check_div_zero())
+    >++> addPredefFunc(throw_runtime())
+    >++> addPredefFunc(print_string())
     )
 
+  // resultReg is which of r0/r1/r2 we want
+  // this will be stored in a new register
   def genCallWithRegs(name: String, argc: Int, resultReg: Option[AsmReg]): Step = {
     assert(argc >= 0 && argc <= 4)
     (
@@ -279,7 +282,7 @@ object generator {
       >++> (resultReg match {
         case None => Step.identity
         case Some(reg) => assert(reg.r >= 0 && reg.r <=3)
-          Step.instr2(asm.Mov())(reg, r0)()
+          Step.instr2(asm.Mov())(ReNew, reg)()
       })
     )
   }
