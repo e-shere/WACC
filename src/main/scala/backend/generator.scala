@@ -159,11 +159,10 @@ object generator {
       case ast.Not(x)    => genUnOp(x, Step.instr2(asm.Not())(Re1, Re1)(Re1))
       case ast.Neg(x)    => genUnOp(x, Step.instr2(asm.Neg())(Re1, Re1)(Re1))
       case ast.Len(x)    => genUnOp(x, Step.instr2(asm.Len())(Re1, Re1)(Re1))
-      case ast.Ord(x)    => ???
-      case ast.Chr(x)    => ???
+      case ast.Ord(x)    => genUnOp(x, Step.identity)
+      case ast.Chr(x)    => genUnOp(x, Step.identity)
       case ast.IntLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x))(zero)()
       case ast.BoolLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x.compare(false)))(zero)()
-        // TODO: let ldr take a char directly
       case ast.CharLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x.toInt))(zero)()
       // TODO: There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
       case ast.StrLiter(x) =>
@@ -176,7 +175,6 @@ object generator {
           >++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
           prev
             >++> genExpr(v._1) // put value in a register
-            // TODO: intToOffset
             >++> Step.instr2Aux(asm.Str())(Re1, Re2)(AsmInt((v._2 + 1) * WORD_BYTES))(Re2)
             >++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
           ))
@@ -315,7 +313,9 @@ object generator {
   )
 
   def includeData(msg: String): Step = {
-    Step((s: State) => (Nil, s.copy(data = s.data + (msg -> AsmString(s"msg_$getUniqueName")))))
+    Step((s: State) => (Nil, s.copy(data =
+      if (s.data.contains(msg)) s.data
+      else s.data + (msg -> AsmString(s"msg_$getUniqueName")))))
   }
 }
 
