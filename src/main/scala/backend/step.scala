@@ -84,9 +84,9 @@ object step {
 
       if (args contains Re2) assert(!(args contains ReNew))
 
-      println(s"args: ${args.mkString(" ")}")
-      println(s"out: ${out.mkString(" ")}")
-      println(s"state reg: ${state.reg.r}\n")
+//      println(s"args: ${args.mkString(" ")}")
+//      println(s"out: ${out.mkString(" ")}")
+//      println(s"state reg: ${state.reg.r}\n")
 
       val (re2, re1, asm1, state1) =
         if (args contains Re2) state.read2
@@ -96,14 +96,14 @@ object step {
         }
         else (NO_REG, NO_REG, Nil, state)
 
-      println(s"re1=$re1, re2=$re2")
+//      println(s"re1=$re1, re2=$re2")
 
       val (reNew, asm2, state2) = (out contains Re2, out contains Re1, args contains ReNew) match {
         case (true, true, true) => (NO_REG, Nil, state1) // Already ruled out
         case (true, true, false) => {
           assert((args contains Re1) && (args contains Re2))
           val (re2w, re1w, asm2, state2) = state1.write2
-          println(s"re1w=$re1w, re2w=$re2w")
+//          println(s"re1w=$re1w, re2w=$re2w")
           assert(re2w == re2)
           assert(re1w == re1)
           (NO_REG, asm2, state2)
@@ -112,21 +112,21 @@ object step {
         case (true, false, false) => {
           assert(args contains Re2)
           val (re2w, asm2, state2) = if (args contains Re1) state1.write else state1.prev.write
-          println(s"re2w=$re2w")
+//          println(s"re2w=$re2w")
           assert(re2w == re2)
           (NO_REG, asm2, state2)
         }
         case (false, true, true) => {
           assert(args contains Re1)
           val (re1w, reNw, asm2, state2) = state1.write2
-          println(s"re1w=$re1w")
+//          println(s"re1w=$re1w")
           assert(re1w == re1)
           (reNw, asm2, state2)
         }
         case (false, true, false) => {
           assert(args contains Re1)
           val (re1w, asm2, state2) = state1.write
-          println(s"re1w=$re1w")
+//          println(s"re1w=$re1w")
           assert(re1w == re1)
           (NO_REG, asm2, state2)
         }
