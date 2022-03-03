@@ -97,7 +97,7 @@ object generator {
         >++> addPredefFunc(printFunc))
         )
       case Println(expr) => (genStat(Print(expr)(NO_POS))
-        >++> genCallWithRegs(print_ln.toString(), 0, None)
+        >++> genCallWithRegs(print_ln().label, 0, None)
         >++> addPredefFunc(print_ln())
         )
       case s@If(expr, thenStats, elseStats) => {
