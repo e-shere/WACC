@@ -148,6 +148,7 @@ object step {
       (asm1 ++ asmF ++ asm2, stateF.copy(reg = state2.reg))
     }, List(arg1, arg2, arg3, arg4).filterNot {
       case NO_ARG => true
+      case _ => false
     }.mkString(","))
 
     def instr1Aux[T1 <: AsmArg, T](f: T1 => T => Step)(arg1: ResolutionData => T1)(aux: T)(out: AsmIndefReg *): Step = {
