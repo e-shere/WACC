@@ -2,21 +2,11 @@ package backend
 
 import backend.asm.ConditionCode._
 import backend.asm._
-import backend.generator.{addPredefFunc, includeData}
-import backend.step.implicits.implicitStep
+import backend.generator.includeData
 import backend.step._
+import backend.step.implicits.implicitStep
 
 object PredefinedFunctions {
-
-  //TODO: make these not private in generator?
-  private val r0 = AsmReg(0)
-  private val r1 = AsmReg(1)
-  private val r2 = AsmReg(2)
-  private val lr = AsmReg(14)
-  private val pc = AsmReg(15)
-  private val word_size = AsmInt(4)
-  private val zero = AsmInt(0)
-
   // TODO: enum or case classes of each type of predefined functions
   sealed trait PredefinedFunc {
     def toStep: Step

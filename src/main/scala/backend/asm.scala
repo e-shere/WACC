@@ -1,16 +1,25 @@
 package backend
 
-import backend.asm.ConditionCode.{AL, EQ, NE, LT, LE, GT, GE, CS, Value}
+import backend.asm.ConditionCode.{AL, EQ, GE, GT, LE, LT, NE}
 import backend.state.State
-import step._
-import step.implicits._
+import backend.step._
+import backend.step.implicits._
 
 object asm {
-  val BYTE_SIZE = 4
+  val WORD_BYTES = 4
 
-  def countToOffset(count: Int): Int = count * BYTE_SIZE
+  def countToOffset(count: Int): Int = count * WORD_BYTES
 
   sealed trait AsmArg
+
+  val NO_REG: AsmReg = AsmReg(-1)
+  val r0 = AsmReg(0)
+  val r1 = AsmReg(1)
+  val r2 = AsmReg(2)
+  val ip = AsmReg(12)
+  val sp = AsmReg(13)
+  val lr = AsmReg(14)
+  val pc = AsmReg(15)
 
   case class AsmReg(r: Int) extends AsmArg with Function1[ResolutionData, AsmReg] {
     assert(r >= -1 && r <= 15)
@@ -28,12 +37,12 @@ object asm {
     def apply(data: ResolutionData): AsmReg = this
   }
 
-  val NO_REG: AsmReg = AsmReg(-1)
-
   case class AsmStateFunc[T <: AsmArg](func: State => T) extends Function1[ResolutionData, T] {
     def apply(data: ResolutionData): T = func(data.state)
   }
 
+  val zero = AsmInt(0)
+  val word_size = AsmInt(WORD_BYTES)
   case class AsmInt(i: Int) extends AsmArg with Function1[ResolutionData, AsmInt] {
     override def toString = s"#$i"
 

@@ -13,12 +13,6 @@ import backend.state.{STACK_POINTER, State}
 import backend.step.implicits.implicitStep
 
 object generator {
-
-  private val r0 = AsmReg(0)
-  private val r1 = AsmReg(1)
-  private val lr = AsmReg(14)
-  private val pc = AsmReg(15)
-
   // TODO: consider naming conventions for dynamically created unique labels
   private var uniqueNameGen = -1
   private def getUniqueName: Int = {uniqueNameGen += 1; uniqueNameGen}
@@ -39,7 +33,7 @@ object generator {
          Label("main")
     >++> Push()(lr)
     >++> genBlock(stats)
-    >++> Ldr()(r0, AsmInt(0))(AsmInt(0))
+    >++> Ldr()(r0, zero)(zero)
     >++> Pop()(pc)
     >++> Directive("ltorg")
     >++> Step.discardAll
@@ -112,7 +106,7 @@ object generator {
         val endLabel = s"L_while_end$l"
           (Label(topLabel)
         >++> genExpr(expr)
-        >++> Step.instr2Aux(Compare())(Re1, AsmInt(0))("")()
+        >++> Step.instr2Aux(Compare())(Re1, zero)("")()
         >++> Branch(EQ)(endLabel)
         >++> genBlock(doStats)(s.doTypeTable.get)
         >++> Branch()(topLabel)
@@ -151,27 +145,23 @@ object generator {
       case ast.Len(x)    => genUnOp(x, Step.instr2(asm.Len())(Re1, Re1)(Re1))
       case ast.Ord(x)    => ???
       case ast.Chr(x)    => ???
-      case ast.IntLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x))(AsmInt(0))()
-      case ast.BoolLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x.compare(false)))(AsmInt(0))()
+      case ast.IntLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x))(zero)()
+      case ast.BoolLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x.compare(false)))(zero)()
         // TODO: let ldr take a char directly
-      case ast.CharLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x.toInt))(AsmInt(0))()
-      // There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
+      case ast.CharLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x.toInt))(zero)()
+      // TODO: There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
       case ast.StrLiter(x) =>
-        includeData(x) >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(_.data(x)))(AsmInt(0))()
+        includeData(x) >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(_.data(x)))(zero)()
       case ast.ArrayLiter(x) => (
         Step.instr2(asm.Mov())(ReNew, AsmInt(x.length))()
-          >++> Step.instr2(asm.Mov())(ReNew, AsmInt((x.length + 1) * 4))()
+          >++> Step.instr2(asm.Mov())(ReNew, AsmInt((x.length + 1) * WORD_BYTES))()
           >++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
-          >++> Step.instr2Aux(asm.Str())(Re2, Re1)(AsmInt(0))(Re1)
-          // -> size, ------
-          // -> pointer to array, nothing
+          >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)(Re1)
           >++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
           prev
             >++> genExpr(v._1) // put value in a register
-            // Does this not lose the place where we malloc? Solved on line 168
             // TODO: intToOffset
-            >++> Step.instr2Aux(asm.Str())(Re1, Re2)(AsmInt((v._2 + 1) * 4))(Re2)
-            // Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
+            >++> Step.instr2Aux(asm.Str())(Re1, Re2)(AsmInt((v._2 + 1) * WORD_BYTES))(Re2)
             >++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
           ))
       )
@@ -180,9 +170,9 @@ object generator {
         >++> Step.instr3(asm.Adds())(Re1, Re1, AsmInt(1))(Re1)
         >++> Step.instr3(asm.Adds())(Re2, Re2, Re1)(Re2)
         )
-      case idd@Ident(id) => (
+      case idd@Ident(_) => (
         genLocation(idd)
-        >++> Step.instr2Aux(Ldr())(Re1, Re1)(AsmInt(0))(Re1)
+        >++> Step.instr2Aux(Ldr())(Re1, Re1)(zero)(Re1)
       )
       case Null() => ???
       case Paren(expr) => genExpr(expr)
@@ -192,27 +182,24 @@ object generator {
   // TODO
   def genRhs(rhs: AssignRhs)(implicit symbols: TypeTable): Step = {
     rhs match {
-        // [0,5,7,2]
       case arr@ArrayLiter(exprs) => genExpr(arr)
       case NewPair(fst, snd) => (
         Step.instr2(asm.Mov())(Re1, AsmInt(4 * 2))(Re1)
         >++> genCallWithRegs("malloc", 1, Some(r0))
         >++> genExpr(fst)
-        >++> Step.instr2Aux(asm.Str())(Re2, Re1)(AsmInt(0))(Re2)
-          // Str.step(_1, _0)
+        >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)(Re2)
         >++> Step.discardTop
         >++> genExpr(snd)
              // TODO: intToOffset
-        >++> Step.instr2Aux(asm.Str())(Re2, Re1)(AsmInt(4))(Re2)
-          //Str.step(_1, _0, AsmInt(4))
+        >++> Step.instr2Aux(asm.Str())(Re2, Re1)(word_size)(Re2)
       )
       case Fst(expr) => (
              genExpr(expr)
-        >++> Step.instr2Aux(asm.Ldr())(Re2, Re1)(AsmInt(0))(Re1)
+        >++> Step.instr2Aux(asm.Ldr())(Re2, Re1)(zero)(Re1)
       )
       case Snd(expr) => (
              genExpr(expr)
-        >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(AsmInt(4))(Re1)
+        >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(word_size)(Re1)
       )
       case ast.Call(id, args) => (
         args.foldLeft(Step.identity)(_ >++> genExpr(_) >++> Step.instr1(Push())(Re1)())
@@ -228,7 +215,7 @@ object generator {
     genLocation(lhs)
     // re1 contains offset
     // re2 contains the value
-      >++> Step.instr2Aux(asm.Str())(Re2, Re1)(AsmInt(0))()
+      >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)()
   )
 
   // puts the memory location of the object in question in a register
@@ -242,14 +229,14 @@ object generator {
            genExpr(id)
       >++> genExpr(index)
       >++> Step.instr3(asm.Adds())(Re1, Re1, AsmInt(1))(Re1)
-      >++> Step.instr2(asm.Mov())(Re1, AsmInt(BYTE_SIZE))(ReNew)
+      >++> Step.instr2(asm.Mov())(Re1, word_size)(ReNew)
       >++> genMul()
       >++> Step.instr3(asm.Adds())(Re2, Re2, Re1)(Re2)
       )
     case Fst(expr) => genExpr(expr)
     case Snd(expr) => (
       genExpr(expr)
-      >++> Step.instr3(asm.Adds())(Re1, Re1, AsmInt(BYTE_SIZE))(Re1) // Should the offset be 4 or 1?
+      >++> Step.instr3(asm.Adds())(Re1, Re1, word_size)(Re1)
     )
   }
 

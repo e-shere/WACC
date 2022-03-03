@@ -2,9 +2,6 @@ package backend
 
 import asm._
 import backend.PredefinedFunctions.PredefinedFunc
-import backend.step.Step
-import backend.step.implicits.implicitStep
-import frontend.symbols.TypeTable
 
 import scala.language.implicitConversions
 
