@@ -16,6 +16,8 @@ import sys.process._
 class AssemblyCompileTests extends AnyFlatSpec {
   behavior of "all valid programs"
 
+  val LENGTH_OF_ADDR = 7
+
   def getListOfFilesRecursively(dir: String): Array[String] = {
     val d = new java.io.File(dir)
     if (d.exists && d.isDirectory) {
@@ -40,9 +42,11 @@ class AssemblyCompileTests extends AnyFlatSpec {
 
   def matchLine(expectedLine: String, actualLine: String): Boolean = {
     actualLine == expectedLine
-//    (expectedLine, actualLine) match {
-//      case ('#' +: restX, restY) => matchLine(restX.)
-//    }
+    (expectedLine, actualLine) match {
+      case (restX, restY) if restX.startsWith("#addrs#") => restY.startsWith("0x") && matchLine(restX.drop(LENGTH_OF_ADDR), restY.drop(LENGTH_OF_ADDR))
+      case (restX, restY) if restX.startsWith("#output#") => ???
+      case (restX, restY) if restY.startsWith("#input#") => ???
+    }
   }
 
   def matchOutput(expected: String, actual: String): Boolean = {
