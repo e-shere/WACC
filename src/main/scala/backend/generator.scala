@@ -187,7 +187,7 @@ object generator {
         >++> Step.instr3(asm.Adds())(Re2, Re2, Re1)(Re2)
         )
       case idd@Ident(_) => genLhs(idd) >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(zero)(Re1)
-      case Null() => ???
+      case Null() => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(0))(zero)()
       case Paren(expr) => genExpr(expr)
     }
   }
