@@ -62,7 +62,8 @@ object generator {
     stat match {
       case Skip() => Step.identity
       case Declare(_, id, rhs) => genStat(Assign(id, rhs)(stat.pos))
-      case Assign(lhs, rhs) => (genRhs(rhs) >++> genLhs(lhs))
+      case Assign(lhs, rhs) => (genRhs(rhs) >++> genLhs(lhs)
+        >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)())
       case Read(lhs) =>
         val readFunc: PredefinedFunc = printTable.get(lhs.pos) match {
           case Some(IntType()) => read_int()
@@ -70,7 +71,7 @@ object generator {
           case Some(_) => ???
           case None => ??? // Should be unreachable
         }
-        (genLocation(lhs)
+        (genLhs(lhs)
         >++> genCallWithRegs(readFunc.label, 1, Some(r0))
         >++> addPredefFunc(readFunc)
         )
@@ -128,11 +129,11 @@ object generator {
         >++> Branch()(topLabel)
         >++> Label(endLabel))
       case s@Scope(stats) => genBlock(stats)(s.typeTable.get, printTable)
-    } 
+    }
   }
 
   def genBinOp(x: Expr, y: Expr, step: Step)(implicit symbols: TypeTable): Step = (
-           genExpr(x) 
+           genExpr(x)
       >++> genExpr(y)
       >++> step
     )
@@ -185,7 +186,7 @@ object generator {
         >++> Step.instr3(asm.Adds())(Re2, Re2, Re1)(Re2)
         )
       case idd@Ident(_) => (
-        genLocation(idd)
+        genLhs(idd)
         >++> Step.instr2Aux(Ldr())(Re1, Re1)(zero)(Re1)
       )
       case Null() => ???
@@ -225,15 +226,9 @@ object generator {
     }
   }
 
-  def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable): Step = (
-    genLocation(lhs)
-    // re1 contains offset
-    // re2 contains the value
-      >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)()
-  )
 
   // puts the memory location of the object in question in a register
-  def genLocation(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {
+  def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {
     case id@Ident(_) => Step({state =>
       val offset = countToOffset(symbols.getOffset(id).get + state.getStackOffset)
       // This stores the actual location in a new register
