@@ -179,7 +179,6 @@ object generator {
           prev
             >++> genExpr(v._1) // put value in a register
             >++> Step.instr2Aux(asm.Str())(Re1, Re2)(AsmInt((v._2 + 1) * WORD_BYTES))(Re2)
-            >++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
           ))
       )
       case ArrayElem(id, index) => (genExpr(id)
@@ -201,7 +200,6 @@ object generator {
         >++> genCallWithRegs("malloc", 1, Some(r0))
         >++> genExpr(fst)
         >++> Step.instr2Aux(asm.Str())(Re1, Re2)(zero)(Re2)
-        >++> Step.discardTop
         >++> genExpr(snd)
         >++> Step.instr2Aux(asm.Str())(Re1, Re2)(word_size)(Re2)
       )

@@ -24,7 +24,7 @@ class MatchOutputTests extends AnyFlatSpec {
   behavior of "one line wacc programs"
 
   "begin skip end program" should "only skip" in {
-//    val waccPath =  "src/examples/valid/basic/skip/skip.wacc"
+//    val waccPath =  "src/examples/valid/array/arrayBasic.wacc"
 //    val assemblyPath = waccPath.split("\\.").head + ".s"
 //    makeIR(waccPath, assemblyPath)
 //    scala.io.Source.fromFile(assemblyPath).mkString shouldBe ".text\n\n.global main\nmain:\nPUSH {lr}\nLDR r0, =0\nPOP {pc}\n.ltorg\n"
