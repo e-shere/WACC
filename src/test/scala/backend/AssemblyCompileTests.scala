@@ -39,8 +39,10 @@ class AssemblyCompileTests extends AnyFlatSpec {
   }
 
   def matchLine(expectedLine: String, actualLine: String): Boolean = {
-    // TODO: Return a matchLine bool
-    ???
+    actualLine == expectedLine
+//    (expectedLine, actualLine) match {
+//      case ('#' +: restX, restY) => matchLine(restX.)
+//    }
   }
 
   def matchOutput(expected: String, actual: String): Boolean = {
