@@ -62,14 +62,17 @@ object asm {
 
   case object Re2 extends AsmIndefReg {
     def apply(data: ResolutionData): AsmReg = data.re2
+//    override def toString: String = "Re2"
   }
 
   case object Re1 extends AsmIndefReg {
     def apply(data: ResolutionData): AsmReg = data.re1
+//    override def toString: String = "Re1"
   }
 
   case object ReNew extends AsmIndefReg {
     def apply(data: ResolutionData): AsmReg = data.reNew
+//    override def toString: String = "ReNew"
   }
 
   // Handling Chars separately would produce nicer assembly but requires ugly code
