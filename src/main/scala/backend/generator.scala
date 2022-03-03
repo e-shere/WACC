@@ -63,9 +63,16 @@ object generator {
       case Skip() => Step.identity
       case Declare(_, id, rhs) => genStat(Assign(id, rhs)(stat.pos))
       case Assign(lhs, rhs) => (genRhs(rhs) >++> genLhs(lhs))
-      case Read(lhs) => (genLhs(lhs)
-        >++> genCallWithRegs(read_char.toString(), 1, Some(r0))
-        >++> addPredefFunc(read_char())
+      case Read(lhs) =>
+        val readFunc: PredefinedFunc = printTable.get(lhs.pos) match {
+          case Some(IntType()) => read_int()
+          case Some(CharType()) => read_char()
+          case Some(_) => ???
+          case None => ??? // Should be unreachable
+        }
+        (genLhs(lhs)
+        >++> genCallWithRegs(readFunc.label, 1, Some(r0))
+        >++> addPredefFunc(readFunc)
         )
       case Free(expr) => (genExpr(expr)
         >++> genCallWithRegs(free.toString(), 1, None)
@@ -76,7 +83,6 @@ object generator {
         )
       case Return(expr) => genExpr(expr) >++> Step.instr2(Mov())(r0, Re1)()
       case Exit(expr) => genExpr(expr) >++> genCallWithRegs("exit", 1, None)
-      // TODO: call the right print function
       case Print(expr) =>
         val printFunc: PredefinedFunc = printTable.get(expr.pos) match {
           case Some(StringType()) => print_string()
