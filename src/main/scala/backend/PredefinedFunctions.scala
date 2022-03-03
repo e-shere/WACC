@@ -45,8 +45,15 @@ object PredefinedFunctions {
       >++> Pop()(pc)
     )
   }
-
-  // print_ char is just "BL putchar"
+  case class print_char() extends PredefinedFunc {
+    val label = "p_print_char"
+    def toStep: Step = (
+      Label(label)
+        >++> Push()(lr)
+        >++> BranchLink()("putchar")
+        >++> Pop()(pc)
+      )
+  }
 
   case class print_string() extends PredefinedFunc {
     val label = "p_print_string"
