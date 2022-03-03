@@ -278,7 +278,7 @@ object generator {
       >++> (resultReg match {
         case None => Step.identity
         case Some(reg) => assert(reg.r >= 0 && reg.r <=3)
-          Step.instr2(asm.Mov())(ReNew, reg)()
+          Step.instr2(asm.Mov())(reg, r0)()
       })
     )
   }
