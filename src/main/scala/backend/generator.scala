@@ -254,6 +254,7 @@ object generator {
     Step.instr4(SMull())(Re2, Re1, Re2, Re1)(Re2, Re1)
     >++> Step.instr2Aux(Compare())(Re1, Re2)("ASR #31")(Re2)
     >++> BranchLink(NE)(throw_overflow().label)
+    >++> addPredefFunc(throw_overflow())
   )
 
   def genDiv: Step = (
