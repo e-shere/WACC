@@ -70,7 +70,7 @@ object generator {
           case Some(_) => ???
           case None => ??? // Should be unreachable
         }
-        (genLhs(lhs)
+        (genLocation(lhs)
         >++> genCallWithRegs(readFunc.label, 1, Some(r0))
         >++> addPredefFunc(readFunc)
         )
@@ -87,7 +87,6 @@ object generator {
         val printFunc: PredefinedFunc = printTable.get(expr.pos) match {
           case Some(StringType()) => print_string()
           case Some(BoolType()) =>  print_bool()
-            // TODO
           case Some(CharType()) =>  print_char()
           case Some(IntType()) => print_int()
           case Some(_) => print_ref()
