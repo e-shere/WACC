@@ -171,7 +171,7 @@ object generator {
       case ast.StrLiter(x) =>
         includeData(x) >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(_.data(x)))(zero)()
       case ast.ArrayLiter(x) => (
-        Step.instr2(asm.Mov())(ReNew, AsmInt(x.length))()
+        Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x.length))(zero)()
           >++> Step.instr2(asm.Mov())(ReNew, AsmInt((x.length + 1) * WORD_BYTES))()
           >++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
           >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)(Re1)
