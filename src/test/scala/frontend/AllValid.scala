@@ -20,7 +20,8 @@ class AllValid extends AnyFlatSpec {
         .filter(_.isDirectory)
         .toList
         .flatMap(x => getListOfFilesRecursively(x.toString()))
-      d.listFiles.filter(_.isFile).map(_.toString()).concat(result)
+      d.listFiles.filter(_.isFile).filter(_.toString.endsWith(".wacc"))
+        .map(_.toString()).concat(result)
     } else {
       Array[String]()
     }
