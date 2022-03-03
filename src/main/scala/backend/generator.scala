@@ -76,7 +76,7 @@ object generator {
         >++> addPredefFunc(readFunc)
         )
       case Free(expr) => (genExpr(expr)
-        >++> genCallWithRegs(free.toString(), 1, None)
+        >++> genCallWithRegs(free().label, 1, None)
         >++> addPredefFunc(free())
         >++> addPredefFunc(check_null_pointer())
         >++> addPredefFunc(throw_runtime())

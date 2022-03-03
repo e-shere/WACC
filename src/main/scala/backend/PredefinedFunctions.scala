@@ -180,12 +180,12 @@ object PredefinedFunctions {
       >++> Compare()(r0, zero)()
       >++> includeData(message_LT)
       >++> Step.instr2Aux(Ldr(LT))(r0, AsmStateFunc(_.data(message_LT)))(zero)()
-      >++> BranchLink(LT)(throw_runtime.toString()) // Link, Less than
+      >++> BranchLink(LT)(throw_runtime().label) // Link, Less than
       >++> Ldr()(r1, r1)()
       >++> Compare()(r0, r1)()
       >++> includeData(message_GT)
       >++> Step.instr2Aux(Ldr(CS))(r0, AsmStateFunc(_.data(message_GT)))(zero)()
-      >++> BranchLink(CS)(throw_runtime.toString()) // Link, Carry set
+      >++> BranchLink(CS)(throw_runtime().label) // Link, Carry set
       >++> Pop()(pc)
     )
   }
