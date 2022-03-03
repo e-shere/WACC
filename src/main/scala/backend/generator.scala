@@ -186,10 +186,7 @@ object generator {
         >++> Step.instr3(asm.Adds())(Re1, Re1, AsmInt(1))(Re1)
         >++> Step.instr3(asm.Adds())(Re2, Re2, Re1)(Re2)
         )
-      case idd@Ident(_) => (
-        genLhs(idd)
-        >++> Step.instr2Aux(Ldr())(Re1, Re1)(zero)(Re1)
-      )
+      case idd@Ident(_) => genLhs(idd) >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(zero)(Re1)
       case Null() => ???
       case Paren(expr) => genExpr(expr)
     }
@@ -198,7 +195,7 @@ object generator {
   // TODO
   def genRhs(rhs: AssignRhs)(implicit symbols: TypeTable): Step = {
     rhs match {
-      case arr@ArrayLiter(exprs) => genExpr(arr)
+      case arr@ArrayLiter(_) => genExpr(arr)
       case NewPair(fst, snd) => (
         Step.instr2(asm.Mov())(ReNew, AsmInt(4 * 2))()
         >++> genCallWithRegs("malloc", 1, Some(r0))
@@ -230,9 +227,11 @@ object generator {
   // puts the memory location of the object in question in a register
   def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {
     case id@Ident(_) => Step({state =>
-      val offset = countToOffset(symbols.getOffset(id).get + state.getStackOffset)
       // This stores the actual location in a new register
-      Step.instr3(asm.Adds())(ReNew, STACK_POINTER, AsmInt(offset))()(state)
+      (Step.instr3(asm.Adds())
+      (ReNew, STACK_POINTER, AsmStateFunc(
+        (s: State) => AsmInt(countToOffset(symbols.getOffset(id).get + s.getStackOffset))))
+      ()(state))
     })
     case ArrayElem(id, index) => (
            genExpr(id)
