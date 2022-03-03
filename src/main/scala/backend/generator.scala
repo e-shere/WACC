@@ -13,10 +13,10 @@ import backend.step.implicits.implicitStep
 
 object generator {
 
-  private val r0 = AsmDefReg(0)
-  private val r1 = AsmDefReg(1)
-  private val lr = AsmDefReg(14)
-  private val pc = AsmDefReg(15)
+  private val r0 = AsmReg(0)
+  private val r1 = AsmReg(1)
+  private val lr = AsmReg(14)
+  private val pc = AsmReg(15)
 
   // TODO: consider naming conventions for dynamically created unique labels
   private var uniqueNameGen = -1
@@ -73,7 +73,7 @@ object generator {
         ??? // TODO: add free_pair to auxState set
         // TODO: switch on free array vs free pair
 //        genExpr(expr) <++> genCallWithRegs(free_pair().label, 1)
-      case Return(expr) => genExpr(expr) <++> Step.instr2[AsmDefReg, AsmDefArg](Mov())(r0, Re1)()
+      case Return(expr) => genExpr(expr) <++> Step.instr2(Mov())(r0, Re1)()
       case Exit(expr) => genExpr(expr) <++> Step.instr2(Mov())(r0, Re1)() <++> genCallWithRegs("exit", 1, None)
       case Print(expr) => ???
       case Println(expr) => ???
@@ -165,7 +165,7 @@ object generator {
           Step.instr2(asm.Mov() _)(ReNew, AsmInt(x.length))()
           <++> Step.instr2(asm.Mov())(ReNew, AsmInt((x.length + 1) * 4))()
           <++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
-          <++> Step.instr2(asm.Str())(Re2, Re1)(AsmInt(0))(Re1)
+          <++> Step.instr2Aux(asm.Str())(Re2, Re1)(AsmInt(0))(Re1)
           // -> size, ------
           // -> pointer to array, nothing
           <++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
@@ -173,7 +173,7 @@ object generator {
             <++> genExpr(v._1) // put value in a register
             // Does this not lose the place where we malloc? Solved on line 168
             // TODO: intToOffset
-            <++> Step.instr2(asm.Str())(Re1, Re2)(AsmInt((v._2 + 1) * 4))(Re2)
+            <++> Step.instr2Aux(asm.Str())(Re1, Re2)(AsmInt((v._2 + 1) * 4))(Re2)
             // Str.step(_1, _0, AsmInt((v._2 + 1) * 4)) // store value at pos, pos remains on the stack
             <++> Step.discardTop //Ensure that the top of regState is the pointer from malloc
           ))
@@ -203,21 +203,21 @@ object generator {
         Step.instr2(asm.Mov())(Re1, AsmInt(4 * 2))(Re1)
         <++> genCallWithRegs("malloc", 1, Some(r0))
         <++> genExpr(fst)
-        <++> Step.instr2(asm.Str())(Re2, Re1)(AsmInt(0))(Re2)
+        <++> Step.instr2Aux(asm.Str())(Re2, Re1)(AsmInt(0))(Re2)
           // Str.step(_1, _0)
         <++> Step.discardTop
         <++> genExpr(snd)
              // TODO: intToOffset
-        <++> Step.instr2(asm.Str())(Re2, Re1)(AsmInt(4))(Re2)
+        <++> Step.instr2Aux(asm.Str())(Re2, Re1)(AsmInt(4))(Re2)
           //Str.step(_1, _0, AsmInt(4))
       )
       case Fst(expr) => (
              genExpr(expr)
-        <++> Step.instr2(asm.Ldr())(Re1, Re1)(AsmInt(0))(Re1)
+        <++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(AsmInt(0))(Re1)
       )
       case Snd(expr) => (
              genExpr(expr)
-        <++> Step.instr2(asm.Ldr())(Re1, Re1)(AsmInt(4))(Re1)
+        <++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(AsmInt(4))(Re1)
       )
       case ast.Call(id, args) => //TODO: a variable number of reads into the Nil
           args.foldLeft(Step.identity)(_ <++> genExpr(_)) //<++>
@@ -278,11 +278,11 @@ object generator {
     <++> genCallWithRegs("__aeabi_idivmod", 0, Some(r1))
     )
 
-  def genCallWithRegs(name: String, argc: Int, resultReg: Option[AsmDefReg]): Step = {
+  def genCallWithRegs(name: String, argc: Int, resultReg: Option[AsmReg]): Step = {
     assert(argc >= 0 && argc <= 4)
     (0 until argc).reverse.foldLeft(Step.identity)((prev, num) => {
       // TODO: check this is correct
-      prev <++> Step.instr2(asm.Mov())(AsmDefReg(num), Re1)(Re1) //Mov.step(AsmReg(num), _0)
+      prev <++> Step.instr2(asm.Mov())(AsmReg(num), Re1)(Re1) //Mov.step(AsmReg(num), _0)
     })
     Branch("L")(name) <++>
       (resultReg match {

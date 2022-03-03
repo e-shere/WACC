@@ -7,11 +7,11 @@ import backend.step._
 object PredefinedFunctions {
 
   //TODO: make these not private in generator?
-  private val r0 = AsmDefReg(0)
-  private val r1 = AsmDefReg(1)
-  private val r2 = AsmDefReg(2)
-  private val lr = AsmDefReg(14)
-  private val pc = AsmDefReg(15)
+  private val r0 = AsmReg(0)
+  private val r1 = AsmReg(1)
+  private val r2 = AsmReg(2)
+  private val lr = AsmReg(14)
+  private val pc = AsmReg(15)
   private val word_size = AsmInt(4)
   private val zero = AsmInt(0)
 
