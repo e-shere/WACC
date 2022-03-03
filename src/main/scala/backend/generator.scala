@@ -199,14 +199,13 @@ object generator {
     rhs match {
       case arr@ArrayLiter(exprs) => genExpr(arr)
       case NewPair(fst, snd) => (
-        Step.instr2(asm.Mov())(Re1, AsmInt(4 * 2))(Re1)
+        Step.instr2(asm.Mov())(ReNew, AsmInt(4 * 2))()
         >++> genCallWithRegs("malloc", 1, Some(r0))
         >++> genExpr(fst)
-        >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)(Re2)
+        >++> Step.instr2Aux(asm.Str())(Re1, Re2)(zero)(Re2)
         >++> Step.discardTop
         >++> genExpr(snd)
-             // TODO: intToOffset
-        >++> Step.instr2Aux(asm.Str())(Re2, Re1)(word_size)(Re2)
+        >++> Step.instr2Aux(asm.Str())(Re1, Re2)(word_size)(Re2)
       )
       case Fst(expr) => (
              genExpr(expr)
