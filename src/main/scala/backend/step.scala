@@ -22,9 +22,9 @@ object step {
       var stateNew: State = state
       var current: Option[Step] = Some(this)
       while (current.isDefined) {
-        val cringe = current.get.func(stateNew)
-        asm ++= cringe._1
-        stateNew = cringe._2
+        val result = current.get.func(stateNew)
+        asm ++= result._1
+        stateNew = result._2
         current = current.get.nextStep
       }
       (asm, stateNew)

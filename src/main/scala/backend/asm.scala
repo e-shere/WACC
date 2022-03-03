@@ -22,17 +22,16 @@ object asm {
   val pc = AsmReg(15)
 
   case class AsmReg(r: Int) extends AsmArg with ((ResolutionData) => AsmReg) {
-    assert(r >= -1 && r <= 15)
 
     override def toString: String = r match {
-      // Consider factoring out the magic numbers
-      case -1 => "INVALID REGISTER"
-      case 12 => "ip"
-      case 13 => "sp"
-      case 14 => "lr"
-      case 15 => "pc"
-      case x => if (11 >= x && x >= 0) s"r$x" else "INVALID REGISTER"
-    }
+        // Consider factoring out the magic numbers
+        case x if x >= 0 && x <= 11 => s"r$x"
+        case 12 => "ip"
+        case 13 => "sp"
+        case 14 => "lr"
+        case 15 => "pc"
+        case _ => "INVALID REGISTER"
+      }
 
     def apply(data: ResolutionData): AsmReg = this
   }
