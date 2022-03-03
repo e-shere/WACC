@@ -121,12 +121,12 @@ object asm {
 
   case class Push(cond: ConditionCode.Value = AL)(arg: AsmArg) extends AsmInstr {
     val opcode = "PUSH"
-    override def argsToString = s"{$arg}"
+    override def argsToString = s"{${args(0)}}"
   }
 
   case class Pop(cond: ConditionCode.Value = AL)(arg: AsmArg) extends AsmInstr {
     val opcode = "POP"
-    override def argsToString = s"{$arg}"
+    override def argsToString = s"{${args(0)}}"
   }
 
   case class Or(cond: ConditionCode.Value = AL)(target: AsmReg, x: AsmReg, y: AsmArg) extends AsmInstr {
