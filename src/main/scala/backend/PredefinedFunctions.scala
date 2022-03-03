@@ -75,8 +75,8 @@ object PredefinedFunctions {
 
   case class print_bool() extends PredefinedFunc {
     val label = "p_print_bool"
-    val message_true = "true"
-    val message_false = "false"
+    val message_true = "true\\0"
+    val message_false = "false\\0"
     def toStep: Step = (
            Label(label)
       >++> Push()(lr)
