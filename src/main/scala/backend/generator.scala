@@ -21,15 +21,16 @@ object generator {
     val WaccProgram(funcs, stats) = program
     ( Directive("text\n")
       >++> Directive("global main")
-      >++> funcs.foldLeft(Step.identity)((prev, f) => prev >++> genFunc(f.id.id, f.args.length, f.body)(f.symbols.get))
-      >++> genMain(0, stats)(program.mainSymbols.get)
+      >++> funcs.foldLeft(Step.identity)((prev, f) => prev >++> genFunc(f.id.id, f.args.length, f.body)(f.symbols.get, program.printSymbols))
+      >++> genMain(0, stats)(program.mainSymbols.get, program.printSymbols)
       >++> genPredefFuncs
       <++< genData
     )
   }
 
   // TODO: set sp
-  def genMain(argc: Int, stats: List[Stat])(implicit symbols: TypeTable): Step = (
+  def genMain(argc: Int, stats: List[Stat])
+             (implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
          Label("main")
     >++> Push()(lr)
     >++> genBlock(stats)
@@ -41,7 +42,8 @@ object generator {
 
   // TODO: set sp
   // Note that each ASM node here is implicitly converted to a step
-  def genFunc(name: String, argc: Int, stats: List[Stat])(implicit symbols: TypeTable): Step = (
+  def genFunc(name: String, argc: Int, stats: List[Stat])
+             (implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
          Label(name)
     >++> Push()(lr)
     >++> genBlock(stats)
@@ -50,14 +52,13 @@ object generator {
     >++> Step.discardAll
   )
 
-  def genBlock(stats: List[Stat])(implicit symbols: TypeTable): Step = (
+  def genBlock(stats: List[Stat])(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
     Subs()(STACK_POINTER, STACK_POINTER, AsmInt(countToOffset(symbols.symbols.size)))
     >++> stats.foldLeft(Step.identity)(_ >++> genStat(_) >++> Step.discardAll)
     >++> Adds()(STACK_POINTER, STACK_POINTER, AsmInt(countToOffset(symbols.symbols.size)))
     )
 
-  @tailrec
-  def genStat(stat: Stat)(implicit symbols: TypeTable): Step = {
+  def genStat(stat: Stat)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = {
     stat match {
       case Skip() => Step.identity
       case Declare(_, id, rhs) => genStat(Assign(id, rhs)(stat.pos))
@@ -76,12 +77,21 @@ object generator {
       case Return(expr) => genExpr(expr) >++> Step.instr2(Mov())(r0, Re1)()
       case Exit(expr) => genExpr(expr) >++> genCallWithRegs("exit", 1, None)
       // TODO: call the right print function
-      case Print(expr) => (genExpr(expr)
-        >++> genCallWithRegs("???", 1, None)
-        >++> addPredefFunc(print_string())
+      case Print(expr) =>
+        val printFunc: PredefinedFunc = printTable.get(expr.pos) match {
+          case Some(StringType()) => print_string()
+          case Some(BoolType()) =>  print_bool()
+          case Some(CharType()) =>  ???
+          case Some(IntType()) => print_int()
+          case Some(_) => print_ref()
+          case None => ???   // Unreachable case statement
+        }
+        (genExpr(expr)
+        >++> (genCallWithRegs(printFunc.label, 1, None)
+        >++> addPredefFunc(printFunc))
         )
-      case Println(expr) => (genExpr(expr)
-        >++> genCallWithRegs(print_ln.toString(), 1, None)
+      case Println(expr) => (genStat(Print(expr)(NO_POS))
+        >++> genCallWithRegs(print_ln.toString(), 0, None)
         >++> addPredefFunc(print_ln())
         )
       case s@If(expr, thenStats, elseStats) => {
@@ -94,10 +104,10 @@ object generator {
         >++> Branch(EQ)(thenLabel)
         >++> Branch()(elseLabel)
         >++> Label(thenLabel)
-        >++> genBlock(thenStats)(s.thenTypeTable.get)
+        >++> genBlock(thenStats)(s.thenTypeTable.get, printTable)
         >++> Branch()(doneLabel)
         >++> Label(elseLabel)
-        >++> genBlock(elseStats)(s.elseTypeTable.get)
+        >++> genBlock(elseStats)(s.elseTypeTable.get, printTable)
         >++> Label(doneLabel))
       }
       case s@While(expr, doStats) =>
@@ -108,10 +118,10 @@ object generator {
         >++> genExpr(expr)
         >++> Step.instr2Aux(Compare())(Re1, zero)("")()
         >++> Branch(EQ)(endLabel)
-        >++> genBlock(doStats)(s.doTypeTable.get)
+        >++> genBlock(doStats)(s.doTypeTable.get, printTable)
         >++> Branch()(topLabel)
         >++> Label(endLabel))
-      case s@Scope(stats) => genBlock(stats)(s.typeTable.get)
+      case s@Scope(stats) => genBlock(stats)(s.typeTable.get, printTable)
     } 
   }
 

@@ -47,57 +47,57 @@ class AssemblyCompileTests extends AnyFlatSpec {
     }
   }
 
-
-  "All valid advanced programs" should "compile" in pending /*{
+  "All valid advanced programs" should "compile" in  {
     allCompile("src/examples/valid/advanced")
-  }*/
+  }
 
-  "All valid array programs" should "compile" in pending /* {
+  "All valid array programs" should "compile" in  {
     allCompile("src/examples/valid/array")
-  }*/
+  }
 
-  "All valid basic programs" should "compile" in {
+  "All valid basic programs" should "compile" in  {
     allCompile("src/examples/valid/basic")
   }
 
-  "All valid expressions programs" should "compile" in pending /*{
+  "All valid expressions programs" should "compile" in  {
     allCompile("src/examples/valid/expressions")
-  }*/
+  }
 
-  "All valid function programs" should "compile" in pending/* {
+  "All valid function programs" should "compile" in {
     allCompile("src/examples/valid/function")
-  }*/
+  }
 
-  "All valid if programs" should "compile" in pending /*{
+  "All valid if programs" should "compile" in  {
     allCompile("src/examples/valid/if")
-  }*/
+  }
 
-  "All valid IO programs" should "compile" in pending /* {
+  "All valid IO programs" should "compile" in   {
     allCompile("src/examples/valid/IO")
-  }*/
+  }
 
-  "All valid pairs programs" should "compile" in pending /*{
+  "All valid pairs programs" should "compile" in  {
     allCompile("src/examples/valid/pairs")
-  }*/
+  }
 
-  "All valid runtimeErr programs" should "compile" in pending /*{
+  "All valid runtimeErr programs" should "compile" in  {
     allCompile("src/examples/valid/runtimeErr")
-  }*/
+  }
 
-  "All valid scope programs" should "compile" in pending /*{
+  "All valid scope programs" should "compile" in  {
     allCompile("src/examples/valid/scope")
-  }*/
+  }
 
-  "All valid sequence programs" should "compile" in pending /*{
+  "All valid sequence programs" should "compile" in  {
     allCompile("src/examples/valid/sequence")
-  }*/
+  }
 
-  "All valid variables programs" should "compile" in pending /* {
+  "All valid variables programs" should "compile" in  {
     allCompile("src/examples/valid/variables")
-  }*/
+  }
 
-  "All valid while programs" should "compile" in pending /*{
+  "All valid while programs" should "compile" in  {
     allCompile("src/examples/valid/while")
-  }*/
+  }
 
 }
+
