@@ -172,7 +172,8 @@ object generator {
         Step.instr2(asm.Mov())(ReNew, AsmInt(x.length))()
           >++> Step.instr2(asm.Mov())(ReNew, AsmInt((x.length + 1) * WORD_BYTES))()
           >++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
-          >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)(Re1)
+          >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)(Re2, Re1)
+          >++> Step.instr2(asm.Mov())(Re2, Re1)(Re2)
           >++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
           prev
             >++> genExpr(v._1) // put value in a register
@@ -209,7 +210,7 @@ object generator {
       )
       case Fst(expr) => (
              genExpr(expr)
-        >++> Step.instr2Aux(asm.Ldr())(Re2, Re1)(zero)(Re1)
+        >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(zero)(Re1)
       )
       case Snd(expr) => (
              genExpr(expr)
