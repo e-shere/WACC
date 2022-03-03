@@ -192,7 +192,6 @@ object generator {
     }
   }
 
-  // TODO
   def genRhs(rhs: AssignRhs)(implicit symbols: TypeTable): Step = {
     rhs match {
       case arr@ArrayLiter(_) => genExpr(arr)
@@ -226,13 +225,11 @@ object generator {
 
   // puts the memory location of the object in question in a register
   def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {
-    case id@Ident(_) => Step({state =>
+    case id@Ident(_) =>
       // This stores the actual location in a new register
       (Step.instr3(asm.Adds())
       (ReNew, STACK_POINTER, AsmStateFunc(
-        (s: State) => AsmInt(countToOffset(symbols.getOffset(id).get + s.getStackOffset))))
-      ()(state))
-    })
+        (s: State) => AsmInt(countToOffset(symbols.getOffset(id).get + s.getStackOffset))))())
     case ArrayElem(id, index) => (
            genExpr(id)
       >++> genExpr(index)
@@ -289,11 +286,11 @@ object generator {
 
   def genPredefFuncs: Step = {
     Step((s: State) => s.fState.foldLeft(Step.identity)(
-      (prev, f) => prev >++> f.toStep)(s))
+      (prev, f) => prev >++> f.toStep)(s), "genPredefFuncs")
   }
 
   def addPredefFunc(f: PredefinedFunc): Step = {
-    Step((s: State) => (Nil, s.copy(fState = s.fState + f)))
+    Step((s: State) => (Nil, s.copy(fState = s.fState + f)), s"addPredefFunc(${f.label})")
   }
 
   def genData: Step = (
@@ -304,13 +301,13 @@ object generator {
         >++> Label(entry._2.toString)
         >++> Directive(s"word ${entry._1.length}")
         >++> Directive(s"ascii \"${entry._1}\"")
-    ))(s))
+    ))(s), s"genData")
   )
 
   def includeData(msg: String): Step = {
     Step((s: State) => (Nil, s.copy(data =
       if (s.data.contains(msg)) s.data
-      else s.data + (msg -> AsmString(s"msg_$getUniqueName")))))
+      else s.data + (msg -> AsmString(s"msg_$getUniqueName")))), s"includeData($msg)")
   }
 }
 

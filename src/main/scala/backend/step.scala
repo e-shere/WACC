@@ -12,7 +12,7 @@ object step {
 
   case class ResolutionData(state: State, re2: AsmReg, re1: AsmReg, reNew: AsmReg)
 
-  case class Step(func: State => (List[Asm], State), nextStep: Option[Step] = None) {
+  case class Step(func: State => (List[Asm], State), desc: String, nextStep: Option[Step] = None) {
     override def toString: String = mkString("\n")
 
     def mkString(sep: String): String = this(NEW_REG)._1.mkString(sep)
@@ -22,6 +22,7 @@ object step {
       var stateNew: State = state
       var current: Option[Step] = Some(this)
       while (current.isDefined) {
+        println(current.get.desc)
         val result = current.get.func(stateNew)
         asm ++= result._1
         stateNew = result._2
@@ -43,29 +44,29 @@ object step {
       val (asm1, state1) = this(state)
       val (asm2, state2) = next(state1)
       (asm1 ++ asm2, state2)
-    })
+    }, this.desc + "\n" + next.desc)
 
     def <++<(next: Step): Step = Step((state: State) => {
       val (asm1, state1) = (this >++> discardAll)(state)
       val (asm2, state2) = next(state1)
       (asm2 ++ asm1, state2)
-    })
+    }, next.desc + "\n" + this.desc)
   }
 
   object Step {
     
     private val NO_ARG = AsmInt(314159)
 
-    val identity: Step = Step((Nil, _))
+    val identity: Step = Step((Nil, _), "id")
     // This step is used between steps where the state of registers needs to be reset
 
     val discardAll: Step = Step(state => {
       (if (state.getStackOffset > 0) Step.instr3(Adds())(STACK_POINTER, STACK_POINTER, AsmInt(state.getStackOffset * WORD_BYTES))()(state)._1 else Nil, State(REG_START, state.fState, state.data))
-    })
+    }, "discardAll")
 
     val discardTop: Step = Step(state => {
       if (state.isReg) (Nil, state.prev) else (List(Pop()(PLACEHOLDER_1)), state.prev)
-    })
+    }, "discardTop")
 
     def instr1[T1 <: AsmArg](f: T1 => Step)(arg1: ResolutionData => T1)(out: AsmIndefReg *): Step = {
       instr4[T1, AsmInt, AsmInt, AsmInt]((a, _, _, _) => f(a))(arg1, NO_ARG, NO_ARG, NO_ARG)(out: _*)
@@ -145,7 +146,9 @@ object step {
       )(state1)
 
       (asm1 ++ asmF ++ asm2, stateF.copy(reg = state2.reg))
-    })
+    }, List(arg1, arg2, arg3, arg4).filterNot {
+      case NO_ARG => true
+    }.mkString(","))
 
     def instr1Aux[T1 <: AsmArg, T](f: T1 => T => Step)(arg1: ResolutionData => T1)(aux: T)(out: AsmIndefReg *): Step = {
       instr1[T1](f(_)(aux))(arg1)(out: _*)
@@ -166,6 +169,6 @@ object step {
 
   }
   object implicits {
-    implicit def implicitStep(node: Asm): Step = Step((List(node), _))
+    implicit def implicitStep(node: Asm): Step = Step((List(node), _), node.toString)
   }
 }
