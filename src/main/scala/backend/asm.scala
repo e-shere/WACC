@@ -183,16 +183,6 @@ object asm {
     override def argsToString: String = s"$target1, $target2, $x, $y"
   }
 
-  //case class Mul(x: AsmDefiniteArg, y: AsmDefiniteArg)(target1: AsmDefiniteArg = x, target2: AsmDefiniteArg = y) extends AsmStandardInstr {
-  //  override def toString = s"SMULL $x, $y, $x, $y"
-  //  // TODO: include s"CMP $y, $x ASR #31\nBLNE ${label of overflow error function}"
-  //  // result will be in register x
-  //}
-
-//  case class Mul (cond: ConditionCode.Value = AL)(target: AsmReg, x: AsmReg, y: AsmDefiniteArg) extends AsmStandardInstr {
-//    override def toString = s"SMULL $target, $y, $x, $y"
-//  }
-
   case class Not(cond: ConditionCode.Value = AL)(target: AsmReg, x: AsmArg) extends AsmInstr {
     val opcode = "EOR"
     def argsToString = s"$target, $x, #1"
@@ -203,7 +193,7 @@ object asm {
     override def argsToString = s"$target, $x, #0"
   }
 
-  case class Ldr(cond: ConditionCode.Value = AL)(target: AsmReg, source: AsmArg)(offset: AsmInt = AsmInt(0)) extends AsmInstr {
+  case class Ldr(cond: ConditionCode.Value = AL)(target: AsmReg, source: AsmArg)(offset: AsmInt = zero) extends AsmInstr {
     override val opcode: String = "LDR"
     override def argsToString: String = {
       source match {
