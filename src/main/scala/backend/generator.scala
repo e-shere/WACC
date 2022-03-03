@@ -53,9 +53,11 @@ object generator {
   )
 
   def genBlock(stats: List[Stat])(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
-    Subs()(STACK_POINTER, STACK_POINTER, AsmInt(countToOffset(symbols.symbols.size)))
+    Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(countToOffset(symbols.symbols.size)))(zero)()
+    >++> Step.instr3(Subs())(STACK_POINTER, STACK_POINTER, Re1)()
     >++> stats.foldLeft(Step.identity)(_ >++> genStat(_) >++> Step.discardAll)
-    >++> Adds()(STACK_POINTER, STACK_POINTER, AsmInt(countToOffset(symbols.symbols.size)))
+    >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(countToOffset(symbols.symbols.size)))(zero)()
+    >++> Step.instr3(Adds())(STACK_POINTER, STACK_POINTER, Re1)()
     )
 
   def genStat(stat: Stat)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = {
@@ -219,7 +221,8 @@ object generator {
       case ast.Call(id, args) => (
         args.foldLeft(Step.identity)(_ >++> genExpr(_) >++> Step.instr1(Push())(Re1)())
           >++> BranchLink()(id.id)
-          >++> Adds()(STACK_POINTER, STACK_POINTER, AsmInt(countToOffset(args.length)))
+          >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(countToOffset(args.length)))(zero)()
+          >++> Step.instr3(asm.Adds())(STACK_POINTER, STACK_POINTER, Re1)()
           >++> Step.instr2(Mov())(ReNew, r0)()
         )
       case expr: Expr => genExpr(expr)
@@ -232,7 +235,8 @@ object generator {
     case id@Ident(_) => Step({state =>
       val offset = countToOffset(symbols.getOffset(id).get + state.getStackOffset)
       // This stores the actual location in a new register
-      Step.instr3(asm.Adds())(ReNew, STACK_POINTER, AsmInt(offset))()(state)
+      (Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(offset))(zero)()
+      >++> Step.instr3(asm.Adds())(ReNew, STACK_POINTER, Re1)())(state)
     })
     case ArrayElem(id, index) => (
            genExpr(id)
