@@ -10,6 +10,21 @@ object asm {
 
   def countToOffset(count: Int): Int = count * WORD_BYTES
 
+  def escapeToStr(c: Char): String = {
+    c match {
+      case '\u0000'=> "\\0"
+      case '\n' => "\\n"
+      case '\b' => "\\b"
+      case '\t' => "\\t"
+      case '\f' => "\\f"
+      case '\r' => "\\r"
+      case '\'' => "\\'"
+      case '\"' => "\\\""
+      case _ => s"$c"
+
+    }
+  }
+
   sealed trait AsmArg
 
   val NO_REG: AsmReg = AsmReg(-1)
@@ -55,6 +70,13 @@ object asm {
     def toLdrString = s"=$s"
 
     def apply(data: ResolutionData): AsmString = this
+  }
+
+  case class AsmChar(c: Char) extends AsmArg with (ResolutionData => AsmChar) {
+    override def toString: String = s"#'${escapeToStr(c)}'"
+    def toLdrString = s"='${escapeToStr(c)}'"
+
+    def apply(data: ResolutionData): AsmChar = this
   }
 
   sealed trait AsmIndefReg extends ((ResolutionData) => AsmReg)

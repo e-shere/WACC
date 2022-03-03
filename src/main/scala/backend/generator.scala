@@ -164,10 +164,11 @@ object generator {
       case ast.Chr(x)    => genUnOp(x, Step.identity)
       case ast.IntLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x))(zero)()
       case ast.BoolLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x.compare(false)))(zero)()
-      case ast.CharLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x.toInt))(zero)()
+      case ast.CharLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmChar(x))(zero)()
       // TODO: There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
       case ast.StrLiter(x) =>
-        includeData(x) >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(_.data(x)))(zero)()
+        val msg = x.flatMap(escapeToStr)
+        includeData(msg) >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(_.data(msg)))(zero)()
       case ast.ArrayLiter(x) => (
         Step.instr2(asm.Mov())(ReNew, AsmInt(x.length))()
           >++> Step.instr2(asm.Mov())(ReNew, AsmInt((x.length + 1) * WORD_BYTES))()
