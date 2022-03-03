@@ -49,9 +49,9 @@ test-assembly-output:
   script:
     - sbt "testOnly backend.MatchOutputTests"
 
-#test-assembly-compiles:
-#  stage: backend-tests
-#  before_script:
-#    - apt-get update -qq && apt-get install -y -qq gcc-arm-linux-gnueabi
-#  script:
-#    - sbt "testOnly backend.AssemblyCompileTests"
+test-assembly-compiles:
+  stage: backend-tests
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq gcc-arm-linux-gnueabi
+  script:
+    - sbt "testOnly backend.AssemblyCompileTests"
