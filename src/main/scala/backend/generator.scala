@@ -212,7 +212,8 @@ object generator {
         >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(word_size)(Re1)
       )
       case ast.Call(id, args) => (
-        args.foldLeft(Step.identity)(_ >++> genExpr(_) >++> Step.instr1(Push())(Re1)())
+        // We reverse the arguments to match the order in which they are put on the stack
+        args.reverse.foldLeft(Step.identity)(_ >++> genExpr(_) >++> Step.instr1(Push())(Re1)())
           >++> BranchLink()(id.id)
           >++> Adds()(STACK_POINTER, STACK_POINTER, AsmInt(countToOffset(args.length)))
           >++> Step.instr2(Mov())(ReNew, r0)()
