@@ -256,7 +256,6 @@ object generator {
   def genDiv: Step = (
     genCallWithRegs(check_div_zero().label, 2, None)
     >++> genCallWithRegs("__aeabi_idiv", 0, Some(r0))
-    >++> Step.instr2(Mov())(ReNew, r0)()
     >++> addPredefFunc(check_div_zero())
     >++> addPredefFunc(throw_runtime())
     >++> addPredefFunc(print_string())
@@ -265,12 +264,13 @@ object generator {
   def genMod: Step = (
     genCallWithRegs(check_div_zero().label, 2, None)
     >++> genCallWithRegs("__aeabi_idivmod", 0, Some(r1))
-    >++> Step.instr2(Mov())(ReNew, r1)()
     >++> addPredefFunc(check_div_zero())
     >++> addPredefFunc(throw_runtime())
     >++> addPredefFunc(print_string())
     )
 
+  // resultReg is which of r0/r1/r2 we want
+  // this will be stored in a new register
   def genCallWithRegs(name: String, argc: Int, resultReg: Option[AsmReg]): Step = {
     assert(argc >= 0 && argc <= 4)
     (
@@ -281,7 +281,7 @@ object generator {
       >++> (resultReg match {
         case None => Step.identity
         case Some(reg) => assert(reg.r >= 0 && reg.r <=3)
-          Step.instr2(asm.Mov())(reg, r0)()
+          Step.instr2(asm.Mov())(ReNew, reg)()
       })
     )
   }
