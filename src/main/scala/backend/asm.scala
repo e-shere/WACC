@@ -21,7 +21,7 @@ object asm {
   val lr = AsmReg(14)
   val pc = AsmReg(15)
 
-  case class AsmReg(r: Int) extends AsmArg with Function1[ResolutionData, AsmReg] {
+  case class AsmReg(r: Int) extends AsmArg with ((ResolutionData) => AsmReg) {
     assert(r >= -1 && r <= 15)
 
     override def toString: String = r match {
@@ -37,13 +37,13 @@ object asm {
     def apply(data: ResolutionData): AsmReg = this
   }
 
-  case class AsmStateFunc[T <: AsmArg](func: State => T) extends Function1[ResolutionData, T] {
+  case class AsmStateFunc[T <: AsmArg](func: State => T) extends ((ResolutionData) => T) {
     def apply(data: ResolutionData): T = func(data.state)
   }
 
   val zero = AsmInt(0)
   val word_size = AsmInt(WORD_BYTES)
-  case class AsmInt(i: Int) extends AsmArg with Function1[ResolutionData, AsmInt] {
+  case class AsmInt(i: Int) extends AsmArg with ((ResolutionData) => AsmInt) {
     override def toString = s"#$i"
 
     def toLdrString = s"=$i"
@@ -51,14 +51,14 @@ object asm {
     def apply(data: ResolutionData): AsmInt = this
   }
 
-  case class AsmString(s: String) extends AsmArg with Function1[ResolutionData, AsmString] {
+  case class AsmString(s: String) extends AsmArg with ((ResolutionData) => AsmString) {
     override def toString = s"$s"
     def toLdrString = s"=$s"
 
     def apply(data: ResolutionData): AsmString = this
   }
 
-  sealed trait AsmIndefReg extends Function1[ResolutionData, AsmReg]
+  sealed trait AsmIndefReg extends ((ResolutionData) => AsmReg)
 
   case object Re2 extends AsmIndefReg {
     def apply(data: ResolutionData): AsmReg = data.re2

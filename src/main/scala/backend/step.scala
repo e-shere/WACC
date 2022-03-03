@@ -8,18 +8,38 @@ import scala.language.implicitConversions
 object step {
   import implicits._
 
+  val DEBUG = true
+
   case class ResolutionData(state: State, re2: AsmReg, re1: AsmReg, reNew: AsmReg)
 
-  case class Step(func: State => (List[Asm], State)) {
+  case class Step(func: State => (List[Asm], State), nextStep: Option[Step] = None) {
     override def toString: String = mkString("\n")
 
     def mkString(sep: String): String = this(NEW_REG)._1.mkString(sep)
 
-    def apply(state: State): (List[Asm], State) = func(state)
+    def apply(state: State): (List[Asm], State) =  if (DEBUG) {
+      var asm: List[Asm] = Nil
+      var stateNew: State = state
+      var current: Option[Step] = Some(this)
+      while (current.isDefined) {
+        val cringe = current.get.func(stateNew)
+        asm ++= cringe._1
+        stateNew = cringe._2
+        current = current.get.nextStep
+      }
+      (asm, stateNew)
+    } else {
+      func(state)
+    }
 
     // >++> append
     // <++< prepend
-    def >++>(next: Step): Step = Step((state: State) => {
+    def >++>(next: Step): Step = if (DEBUG) {
+      nextStep match {
+        case Some(oldNext) => this.copy(nextStep = Some(oldNext >++> next))
+        case None => this.copy(nextStep = Some(next))
+      }
+    } else Step((state: State) => {
       val (asm1, state1) = this(state)
       val (asm2, state2) = next(state1)
       (asm1 ++ asm2, state2)
@@ -33,6 +53,8 @@ object step {
   }
 
   object Step {
+    
+    private val NO_ARG = AsmInt(314159)
 
     val identity: Step = Step((Nil, _))
     // This step is used between steps where the state of registers needs to be reset
@@ -46,18 +68,15 @@ object step {
     })
 
     def instr1[T1 <: AsmArg](f: T1 => Step)(arg1: ResolutionData => T1)(out: AsmIndefReg *): Step = {
-      val f4: (T1, AsmInt, AsmInt, AsmInt) => Step = (a, _, _, _) => f(a)
-      instr4[T1, AsmInt, AsmInt, AsmInt](f4)(arg1, zero, zero, zero)(out: _*)
+      instr4[T1, AsmInt, AsmInt, AsmInt]((a, _, _, _) => f(a))(arg1, NO_ARG, NO_ARG, NO_ARG)(out: _*)
     }
 
     def instr2[T1 <: AsmArg, T2 <: AsmArg](f: (T1, T2) => Step)(arg1: ResolutionData => T1, arg2: ResolutionData => T2)(out: AsmIndefReg *): Step = {
-      val f4: (T1, T2, AsmInt, AsmInt) => Step = (a, b, _, _) => f(a, b)
-      instr4[T1, T2, AsmInt, AsmInt](f4)(arg1, arg2, zero, zero)(out: _*)
+      instr4[T1, T2, AsmInt, AsmInt]((a, b, _, _) => f(a, b))(arg1, arg2, NO_ARG, NO_ARG)(out: _*)
     }
 
     def instr3[T1 <: AsmArg, T2 <: AsmArg, T3 <: AsmArg](f: (T1, T2, T3) => Step)(arg1: ResolutionData => T1, arg2: ResolutionData => T2, arg3: ResolutionData => T3)(out: AsmIndefReg *): Step = {
-      val f4: (T1, T2, T3, AsmInt) => Step = (a, b, c, _) => f(a, b, c)
-      instr4[T1, T2, T3, AsmInt](f4)(arg1, arg2, arg3, zero)(out: _*)
+      instr4[T1, T2, T3, AsmInt]((a, b, c, _) => f(a, b, c))(arg1, arg2, arg3, NO_ARG)(out: _*)
     }
 
     def instr4[T1 <: AsmArg, T2 <: AsmArg, T3 <: AsmArg, T4 <: AsmArg](f: (T1, T2, T3, T4) => Step)(arg1: ResolutionData => T1, arg2: ResolutionData => T2, arg3: ResolutionData => T3, arg4: ResolutionData => T4)(out: AsmIndefReg *): Step = Step((state: State) => {
