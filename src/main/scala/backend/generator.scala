@@ -201,7 +201,7 @@ object generator {
             >++> Step.instr2Aux(if (size == 1) asm.Strb() else asm.Str())(Re1, Re2)(AsmInt(WORD_BYTES + (v._2 * size)))(Re2)
           ))
       )}
-      case s@ArrayElem(id, index) => genLhs(s)
+      case s@ArrayElem(id, _) => genLhs(s) >++> Step.instr2Aux(ldr(symbols.getType(id).get))(Re1, Re1)(zero)(Re1)
       case idd@Ident(_) => genLhs(idd) >++> Step.instr2Aux(ldr(symbols.getType(idd).get))(Re1, Re1)(zero)(Re1)
       case Null() => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(0))(zero)()
       case Paren(expr) => genExpr(expr)
@@ -273,8 +273,8 @@ object generator {
       }
       (genExpr(id)
         >++> genExpr(index)
-        >++> genExpr(id)
         >++> genExpr(index)
+        >++> genExpr(id)
         >++> genCallWithRegs(check_array_bound().label, 2, None)
         >++> Step.instr2(asm.Mov())(ReNew, AsmInt(ty.size))()
         >++> genMul()
