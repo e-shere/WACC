@@ -34,7 +34,7 @@ object symbols {
 
     def getOffset(ident: ArrayIdent): Option[Int] = {
       symbols get ident match {
-        case None => parent.flatMap(_ getOffset ident)
+        case None => parent.flatMap(_ getOffset ident).map(counter + _)
         case Some(x) => Some(x._2)
       }
     }
