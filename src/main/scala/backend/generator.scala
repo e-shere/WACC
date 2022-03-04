@@ -72,7 +72,6 @@ object generator {
         }
         (genLhs(lhs)
         >++> genPredefCall()(readFunc, 1, None)
-        >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)()
         )
       case Free(expr) => (genExpr(expr)
         >++> genPredefCall()(free(), 1, None)
