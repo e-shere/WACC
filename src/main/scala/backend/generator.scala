@@ -51,11 +51,13 @@ object generator {
   )
 
   def genBlock(stats: List[Stat])(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
-    Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(countToOffset(symbols.symbols.size)))(zero)()
-    >++> Step.instr3(Subs())(STACK_POINTER, STACK_POINTER, Re1)()
+//    Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(countToOffset(symbols.symbols.size)))(zero)()
+//    >++> Step.instr3(Subs())(STACK_POINTER, STACK_POINTER, Re1)()
+    genImmValueAdd(countToOffset(symbols.symbols.size))
     >++> stats.foldLeft(Step.identity)(_ >++> genStat(_) >++> Step.discardAll)
-    >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(countToOffset(symbols.symbols.size)))(zero)()
-    >++> Step.instr3(Adds())(STACK_POINTER, STACK_POINTER, Re1)()
+    >++> genImmValueSub(countToOffset(symbols.symbols.size))
+//    >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(countToOffset(symbols.symbols.size)))(zero)()
+//    >++> Step.instr3(Adds())(STACK_POINTER, STACK_POINTER, Re1)()
     )
 
   def genStat(stat: Stat)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = {
@@ -233,8 +235,9 @@ object generator {
         // We reverse the arguments to match the order in which they are put on the stack
         args.reverse.foldLeft(Step.identity)(_ >++> genExpr(_) >++> Step.instr1(Push())(Re1)())
           >++> BranchLink()(id.id)
-          >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(countToOffset(args.length)))(zero)()
-          >++> Step.instr3(asm.Adds())(STACK_POINTER, STACK_POINTER, Re1)()
+//          >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(countToOffset(args.length)))(zero)()
+//          >++> Step.instr3(asm.Adds())(STACK_POINTER, STACK_POINTER, Re1)()
+          >++> genImmValueAdd(countToOffset(args.length))
           >++> Step.instr2(Mov())(ReNew, r0)()
         )
       case expr: Expr => genExpr(expr)
@@ -244,10 +247,13 @@ object generator {
 
   // puts the memory location of the object in question in a register
   def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {
-    case id@Ident(_) =>
+    case id@Ident(_) => (Step(s => genImmValueAdd(countToOffset(symbols.getOffset(id).get + s.getStackOffset))(s), "")
+      >++> Step.instr2(asm.Mov())(ReNew, STACK_POINTER)()
+      >++> Step(s => genImmValueSub(countToOffset(symbols.getOffset(id).get + s.getStackOffset))(s), "")
+      )
       // This stores the actual location in a new register
-      (Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(s => AsmInt(countToOffset(symbols.getOffset(id).get + s.getStackOffset))))(zero)()
-        >++> Step.instr3(asm.Adds())(ReNew, STACK_POINTER, Re1)())
+//      (Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(s => AsmInt(countToOffset(symbols.getOffset(id).get + s.getStackOffset))))(zero)()
+//        >++> Step.instr3(asm.Adds())(ReNew, STACK_POINTER, Re1)())
     case ArrayElem(id, index) => (genExpr(id)
       >++> genExpr(index)
       >++> genExpr(id)
@@ -266,6 +272,16 @@ object generator {
       genExpr(expr)
       >++> Step.instr3(asm.Adds())(Re1, Re1, word_size)(Re1)
     )
+  }
+
+  def genImmValueAdd(immValue: Int): Step = {
+    ((1 to immValue/1024).foldLeft(Step.identity)((s, _) => s >++> Step.instr3(Adds())(STACK_POINTER, STACK_POINTER, AsmInt(1024))())
+      >++> Step.instr3(Adds())(STACK_POINTER, STACK_POINTER, AsmInt(immValue % 1024))())
+  }
+
+  def genImmValueSub(immValue: Int): Step = {
+    ((1 to immValue/1024).foldLeft(Step.identity)((s, _) => s >++> Step.instr3(Subs())(STACK_POINTER, STACK_POINTER, AsmInt(1024))())
+      >++> Step.instr3(Subs())(STACK_POINTER, STACK_POINTER, AsmInt(immValue % 1024))())
   }
 
   def genMul(): Step = (
