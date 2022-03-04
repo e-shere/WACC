@@ -204,8 +204,7 @@ object asm {
     }
   }
 
-  // args(0): source, args(1): dest
-  case class Str(cond: ConditionCode.Value = AL)(source: AsmReg, target: AsmArg)(offset: AsmInt = AsmInt(0)) extends AsmInstr {
+  case class Str(cond: ConditionCode.Value = AL)(source: AsmReg, target: AsmArg)(offset: AsmInt = zero) extends AsmInstr {
     override val opcode: String = "STR"
     override def argsToString: String = {
       offset match {
