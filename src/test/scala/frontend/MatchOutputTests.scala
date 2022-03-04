@@ -10,7 +10,7 @@ class MatchOutputTests extends AnyFlatSpec {
 
   behavior of "one line wacc programs"
 
-  "begin skip end program" should "only skip" in {
+  /*"begin skip end program" should "only skip" in {
     parse(new File("src/examples/valid/basic/skip/skip.wacc"))
       .toString() shouldBe "Success(WaccProgram(List(),List(Skip()(8,7)))(8,7))"
   }
@@ -50,6 +50,6 @@ class MatchOutputTests extends AnyFlatSpec {
       "Success(WaccProgram(List(),List(Declare(bool,a,BoolLiter(true)(12,12))(12,3), " +
       "Declare(bool,b,BoolLiter(false)(13,12))(13,3), Println(Or(a,b)(14,13))(14,3), " +
       "Println(And(a,b)(15,13))(15,3), Println(Not(a)(16,11))(16,3)))(12,3))"
-  }
+  }*/
 
 }
