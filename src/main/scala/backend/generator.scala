@@ -11,6 +11,7 @@ import frontend.symbols.TypeTable
 import scala.annotation.tailrec
 import backend.state.{STACK_POINTER, State}
 import backend.step.implicits.implicitStep
+import frontend.semanticChecker.FuncType
 
 object generator {
   // TODO: consider naming conventions for dynamically created unique labels
@@ -21,15 +22,15 @@ object generator {
     val WaccProgram(funcs, stats) = program
     ( Directive("text\n")
       >++> Directive("global main")
-      >++> funcs.foldLeft(Step.identity)((prev, f) => prev >++> genFunc(f.id.id, f.args.length, f.body)(f.symbols.get, program.printSymbols))
-      >++> genMain(0, stats)(program.mainSymbols.get, program.printSymbols)
+      >++> funcs.foldLeft(Step.identity)((prev, f) => prev >++> genFunc(f.id.id, f.args.length, f.body)(f.symbols.get, program.printSymbols, program.funcSymbols.get))
+      >++> genMain(0, stats)(program.mainSymbols.get, program.printSymbols, program.funcSymbols.get)
       >++> genPredefFuncs
       <++< genData
     )
   }
 
   def genMain(argc: Int, stats: List[Stat])
-             (implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
+             (implicit symbols: TypeTable, printTable: Map[(Int, Int), Type], funcSymbols: Map[Ident, FuncType]): Step = (
          Label("main")
     >++> Push()(lr)
     >++> genBlock(stats)
@@ -41,7 +42,7 @@ object generator {
 
   // Note that each ASM node here is implicitly converted to a step
   def genFunc(name: String, argc: Int, stats: List[Stat])
-             (implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
+             (implicit symbols: TypeTable, printTable: Map[(Int, Int), Type], funcSymbols: Map[Ident, FuncType]): Step = (
          Label(name)
     >++> Push()(lr)
     >++> genBlock(stats)
@@ -50,15 +51,15 @@ object generator {
     >++> Step.discardAll
   )
 
-  def genBlock(stats: List[Stat])(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
-    Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(countToOffset(symbols.symbols.size)))(zero)()
+  def genBlock(stats: List[Stat])(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type], funcSymbols: Map[Ident, FuncType]): Step = (
+    Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(symbols.counter))(zero)()
     >++> Step.instr3(Subs())(STACK_POINTER, STACK_POINTER, Re1)()
     >++> stats.foldLeft(Step.identity)(_ >++> genStat(_) >++> Step.discardAll)
-    >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(countToOffset(symbols.symbols.size)))(zero)()
+    >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(symbols.counter))(zero)()
     >++> Step.instr3(Adds())(STACK_POINTER, STACK_POINTER, Re1)()
     )
 
-  def genStat(stat: Stat)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = {
+  def genStat(stat: Stat)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type], funcSymbols: Map[Ident, FuncType]): Step = {
     stat match {
       case Skip() => Step.identity
       case Declare(_, id, rhs) => genStat(Assign(id, rhs)(stat.pos))
@@ -115,10 +116,10 @@ object generator {
         >++> Branch(EQ)(thenLabel)
         >++> Branch()(elseLabel)
         >++> Label(thenLabel)
-        >++> genBlock(thenStats)(s.thenTypeTable.get, printTable)
+        >++> genBlock(thenStats)(s.thenTypeTable.get, printTable, funcSymbols)
         >++> Branch()(doneLabel)
         >++> Label(elseLabel)
-        >++> genBlock(elseStats)(s.elseTypeTable.get, printTable)
+        >++> genBlock(elseStats)(s.elseTypeTable.get, printTable, funcSymbols)
         >++> Label(doneLabel))
       }
       case s@While(expr, doStats) =>
@@ -129,10 +130,10 @@ object generator {
         >++> genExpr(expr)
         >++> Step.instr2Aux(Compare())(Re1, zero)("")()
         >++> Branch(EQ)(endLabel)
-        >++> genBlock(doStats)(s.doTypeTable.get, printTable)
+        >++> genBlock(doStats)(s.doTypeTable.get, printTable, funcSymbols)
         >++> Branch()(topLabel)
         >++> Label(endLabel))
-      case s@Scope(stats) => genBlock(stats)(s.typeTable.get, printTable)
+      case s@Scope(stats) => genBlock(stats)(s.typeTable.get, printTable, funcSymbols)
     }
   }
 
@@ -207,14 +208,14 @@ object generator {
     }
   }
 
-  def genRhs(rhs: AssignRhs)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = {
+  def genRhs(rhs: AssignRhs)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type], funcSymbols: Map[Ident, FuncType]): Step = {
     rhs match {
       case arr@ArrayLiter(_) => genExpr(arr)
       case np@NewPair(fst, snd) =>
         val fstType = printTable(fst.pos)
         val sndType = printTable(snd.pos)
         (
-        Step.instr2(asm.Mov())(ReNew, AsmInt(4 * 2))()
+        Step.instr2(asm.Mov())(ReNew, AsmInt(fstType.size + sndType.size))()
         >++> genCallWithRegs("malloc", 1, Some(r0))
         >++> genExpr(fst)
         >++> Step.instr2Aux(str(fstType))(Re1, Re2)(zero)(Re2)
@@ -250,7 +251,7 @@ object generator {
         // We reverse the arguments to match the order in which they are put on the stack
         args.reverse.foldLeft(Step.identity)(_ >++> genExpr(_) >++> Step.instr1(Push())(Re1)())
           >++> BranchLink()(id.id)
-          >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(countToOffset(args.length)))(zero)()
+          >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(funcSymbols(id).paramTypes.foldLeft(0)(_ + _.size)))(zero)()
           >++> Step.instr3(asm.Adds())(STACK_POINTER, STACK_POINTER, Re1)()
           >++> Step.instr2(Mov())(ReNew, r0)()
         )
@@ -263,7 +264,7 @@ object generator {
   def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = lhs match {
     case id@Ident(_) =>
       // This stores the actual location in a new register
-      (Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(s => AsmInt(countToOffset(symbols.getOffset(id).get + s.getStackOffset))))(zero)()
+      (Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(s => AsmInt(symbols.getOffset(id).get + s.getStackOffset)))(zero)()
         >++> Step.instr3(asm.Adds())(ReNew, STACK_POINTER, Re1)())
     case ArrayElem(id, index) => {
       val ty: Type = id match {
