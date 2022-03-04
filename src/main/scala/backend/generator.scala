@@ -201,11 +201,17 @@ object generator {
       )
       case Fst(expr) => (
              genExpr(expr)
+        >++> genCallWithRegs(check_null_pointer().label, 1, Some(r0))
         >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(zero)(Re1)
+        >++> addPredefFunc(throw_runtime())
+        >++> addPredefFunc(throw_overflow())
       )
       case Snd(expr) => (
              genExpr(expr)
+        >++> genCallWithRegs(check_null_pointer().label, 1, Some(r0))
         >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(word_size)(Re1)
+        >++> addPredefFunc(throw_runtime())
+        >++> addPredefFunc(throw_overflow())
       )
       case ast.Call(id, args) => (
         // We reverse the arguments to match the order in which they are put on the stack
