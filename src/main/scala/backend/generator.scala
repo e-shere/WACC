@@ -218,7 +218,6 @@ object generator {
         >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(zero)(Re1)
         >++> addPredefFunc(check_null_pointer())
         >++> addPredefFunc(throw_runtime())
-        >++> addPredefFunc(throw_overflow())
         >++> addPredefFunc(print_string())
       )
       case Snd(expr) => (
@@ -227,7 +226,6 @@ object generator {
         >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(word_size)(Re1)
         >++> addPredefFunc(check_null_pointer())
         >++> addPredefFunc(throw_runtime())
-        >++> addPredefFunc(throw_overflow())
         >++> addPredefFunc(print_string())
       )
       case ast.Call(id, args) => (
