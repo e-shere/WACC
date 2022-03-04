@@ -7,7 +7,6 @@ import backend.step._
 import backend.step.implicits.implicitStep
 
 object PredefinedFunctions {
-  // TODO: enum or case classes of each type of predefined functions
   sealed trait PredefinedFunc {
     def toStep: Step
     val label: String

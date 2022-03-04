@@ -8,6 +8,21 @@ import scala.language.implicitConversions
 object step {
   import implicits._
 
+  /* The generation of most assembly instructions involves a step from one state of
+  registers to another. This can be in a variety of combinations of reads and writes,
+  with a range of combinations of registers being retained after the instruction is
+  generated. For this reason, we have encapsulated the movement from one register
+  state to another, and the generation of Asm (nodes of our internal representation)
+  into a step. The >++> operator moves from one step to another, concatenating the list
+  of Asm nodes produced and using the resulting register state of the first instruction
+  as the starting register state of the next. The <++< does almost the same, but with
+  the list of Asm nodes prepended. We have provided a variety of helper functions,
+  including ones which discard the registers in use, ones which convert from an Asm to a
+  step, and a set of instr functions, which generate the Asm nodes, using the registers
+  specified. As part of step concatenation, we have included a debug mode, which outputs
+  the registers given as arguments to the step instrs, and the Asm nodes which are being
+  created. */
+
   val DEBUG = false
 
   case class ResolutionData(state: State, re2: AsmReg, re1: AsmReg, reNew: AsmReg)
@@ -33,8 +48,8 @@ object step {
       func(state)
     }
 
-    // >++> append
-    // <++< prepend
+    // Moves from one state to the next, append the produced ASM nodes
+    // This operator is pronounced "fish".
     def >++>(next: Step): Step = if (DEBUG) {
       nextStep match {
         case Some(oldNext) => this.copy(nextStep = Some(oldNext >++> next))
@@ -46,6 +61,8 @@ object step {
       (asm1 ++ asm2, state2)
     }, this.desc + "\n" + next.desc)
 
+    // Moves from one state to the next, append the produced ASM nodes
+    // This operator is pronounced "left-fish".
     def <++<(next: Step): Step = Step((state: State) => {
       val (asm1, state1) = (this >++> discardAll)(state)
       val (asm2, state2) = next(state1)
@@ -58,17 +75,21 @@ object step {
     private val NO_ARG = AsmInt(314159)
 
     val identity: Step = Step((Nil, _), "id")
-    // This step is used between steps where the state of registers needs to be reset
 
+    // This step is used where the state of registers needs to be reset
     val discardAll: Step = Step(state => {
       assert(state.reg == REG_START)
       (if (state.getStackOffset > 0) Step.instr3(Adds())(STACK_POINTER, STACK_POINTER, AsmInt(state.getStackOffset * WORD_BYTES))()(state)._1 else Nil, State(REG_START, state.fState, state.data))
     }, "discardAll")
 
+    // This step is used where the top register needs to be discarded
     val discardTop: Step = Step(state => {
       if (state.isReg) (Nil, state.prev) else (List(Pop()(PLACEHOLDER_1)), state.prev)
     }, "discardTop")
 
+    // Each instrN function constructs a step from an ASM node with N parameters
+    // The logic falls through to instr4, which directly uses the functions in the state
+    // to perform reads and writes, resolving indefinite registers to actual registers
     def instr1[T1 <: AsmArg](f: T1 => Step)(arg1: ResolutionData => T1)(out: AsmIndefReg *): Step = {
       instr4[T1, AsmInt, AsmInt, AsmInt]((a, _, _, _) => f(a))(arg1, NO_ARG, NO_ARG, NO_ARG)(out: _*)
     }
@@ -86,8 +107,6 @@ object step {
 
       if (args contains Re2) assert(!(args contains ReNew))
 
-//      println(s"args: ${args.mkString(" ")}")
-//      println(s"out: ${out.mkString(" ")}")
       if (DEBUG) println(s"\nstate reg: ${state.reg.r}\n")
 
       val (re2, re1, asm1, state1) =
@@ -152,6 +171,9 @@ object step {
       case _ => false
     }.mkString(","))
 
+
+    // These instr functions have a similar form to the above, but deal with the case where
+    // Asm nodes take an extra auxiliary parameter of type T
     def instr1Aux[T1 <: AsmArg, T](f: T1 => T => Step)(arg1: ResolutionData => T1)(aux: T)(out: AsmIndefReg *): Step = {
       instr1[T1](f(_)(aux))(arg1)(out: _*)
     }

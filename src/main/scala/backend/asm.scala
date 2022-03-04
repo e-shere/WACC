@@ -8,6 +8,19 @@ import backend.step.implicits._
 object asm {
   val WORD_BYTES = 4
 
+  /* In this file, along with our internal representation of the program, we also
+  keep our type system for its parameters. In this way, we distinguish between
+  registers, int literals and char literals, outputting all types correctly. A small
+  number of these representations do include more than one assembly instruction, but
+  they encapsulate one logical concept. We also define the type AsmIndefArg, which is
+  used to be passed to step instructions, to indicate what type of change is needed
+  in the register state- the number of reads and writes, and the number of registers
+  to be retained in the state after this operation. ReNew indicates a new register is
+  needed to write a value to, Re1 is the register most recently allocated, and Re2 is
+  the register second most recently allocated. In the Asm nodes we are using, we don't
+  need more than these, but more could be added and supported in step instrs if we felt
+  necessary. */
+
   def escapeToStr(c: Char): String = {
     c match {
       case '\u0000'=> "\\0"
@@ -37,7 +50,6 @@ object asm {
   case class AsmReg(r: Int) extends AsmArg with ((ResolutionData) => AsmReg) {
 
     override def toString: String = r match {
-        // Consider factoring out the magic numbers
         case x if x >= 0 && x <= 11 => s"r$x"
         case 12 => "ip"
         case 13 => "sp"
@@ -81,17 +93,14 @@ object asm {
 
   case object Re2 extends AsmIndefReg {
     def apply(data: ResolutionData): AsmReg = data.re2
-//    override def toString: String = "Re2"
   }
 
   case object Re1 extends AsmIndefReg {
     def apply(data: ResolutionData): AsmReg = data.re1
-//    override def toString: String = "Re1"
   }
 
   case object ReNew extends AsmIndefReg {
     def apply(data: ResolutionData): AsmReg = data.reNew
-//    override def toString: String = "ReNew"
   }
 
   sealed trait Asm
@@ -282,10 +291,6 @@ object asm {
         >++> Mov(GT)(target, AsmInt(1))
         >++> Mov(LE)(target, AsmInt(0))
       )
-  }
-
-  object Mul {
-    def apply: Step = ???
   }
 
   object implicits {

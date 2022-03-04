@@ -14,10 +14,10 @@ import backend.step.implicits.implicitStep
 import frontend.semanticChecker.FuncType
 
 object generator {
-  // TODO: consider naming conventions for dynamically created unique labels
   private var uniqueNameGen = -1
   private def getUniqueName: Int = {uniqueNameGen += 1; uniqueNameGen}
 
+  // Note that each ASM node here is implicitly converted to a step
   def genProgram(program: WaccProgram): Step = {
     val WaccProgram(funcs, stats) = program
     ( Directive("text\n")
@@ -40,7 +40,6 @@ object generator {
     >++> Step.discardAll
   )
 
-  // Note that each ASM node here is implicitly converted to a step
   def genFunc(name: String, argc: Int, stats: List[Stat])
              (implicit symbols: TypeTable, printTable: Map[(Int, Int), Type], funcSymbols: Map[Ident, FuncType]): Step = (
          Label(name)
@@ -51,6 +50,8 @@ object generator {
     >++> Step.discardAll
   )
 
+  // genBlock is called on the entry of each new scope
+  // and is responsible for modifying the stackpointer on entry and exit
   def genBlock(stats: List[Stat])(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type], funcSymbols: Map[Ident, FuncType]): Step = (
     Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(symbols.counter))(zero)()
     >++> Step.instr3(Subs())(STACK_POINTER, STACK_POINTER, Re1)()
@@ -59,6 +60,8 @@ object generator {
     >++> Step.instr3(Adds())(STACK_POINTER, STACK_POINTER, Re1)()
     )
 
+  // genStat is responsible for generating steps for each stat in the AST
+  // the state should NOT be modified
   def genStat(stat: Stat)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type], funcSymbols: Map[Ident, FuncType]): Step = {
     stat match {
       case Skip() => Step.identity
@@ -137,16 +140,20 @@ object generator {
     }
   }
 
+  // Evaluate the left, then right parts of the expression, place both on the register stack
+  // in order and then apply the binary operator on them
   def genBinOp(x: Expr, y: Expr, step: Step)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
            genExpr(x)
       >++> genExpr(y)
       >++> step
     )
 
+  // Evaluate the argument, place on the register stack and apply the unary operator on them
   def genUnOp(x: Expr, step: Step)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = {
     genExpr(x) >++> step
   }
 
+  // Evaluate the (potentially very nested) expression, and push the result on the register stack
   def genExpr(expr: Expr)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = {
     expr match {
       case ast.Or(x, y)  => genBinOp(x, y, Step.instr3(asm.Or())(Re2, Re2, Re1)(Re2))
@@ -182,24 +189,23 @@ object generator {
       case ast.IntLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x))(zero)()
       case ast.BoolLiter(x) => Step.instr2(asm.Mov())(ReNew, AsmInt(x.compare(false)))()
       case ast.CharLiter(x) => Step.instr2(asm.Mov())(ReNew, AsmChar(x))()
-      // TODO: There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
       case ast.StrLiter(x) =>
         includeData(x) >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(_.data(x)))(zero)()
       case ast.ArrayLiter(x) => {
         val size:Int = printTable(expr.pos) match {
           case ArrayType(b) => b.size
-          case _ => ??? // unreachable
+          case _ => -1 // This should be unreachable provided the semantic checker is correct
         }
         (Step.instr2(asm.Mov())(ReNew, AsmInt(x.length))()
           >++> Step.instr2(asm.Mov())(ReNew, AsmInt((x.length * size) + WORD_BYTES))()
-          >++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
+          >++> genCallWithRegs("malloc", 1, Some(r0))
           >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)(Re2, Re1)
           >++> Step.instr2(asm.Mov())(Re2, Re1)(Re2)
-          >++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
+          >++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) =>
           prev
-            >++> genExpr(v._1) // put value in a register
+            >++> genExpr(v._1)
             >++> Step.instr2Aux(if (size == 1) asm.Strb() else asm.Str())(Re1, Re2)(AsmInt(WORD_BYTES + (v._2 * size)))(Re2)
-          ))
+          )
       )}
       case s@ArrayElem(id, _) => genLhs(s) >++> Step.instr2Aux(ldr(symbols.getType(id).get))(Re1, Re1)(zero)(Re1)
       case idd@Ident(_) => genLhs(idd) >++> Step.instr2Aux(ldr(symbols.getType(idd).get))(Re1, Re1)(zero)(Re1)
@@ -208,10 +214,12 @@ object generator {
     }
   }
 
+  // Evaluate types of rhs, and push value onto the register stack.
+  // Many of these cases are handled in genExpr.
   def genRhs(rhs: AssignRhs)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type], funcSymbols: Map[Ident, FuncType]): Step = {
     rhs match {
       case arr@ArrayLiter(_) => genExpr(arr)
-      case np@NewPair(fst, snd) =>
+      case NewPair(fst, snd) =>
         val fstType = printTable(fst.pos)
         val sndType = printTable(snd.pos)
         (
@@ -225,13 +233,13 @@ object generator {
       case fst@Fst(expr) =>
         val fstType = printTable(expr.pos) match {
           case PairType(ty, _) => ty.toType
-          case _ => ??? // This is unreachable
+          case _ => ??? // This should be unreachable provided the semantic checker is correct
         }
         genLhs(fst) >++> Step.instr2Aux(ldr(fstType))(Re1, Re1)(zero)(Re1)
       case snd@Snd(expr) =>
         val (fstType, sndType) = printTable(expr.pos) match {
           case PairType(tyf, tys) => (tyf.toType, tys.toType)
-          case _ => ??? // This is unreachable
+          case _ => ??? // This should be unreachable provided the semantic checker is correct
         }
         genLhs(snd) >++> Step.instr2Aux(ldr(sndType))(Re1, Re1)(AsmInt(fstType.size))(Re1)
       case ast.Call(id, args) => (
@@ -247,10 +255,10 @@ object generator {
   }
 
 
-  // puts the memory location of the object in question in a register
+  // Evaluates the lhs of an expression, and puts the memory location of the
+  // object in question on the register stack
   def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = lhs match {
     case id@Ident(_) =>
-      // This stores the actual location in a new register
       (Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(s => AsmInt(symbols.getOffset(id).get + s.getStackOffset)))(zero)()
         >++> Step.instr3(asm.Adds())(ReNew, STACK_POINTER, Re1)())
     case ArrayElem(id, index) => {
@@ -273,9 +281,9 @@ object generator {
         )
     }
     case Fst(expr) =>
-      val fstType = printTable(expr.pos) match {
+      printTable(expr.pos) match {
         case PairType(ty, _) => ty.toType
-        case _ => ??? // This is unreachable
+        case _ => AnyType // This should be unreachable provided the semantic checker is correct
       }
       (genExpr(expr)
         >++> genCallWithRegs(check_null_pointer().label, 1, Some(r0))
@@ -284,9 +292,9 @@ object generator {
         >++> addPredefFunc(print_string())
         )
     case Snd(expr) =>
-      val (fstType, sndType) = printTable(expr.pos) match {
+      val (_, _) = printTable(expr.pos) match {
         case PairType(tyf, tys) => (tyf.toType, tys.toType)
-        case _ => ??? // This is unreachable
+        case _ => (AnyType, AnyType) // This should be unreachable provided the semantic checker is correct
       }
       (
         genExpr(expr)
@@ -297,6 +305,8 @@ object generator {
         )
   }
 
+  // Generate a multiply step, assuming the first two arguments are already on the
+  // register stack, and places the result where the first argument was
   def genMul(): Step = (
     Step.instr4(SMull())(Re2, Re1, Re2, Re1)(Re2, Re1)
     >++> Step.instr2Aux(Compare())(Re1, Re2)("ASR #31")(Re2)
@@ -306,6 +316,8 @@ object generator {
     >++> addPredefFunc(print_string())
   )
 
+  // Generate a divide step, assuming the first two arguments are already on the
+  // register stack, and places the result where the first argument was
   def genDiv: Step = (
     genCallWithRegs(check_div_zero().label, 2, None)
     >++> genCallWithRegs("__aeabi_idiv", 0, Some(r0))
@@ -314,6 +326,8 @@ object generator {
     >++> addPredefFunc(print_string())
     )
 
+  // Generate a mod step, assuming the first two arguments are already on the
+  // register stack, and places the result where the first argument was
   def genMod: Step = (
     genCallWithRegs(check_div_zero().label, 2, None)
     >++> genCallWithRegs("__aeabi_idivmod", 0, Some(r1))
@@ -322,8 +336,10 @@ object generator {
     >++> addPredefFunc(print_string())
     )
 
-  // resultReg is which of r0/r1/r2 we want
-  // this will be stored in a new register
+  // Generate a call to an assembly function with argc many args.
+  // This loads argc many args into r0-r4
+  // You can also optionally specify a resultReg, which determines which,
+  // if any, of the result registers (r0-r4) should be pushed onto the register stack
   def genCallWithRegs(name: String, argc: Int, resultReg: Option[AsmReg]): Step = {
     assert(argc >= 0 && argc <= 4)
     (
@@ -339,6 +355,7 @@ object generator {
     )
   }
 
+  // Generates steps for all predefined functions which are used in the assembly file
   def genPredefFuncs: Step = {
     Step((s: State) => s.fState.foldLeft(Step.identity)(
       (prev, f) => prev >++> f.toStep)(s), "genPredefFuncs")
@@ -348,10 +365,12 @@ object generator {
 
   def str(ty: Type): (AsmReg, AsmArg) => AsmInt => Step = if (ty.size == 1) asm.Strb() else asm.Str()
 
+  // Add a predefined function to the state
   def addPredefFunc(f: PredefinedFunc): Step = {
     Step((s: State) => (Nil, s.copy(fState = s.fState + f)), s"addPredefFunc(${f.label})")
   }
 
+  // Generate steps which include data in the assembly file
   def genData: Step = (
     Step((s: State) => (if (s.data.isEmpty) Step.identity else
       Directive("data")
@@ -363,6 +382,7 @@ object generator {
     ))(s), s"genData")
   )
 
+  // Add extra data to the state
   def includeData(msg: String): Step = {
     Step((s: State) => (Nil, s.copy(data =
       if (s.data.contains(msg)) s.data

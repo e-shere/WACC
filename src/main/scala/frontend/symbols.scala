@@ -34,7 +34,6 @@ object symbols {
 
     def getOffset(ident: ArrayIdent): Option[Int] = {
       val declaredIdent = symbols.keys.find(_ == ident)
-//      println(s"$declaredIdent")
       declaredIdent match {
         case Some(x) if leqPos(declaredIdent.get.pos, ident.pos) => Some(symbols(x)._2)
         case _ => parent.flatMap(_ getOffset ident).map(counter + _)
