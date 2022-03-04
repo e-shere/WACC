@@ -32,7 +32,6 @@ object semanticChecker {
     program match {
       case WaccProgram(funcs, stats) => {
         // generate function table
-        implicit var printSymbols: mutable.Map[(Int, Int), Type] = mutable.Map()
         val funcTableMut: mutable.Map[Ident, FuncType] = mutable.Map.empty
         for (Func(ty, id, args, _) <- funcs) {
           if (funcTableMut contains id)
@@ -59,7 +58,7 @@ object semanticChecker {
         }
         val (typeTable, newErrors, finalPrintSymbols) = validateBlock(None, stats, None)
         program.mainSymbols = Some(typeTable)
-        program.printSymbols = finalPrintSymbols.toMap
+        program.printSymbols = finalPrintSymbols
         errors ++= newErrors
       }
     }
@@ -75,18 +74,19 @@ object semanticChecker {
   )(implicit
       file: String,
       fileLines: Array[String],
-      funcTable: Map[Ident, FuncType],
-      printSymbols: mutable.Map[(Int, Int), Type]
-  ): (TypeTable, List[WaccError], mutable.Map[(Int, Int), Type]) = {
+      funcTable: Map[Ident, FuncType]
+  ): (TypeTable, List[WaccError], Map[(Int, Int), Type]) = {
     val errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer.empty
     implicit var localSymbols: TypeTable = TypeTable(Map.empty, parentSymbols, 0)
+    val localPrintSymbols = mutable.Map.empty[(Int, Int), Type]
     for (stat <- stats) {
       // match on different types of statements
       stat match {
         case Skip() =>
         case Declare(ty, id, rhs) => {
-          val (maybeRhs, rhsErrors) =
+          val (maybeRhs, rhsErrors, printSymbols) =
             typeOfRhs(rhs)
+          localPrintSymbols ++= printSymbols
           errors ++= rhsErrors
           maybeRhs match {
             case Some(rhsType) =>
@@ -106,10 +106,12 @@ object semanticChecker {
           }
         }
         case Assign(lhs, rhs) => {
-          val (maybeLhs, lhsErrors) =
+          val (maybeLhs, lhsErrors, lhsPrintSymbols) =
             typeOfLhs(lhs)
-          val (maybeRhs, rhsErrors) =
+          val (maybeRhs, rhsErrors, rhsPrintSymbols) =
             typeOfRhs(rhs)
+          localPrintSymbols ++= lhsPrintSymbols
+          localPrintSymbols ++= rhsPrintSymbols
           errors ++= lhsErrors
           errors ++= rhsErrors
           (maybeLhs, maybeRhs) match {
@@ -125,12 +127,13 @@ object semanticChecker {
           }
         }
         case Read(lhs) => {
-          val (maybeType, lhsErrors) =
+          val (maybeType, lhsErrors, lhsPrintSymbols) =
             typeOfLhs(lhs)
+          localPrintSymbols ++= lhsPrintSymbols
           errors ++= lhsErrors
           maybeType match {
-            case Some(IntType()) => printSymbols += lhs.pos -> INT_TYPE
-            case Some(CharType()) => printSymbols += lhs.pos -> CHAR_TYPE
+            case Some(IntType()) => localPrintSymbols += lhs.pos -> INT_TYPE
+            case Some(CharType()) => localPrintSymbols += lhs.pos -> CHAR_TYPE
             case Some(ty) =>
               errors += TypeError.mkError(
                 "argument of read statement",
@@ -141,8 +144,9 @@ object semanticChecker {
           }
         }
         case Free(expr) => {
-          val (maybeExpr, exprErrors) =
+          val (maybeExpr, exprErrors, printSymbols) =
             typeOfExpr(expr)
+          localPrintSymbols ++= printSymbols
           errors ++= exprErrors
           maybeExpr match {
             case Some(PairType(_, _)) =>
@@ -157,8 +161,9 @@ object semanticChecker {
           }
         }
         case returnExpr @ Return(expr) => {
-          val (maybeExpr, exprErrors) =
+          val (maybeExpr, exprErrors, printSymbols) =
             typeOfExpr(expr)
+          localPrintSymbols ++= printSymbols
           errors ++= exprErrors
           (maybeExpr, returnType) match {
             case (Some(exprType), Some(ty)) =>
@@ -175,8 +180,9 @@ object semanticChecker {
           }
         }
         case Exit(expr) => {
-          val (maybeExpr, exprErrors) =
+          val (maybeExpr, exprErrors, printSymbols) =
             typeOfExpr(expr)
+          localPrintSymbols ++= printSymbols
           errors ++= exprErrors
           maybeExpr match {
             case Some(IntType()) =>
@@ -190,22 +196,25 @@ object semanticChecker {
           }
         }
         case Print(expr) =>
-          val (maybeType, maybeErrors) = typeOfExpr(expr)
+          val (maybeType, maybeErrors, printSymbols) = typeOfExpr(expr)
+          localPrintSymbols ++= printSymbols
           errors ++= maybeErrors
           maybeType match {
-            case Some(exprType) => printSymbols += expr.pos -> exprType
+            case Some(exprType) => localPrintSymbols += expr.pos -> exprType
             case _ =>
           }
         case Println(expr) =>
-          val (maybeType, maybeErrors) = typeOfExpr(expr)
+          val (maybeType, maybeErrors, printSymbols) = typeOfExpr(expr)
+          localPrintSymbols ++= printSymbols
           errors ++= maybeErrors
           maybeType match {
-            case Some(exprType) => printSymbols += expr.pos -> exprType
+            case Some(exprType) => localPrintSymbols += expr.pos -> exprType
             case _ =>
           }
         case s@If(expr, thenStats, elseStats) => {
-          val (maybeExpr, exprErrors) =
+          val (maybeExpr, exprErrors, condPrintSymbols) =
             typeOfExpr(expr)
+          localPrintSymbols ++= condPrintSymbols
           errors ++= exprErrors
           maybeExpr match {
             case Some(BoolType()) =>
@@ -217,16 +226,19 @@ object semanticChecker {
               )
             case _ =>
           }
-          val (thenTypeTable, thenErrors, _) = validateBlock(Some(localSymbols), thenStats, returnType)
+          val (thenTypeTable, thenErrors, thenPrintSymbols) = validateBlock(Some(localSymbols), thenStats, returnType)
+          localPrintSymbols ++= thenPrintSymbols
           errors ++= thenErrors
           s.thenTypeTable = Some(thenTypeTable)
-          val (elseTypeTable, elseErrors, _) = validateBlock(Some(localSymbols), elseStats, returnType)
+          val (elseTypeTable, elseErrors, elsePrintSymbols) = validateBlock(Some(localSymbols), elseStats, returnType)
+          localPrintSymbols ++= elsePrintSymbols
           errors ++= elseErrors
           s.elseTypeTable = Some(elseTypeTable)
         }
         case s@While(expr, doStats) => {
-          val (maybeExpr, exprErrors) =
+          val (maybeExpr, exprErrors, condPrintSymbols) =
             typeOfExpr(expr)
+          localPrintSymbols ++= condPrintSymbols
           errors ++= exprErrors
           maybeExpr match {
             case Some(BoolType()) =>
@@ -238,17 +250,19 @@ object semanticChecker {
               )
             case _ =>
           }
-          val (doTypeTable, doErrors, _) = validateBlock(Some(localSymbols), doStats, returnType)
+          val (doTypeTable, doErrors, doPrintSymbols) = validateBlock(Some(localSymbols), doStats, returnType)
+          localPrintSymbols ++= doPrintSymbols
           errors ++= doErrors
           s.doTypeTable = Some(doTypeTable)
         }
         case s@Scope(innerStats) =>
-          val (statsTypeTable, statsErrors, _) = validateBlock(Some(localSymbols), innerStats, returnType)
+          val (statsTypeTable, statsErrors, printSymbols) = validateBlock(Some(localSymbols), innerStats, returnType)
+          localPrintSymbols ++= printSymbols
           errors ++= statsErrors
           s.typeTable = Some(statsTypeTable)
       }
     }
-    (localSymbols, errors.toList, printSymbols)
+    (localSymbols, errors.toList, localPrintSymbols.toMap)
   }
 
   // validate arguments for a given binary operator, returning type ret if arguments type-check
@@ -257,14 +271,14 @@ object semanticChecker {
       x: Expr,
       y: Expr,
       ret: Type,
-      opName: String
-  )(implicit
+      opName: String)(implicit
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String],
-      printSymbols: mutable.Map[(Int, Int), Type]
-  ): (Option[Type], List[WaccError]) = {
-    val (maybeTypes, errors) = typeOfExpr2(x, y)
+      fileLines: Array[String]
+  ): (Option[Type], List[WaccError], Map[(Int, Int), Type]) = {
+    var localPrintSymbols = mutable.Map.empty[(Int, Int), Type]
+    val (maybeTypes, errors, printSymbols) = typeOfExpr2(x, y)
+    localPrintSymbols ++= printSymbols
     maybeTypes match {
       case Some((xType, yType)) => {
         if (!argTypes.exists(xType coercesTo _))
@@ -274,7 +288,8 @@ object semanticChecker {
               s"first argument of $opName",
               argTypes,
               xType
-            )
+            ),
+            localPrintSymbols.toMap
           )
         else if (!argTypes.exists(yType coercesTo _))
           (
@@ -283,7 +298,8 @@ object semanticChecker {
               s"second argument of $opName",
               argTypes,
               yType
-            )
+            ),
+            localPrintSymbols.toMap
           )
         else if (!((xType coercesTo yType) || (yType coercesTo xType)))
           (
@@ -292,11 +308,12 @@ object semanticChecker {
               s"arguments of $opName",
               Set(xType),
               yType
-            )
+            ),
+            localPrintSymbols.toMap
           )
-        else (Some(ret), errors)
+        else (Some(ret), errors, localPrintSymbols.toMap)
       }
-      case _ => (None, errors)
+      case _ => (None, errors, localPrintSymbols.toMap)
     }
   }
 
@@ -309,29 +326,31 @@ object semanticChecker {
   )(implicit
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String],
-      printSymbols: mutable.Map[(Int, Int), Type]
-  ): (Option[Type], List[WaccError]) = {
-    val (maybeXType, xErrors) = typeOfExpr(x)
+      fileLines: Array[String]
+  ): (Option[Type], List[WaccError], Map[(Int, Int), Type]) = {
+    var localPrintSymbols = mutable.Map.empty[(Int, Int), Type]
+    val (maybeXType, xErrors, printSymbols) = typeOfExpr(x)
+    localPrintSymbols ++= printSymbols
     maybeXType match {
       case Some(xType) => {
         if (!argType.exists(xType coercesTo _))
           (
             None,
-            xErrors :+ TypeError.mkError(s"argument of $opName", argType, xType)
+            xErrors :+ TypeError.mkError(s"argument of $opName", argType, xType),
+            localPrintSymbols.toMap
           )
-        else (Some(ret), xErrors)
+        else (Some(ret), xErrors, localPrintSymbols.toMap)
       }
-      case _ => (None, xErrors)
+      case _ => (None, xErrors, localPrintSymbols.toMap)
     }
   }
 
   def typeOfExpr(expr: Expr)(implicit
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String],
-      printSymbols: mutable.Map[(Int, Int), Type]
-  ): (Option[Type], List[WaccError]) = {
+      fileLines: Array[String]
+  ): (Option[Type], List[WaccError], Map[(Int, Int), Type]) = {
+    var localPrintSymbols = mutable.Map.empty[(Int, Int), Type]
     expr match {
       case orExpr @ Or(x, y) =>
         typeOfBinOp(
@@ -469,55 +488,66 @@ object semanticChecker {
               nullExpr.pos
             )
           ),
-          Nil
+          Nil,
+          localPrintSymbols.toMap
         )
       case Paren(expr) => typeOfExpr(expr)
       case identExpr: Ident =>
         (typeTable getType identExpr) match {
           // Need to find out what type it is because we need to construct a new object to change the pos
-          case Some(ty) => (Some(ty.withPos(identExpr.pos)), Nil)
+          case Some(ty) => (Some(ty.withPos(identExpr.pos)), Nil, localPrintSymbols.toMap)
           case None =>
             (
               None,
               List(
                 UndefinedVariableError.mkError(identExpr)
-              )
+              ),
+              localPrintSymbols.toMap
             )
         }
-      case intExpr: IntLiter   => (Some(IntType()(intExpr.pos)), Nil)
-      case strExpr: StrLiter   => (Some(StringType()(strExpr.pos)), Nil)
-      case boolExpr: BoolLiter => (Some(BoolType()(boolExpr.pos)), Nil)
-      case charExpr: CharLiter => (Some(CharType()(charExpr.pos)), Nil)
+      case intExpr: IntLiter   => (Some(IntType()(intExpr.pos)), Nil, localPrintSymbols.toMap)
+      case strExpr: StrLiter   => (Some(StringType()(strExpr.pos)), Nil, localPrintSymbols.toMap)
+      case boolExpr: BoolLiter => (Some(BoolType()(boolExpr.pos)), Nil, localPrintSymbols.toMap)
+      case charExpr: CharLiter => (Some(CharType()(charExpr.pos)), Nil, localPrintSymbols.toMap)
       case arrayExpr @ ArrayLiter(Nil) => {
-        printSymbols += (arrayExpr.pos -> ArrayType(ANY_TYPE)(arrayExpr.pos))
-        (Some(ArrayType(ANY_TYPE)(arrayExpr.pos)), Nil)}
+        localPrintSymbols += (arrayExpr.pos -> ArrayType(ANY_TYPE)(arrayExpr.pos))
+        (Some(ArrayType(ANY_TYPE)(arrayExpr.pos)), Nil, localPrintSymbols.toMap)}
       case arrayExpr @ ArrayLiter(expr :: exprs) => {
-        val (maybeTypes, errors) =
+        val (maybeTypes, errors, printSymbols) =
           typeOfExpr2(expr, ArrayLiter(exprs)(arrayExpr.pos))
+        localPrintSymbols ++= printSymbols
         maybeTypes match {
           case Some((a, ArrayType(b))) => {
-            printSymbols += (arrayExpr.pos -> maybeTypes.get._2)
-            if (b coercesTo a) (Some(ArrayType(a)(arrayExpr.pos)), errors)
-            else if (a coercesTo b) (Some(ArrayType(b)(arrayExpr.pos)), errors)
+            if (b coercesTo a) {
+              localPrintSymbols += (arrayExpr.pos -> ArrayType(a)(arrayExpr.pos))
+              (Some(ArrayType(a)(arrayExpr.pos)), errors, localPrintSymbols.toMap)
+            }
+            else if (a coercesTo b) {
+              localPrintSymbols += (arrayExpr.pos -> ArrayType(b)(arrayExpr.pos))
+              (Some(ArrayType(b)(arrayExpr.pos)), errors, localPrintSymbols.toMap)
+            }
             else
               (
                 None,
-                errors :+ TypeError.mkError("elements of array", Set(a), b)
+                errors :+ TypeError.mkError("elements of array", Set(a), b),
+                localPrintSymbols.toMap
               )
           }
-          case _ => (None, errors)
+          case _ => (None, errors, localPrintSymbols.toMap)
         }
       }
       case arrayElem @ ArrayElem(id, index: Expr) => {
-        val (maybeIndexType, indexErrors) = typeOfExpr(index)
+        val (maybeIndexType, indexErrors, printSymbols) = typeOfExpr(index)
+        localPrintSymbols ++= printSymbols
         maybeIndexType match {
           case Some(IntType()) => {
-            val (maybeArrayType, arrayErrors) = typeOfExpr(id)
+            val (maybeArrayType, arrayErrors, idPrintSymbols) = typeOfExpr(id)
+            localPrintSymbols ++= idPrintSymbols
             val errors = indexErrors ++ arrayErrors
             maybeArrayType match {
               case Some(ArrayType(innerType)) =>
-                printSymbols += arrayElem.pos -> innerType
-                (Some(innerType.withPos(arrayElem.pos)), errors)
+                localPrintSymbols += arrayElem.pos -> innerType
+                (Some(innerType.withPos(arrayElem.pos)), errors, localPrintSymbols.toMap)
               case Some(ty) =>
                 (
                   None,
@@ -525,9 +555,10 @@ object semanticChecker {
                     "array",
                     Set(ARRAY_TYPE),
                     ty.withPos(arrayElem.pos)
-                  )
+                  ),
+                  localPrintSymbols.toMap
                 )
-              case None => (None, errors)
+              case None => (None, errors, localPrintSymbols.toMap)
             }
           }
           case Some(ty) =>
@@ -537,9 +568,10 @@ object semanticChecker {
                 "array index",
                 Set(INT_TYPE),
                 ty.withPos(index.pos)
-              )
+              ),
+              localPrintSymbols.toMap
             )
-          case None => (None, indexErrors)
+          case None => (None, indexErrors, localPrintSymbols.toMap)
         }
       }
     }
@@ -548,58 +580,63 @@ object semanticChecker {
   def typeOfExpr2(x: Expr, y: Expr)(implicit
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String],
-      printSymbols: mutable.Map[(Int, Int), Type]
-  ): (Option[(Type, Type)], List[WaccError]) = {
-    val (maybeXType, xErrors) = typeOfExpr(x)
-    val (maybeYType, yErrors) = typeOfExpr(y)
+      fileLines: Array[String]
+  ): (Option[(Type, Type)], List[WaccError], Map[(Int, Int), Type]) = {
+    var localPrintSymbols = mutable.Map.empty[(Int, Int), Type]
+    val (maybeXType, xErrors, xPrintSymbols) = typeOfExpr(x)
+    val (maybeYType, yErrors, yPrintSymbols) = typeOfExpr(y)
     val errors = xErrors ++ yErrors
+    localPrintSymbols ++= xPrintSymbols
+    localPrintSymbols ++= yPrintSymbols
     (maybeXType, maybeYType) match {
-      case (Some(xType), Some(yType)) => (Some((xType, yType)), errors)
-      case _                          => (None, errors)
+      case (Some(xType), Some(yType)) => (Some((xType, yType)), errors, localPrintSymbols.toMap)
+      case _                          => (None, errors, localPrintSymbols.toMap)
     }
   }
 
   // get type of rhs and checking for semantic errors within rhs
   def typeOfRhs(
-      rhs: AssignRhs
-  )(implicit
+      rhs: AssignRhs)(implicit
       funcTable: Map[Ident, FuncType],
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String],
-      printSymbols: mutable.Map[(Int, Int), Type]
-  ): (Option[Type], List[WaccError]) = {
+      fileLines: Array[String]
+  ): (Option[Type], List[WaccError], Map[(Int, Int), Type]) = {
+    var localPrintSymbols = mutable.Map.empty[(Int, Int), Type]
     rhs match {
       case rhs @ NewPair(fst, snd) => {
-        val (maybeTypes, errors) = typeOfExpr2(fst, snd)
+        val (maybeTypes, errors, printTable) = typeOfExpr2(fst, snd)
+        localPrintSymbols ++= printTable
         maybeTypes match {
           case Some((fstType, sndType)) =>
-            printSymbols += fst.pos -> fstType
-            printSymbols += snd.pos -> sndType
+            localPrintSymbols += fst.pos -> fstType
+            localPrintSymbols += snd.pos -> sndType
             (
               Some(
                 PairType(fstType.toPairElemType, sndType.toPairElemType)(
                   rhs.pos
                 )
               ),
-              errors
+              errors,
+              localPrintSymbols.toMap
             )
-          case _ => (None, errors)
+          case _ => (None, errors, localPrintSymbols.toMap)
         }
       }
       case Fst(expr) => {
         if (expr == Null()(NO_POS))
           (
             None,
-            List(NullExceptionError.mkError(s"argument of $rhs", expr))
+            List(NullExceptionError.mkError(s"argument of $rhs", expr)),
+            localPrintSymbols.toMap
           )
         else {
-          val (maybeExprType, exprErrors) = typeOfExpr(expr)
+          val (maybeExprType, exprErrors, printSymbols) = typeOfExpr(expr)
+          localPrintSymbols ++= printSymbols
           maybeExprType match {
             case Some(pt@PairType(fstType, _)) =>
-              printSymbols += expr.pos -> pt
-              (Some(fstType.toType), exprErrors)
+              localPrintSymbols += expr.pos -> pt
+              (Some(fstType.toType), exprErrors, localPrintSymbols.toMap)
             case Some(ty) =>
               (
                 None,
@@ -607,9 +644,10 @@ object semanticChecker {
                   s"argument of $rhs",
                   Set(PAIR_TYPE),
                   ty
-                )
+                ),
+                localPrintSymbols.toMap
               )
-            case None => (None, exprErrors)
+            case None => (None, exprErrors, localPrintSymbols.toMap)
           }
         }
       }
@@ -617,14 +655,15 @@ object semanticChecker {
         if (expr == Null()(NO_POS))
           (
             None,
-            List(NullExceptionError.mkError(s"argument of $rhs", expr))
+            List(NullExceptionError.mkError(s"argument of $rhs", expr)),
+            localPrintSymbols.toMap
           )
         else {
-          val (maybeExprType, exprErrors) = typeOfExpr(expr)
+          val (maybeExprType, exprErrors, printSymbols) = typeOfExpr(expr)
           maybeExprType match {
             case Some(pt@PairType(_, sndType)) =>
-              printSymbols += expr.pos -> pt
-              (Some(sndType.toType), exprErrors)
+              localPrintSymbols += expr.pos -> pt
+              (Some(sndType.toType), exprErrors, localPrintSymbols.toMap)
             case Some(ty) =>
               (
                 None,
@@ -632,17 +671,19 @@ object semanticChecker {
                   s"argument of $rhs",
                   Set(PAIR_TYPE),
                   ty
-                )
+                ),
+                localPrintSymbols.toMap
               )
-            case None => (None, exprErrors)
+            case None => (None, exprErrors, localPrintSymbols.toMap)
           }
         }
       }
       case callExpr @ Call(id, args) => {
-        val (maybeArgTypes, argErrorLists) =
-          args.map(typeOfExpr(_)).unzip
+        val (maybeArgTypes, argErrorLists, printSymbolsList) =
+          args.map(typeOfExpr(_)).unzip3
         val argErrors = argErrorLists.flatten
-        if (maybeArgTypes contains None) (None, argErrors)
+        localPrintSymbols ++= printSymbolsList.flatten
+        if (maybeArgTypes contains None) (None, argErrors, localPrintSymbols.toMap)
         else {
           val argTypes = maybeArgTypes.map(_.get)
           (funcTable get id) match {
@@ -654,11 +695,12 @@ object semanticChecker {
                     id,
                     paramTypes.length,
                     argTypes.length
-                  )
+                  ),
+                  localPrintSymbols.toMap
                 )
               else if (
                 argTypes.lazyZip(paramTypes).map(_ coercesTo _).forall(identity)
-              ) (Some(returnType.withPos(callExpr.pos)), argErrors)
+              ) (Some(returnType.withPos(callExpr.pos)), argErrors, localPrintSymbols.toMap)
               else {
                 (
                   None,
@@ -670,14 +712,16 @@ object semanticChecker {
                         Set(paramType),
                         argType
                       )
-                  }
+                  },
+                  localPrintSymbols.toMap
                 )
               }
             }
             case None =>
               (
                 None,
-                argErrors :+ UndefinedFunctionError.mkError(id)
+                argErrors :+ UndefinedFunctionError.mkError(id),
+                localPrintSymbols.toMap
               )
           }
         }
@@ -693,14 +737,12 @@ object semanticChecker {
   }
 
   def typeOfLhs(
-      lhs: AssignLhs
-  )(implicit
+      lhs: AssignLhs)(implicit
       funcTable: Map[Ident, FuncType],
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String],
-      printSymbols: mutable.Map[(Int, Int), Type]
-  ): (Option[Type], List[WaccError]) = {
+      fileLines: Array[String]
+  ): (Option[Type], List[WaccError], Map[(Int, Int), Type]) = {
     // Every subtype of AssignLhs is also a subtype of AssignRhs. This method
     // exists anyway for easier extensibility if this were to change
     lhs match {
