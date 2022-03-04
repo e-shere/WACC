@@ -71,8 +71,9 @@ object generator {
           case Some(_) => ???
           case None => ??? // Should be unreachable
         }
-        (genLhs(lhs)
-        >++> genCallWithRegs(readFunc.label, 1, Some(r0))
+        (genCallWithRegs(readFunc.label, 0, Some(r0))
+        >++> genLhs(lhs)
+        >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)()
         >++> addPredefFunc(readFunc)
         )
       case Free(expr) => (genExpr(expr)
