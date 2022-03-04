@@ -171,7 +171,7 @@ object generator {
       // TODO: There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
       case ast.StrLiter(x) =>
         val msg = x.flatMap(escapeToStr)
-        includeData(msg) >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(_.data(msg)))(zero)()
+        includeData(msg) >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmPureFunc(_.data(msg)))(zero)()
       case ast.ArrayLiter(x) => (
         Step.instr2(asm.Mov())(ReNew, AsmInt(x.length))()
           >++> Step.instr2(asm.Mov())(ReNew, AsmInt((x.length + 1) * WORD_BYTES))()
@@ -235,7 +235,7 @@ object generator {
   def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {
     case id@Ident(_) =>
       // This stores the actual location in a new register
-      (Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(s => AsmInt(countToOffset(symbols.getOffset(id).get + s.getStackOffset))))(zero)()
+      (Step.instr2Aux(asm.Ldr())(ReNew, AsmPureFunc(s => AsmInt(countToOffset(symbols.getOffset(id).get + s.getStackOffset))))(zero)()
         >++> Step.instr3(asm.Adds())(ReNew, STACK_POINTER, Re1)())
     case ArrayElem(id, index) => (genExpr(id)
       >++> genExpr(index)

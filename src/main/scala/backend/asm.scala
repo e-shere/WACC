@@ -36,7 +36,7 @@ object asm {
   val lr = AsmReg(14)
   val pc = AsmReg(15)
 
-  case class AsmReg(r: Int) extends AsmArg with ((ResolutionData) => AsmReg) {
+  case class AsmReg(r: Int) extends AsmArg with ConstIndef[AsmReg] {
 
     override def toString: String = r match {
         // Consider factoring out the magic numbers
@@ -48,51 +48,57 @@ object asm {
         case _ => "INVALID REGISTER"
       }
 
-    def apply(data: ResolutionData): AsmReg = this
+    val constDef = this
   }
 
-  case class AsmStateFunc[T <: AsmArg](func: State => T) extends ((ResolutionData) => T) {
-    def apply(data: ResolutionData): T = func(data.state)
+
+
+  case class AsmStateFunc[+T <: AsmArg](func: State => (T, List[Asm], State)) extends Indef[T] {
+    def apply(data: ResolutionData): (T, List[Asm], State) = func(data.state)
+  }
+
+  case class AsmPureFunc[+T <: AsmArg](func: State => T) extends Indef[T] {
+    def apply(data: ResolutionData): (T, List[Asm], State) = (func(data.state), Nil, data.state)
   }
 
   val zero = AsmInt(0)
   val word_size = AsmInt(WORD_BYTES)
-  case class AsmInt(i: Int) extends AsmArg with ((ResolutionData) => AsmInt) {
+  case class AsmInt(i: Int) extends AsmArg with ConstIndef[AsmInt] {
     override def toString = s"#$i"
 
     def toLdrString = s"=$i"
-
-    def apply(data: ResolutionData): AsmInt = this
+    
+    val constDef = this
   }
 
-  case class AsmString(s: String) extends AsmArg with ((ResolutionData) => AsmString) {
+  case class AsmString(s: String) extends AsmArg with ConstIndef[AsmString] {
     override def toString = s"$s"
     def toLdrString = s"=$s"
 
-    def apply(data: ResolutionData): AsmString = this
+    val constDef = this
   }
 
-  case class AsmChar(c: Char) extends AsmArg with (ResolutionData => AsmChar) {
+  case class AsmChar(c: Char) extends AsmArg with ConstIndef[AsmChar] {
     override def toString: String = s"#'${escapeToStr(c)}'"
     def toLdrString = s"='${escapeToStr(c)}'"
 
-    def apply(data: ResolutionData): AsmChar = this
+    val constDef = this
   }
 
-  sealed trait AsmIndefReg extends ((ResolutionData) => AsmReg)
+  sealed trait AsmIndefReg extends Indef[AsmReg]
 
   case object Re2 extends AsmIndefReg {
-    def apply(data: ResolutionData): AsmReg = data.re2
+    def apply(data: ResolutionData): (AsmReg, List[Asm], State) = (data.re2, Nil, data.state)
 //    override def toString: String = "Re2"
   }
 
   case object Re1 extends AsmIndefReg {
-    def apply(data: ResolutionData): AsmReg = data.re1
+    def apply(data: ResolutionData): (AsmReg, List[Asm], State) = (data.re1, Nil, data.state)
 //    override def toString: String = "Re1"
   }
 
   case object ReNew extends AsmIndefReg {
-    def apply(data: ResolutionData): AsmReg = data.reNew
+    def apply(data: ResolutionData): (AsmReg, List[Asm], State) = (data.reNew, Nil, data.state)
 //    override def toString: String = "ReNew"
   }
 

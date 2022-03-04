@@ -12,6 +12,13 @@ object step {
 
   case class ResolutionData(state: State, re2: AsmReg, re1: AsmReg, reNew: AsmReg)
 
+  type Indef[+T] = (ResolutionData => (T, List[Asm], State))
+
+  trait ConstIndef[+T] extends Indef[T] {
+    val constDef: T
+    def apply(data: ResolutionData): (T, List[Asm], State) = (constDef, Nil, data.state)
+  }
+
   case class Step(func: State => (List[Asm], State), desc: String, nextStep: Option[Step] = None) {
     override def toString: String = mkString("\n")
 
@@ -69,20 +76,20 @@ object step {
       if (state.isReg) (Nil, state.prev) else (List(Pop()(PLACEHOLDER_1)), state.prev)
     }, "discardTop")
 
-    def instr1[T1 <: AsmArg](f: T1 => Step)(arg1: ResolutionData => T1)(out: AsmIndefReg *): Step = {
+    def instr1[T1 <: AsmArg](f: T1 => Step)(arg1: Indef[T1])(out: AsmIndefReg *): Step = {
       instr4[T1, AsmInt, AsmInt, AsmInt]((a, _, _, _) => f(a))(arg1, NO_ARG, NO_ARG, NO_ARG)(out: _*)
     }
 
-    def instr2[T1 <: AsmArg, T2 <: AsmArg](f: (T1, T2) => Step)(arg1: ResolutionData => T1, arg2: ResolutionData => T2)(out: AsmIndefReg *): Step = {
+    def instr2[T1 <: AsmArg, T2 <: AsmArg](f: (T1, T2) => Step)(arg1: Indef[T1], arg2: Indef[T2])(out: AsmIndefReg *): Step = {
       instr4[T1, T2, AsmInt, AsmInt]((a, b, _, _) => f(a, b))(arg1, arg2, NO_ARG, NO_ARG)(out: _*)
     }
 
-    def instr3[T1 <: AsmArg, T2 <: AsmArg, T3 <: AsmArg](f: (T1, T2, T3) => Step)(arg1: ResolutionData => T1, arg2: ResolutionData => T2, arg3: ResolutionData => T3)(out: AsmIndefReg *): Step = {
+    def instr3[T1 <: AsmArg, T2 <: AsmArg, T3 <: AsmArg](f: (T1, T2, T3) => Step)(arg1: Indef[T1], arg2: Indef[T2], arg3: Indef[T3])(out: AsmIndefReg *): Step = {
       instr4[T1, T2, T3, AsmInt]((a, b, c, _) => f(a, b, c))(arg1, arg2, arg3, NO_ARG)(out: _*)
     }
 
-    def instr4[T1 <: AsmArg, T2 <: AsmArg, T3 <: AsmArg, T4 <: AsmArg](f: (T1, T2, T3, T4) => Step)(arg1: ResolutionData => T1, arg2: ResolutionData => T2, arg3: ResolutionData => T3, arg4: ResolutionData => T4)(out: AsmIndefReg *): Step = Step((state: State) => {
-      val args: Set[ResolutionData => AsmArg] = Set(arg1, arg2, arg3, arg4)
+    def instr4[T1 <: AsmArg, T2 <: AsmArg, T3 <: AsmArg, T4 <: AsmArg](f: (T1, T2, T3, T4) => Step)(arg1: Indef[T1], arg2: Indef[T2], arg3: Indef[T3], arg4: Indef[T4])(out: AsmIndefReg *): Step = Step((state: State) => {
+      val args: Set[Indef[AsmArg]] = Set(arg1, arg2, arg3, arg4)
 
       if (args contains Re2) assert(!(args contains ReNew))
 
@@ -100,7 +107,7 @@ object step {
 
       if (DEBUG) println(s"re1=$re1, re2=$re2")
 
-      val (reNew, asm2, state2) = (out contains Re2, out contains Re1, args contains ReNew) match {
+      val (reNew, asm6, state6) = (out contains Re2, out contains Re1, args contains ReNew) match {
         case (true, true, true) => (NO_REG, Nil, state1) // Already ruled out
         case (true, true, false) => {
           assert((args contains Re1) && (args contains Re2))
@@ -139,32 +146,32 @@ object step {
         case (false, false, false) => (NO_REG, Nil, state1)
       }
 
-      val (asmF, stateF) = f(
-        arg1(ResolutionData(state1, re2, re1, reNew)), 
-        arg2(ResolutionData(state1, re2, re1, reNew)), 
-        arg3(ResolutionData(state1, re2, re1, reNew)), 
-        arg4(ResolutionData(state1, re2, re1, reNew))
-      )(state1)
+      val (defArg1, asm2, state2) = arg1(ResolutionData(state1, re2, re1, reNew)) 
+      val (defArg2, asm3, state3) = arg2(ResolutionData(state2, re2, re1, reNew)) 
+      val (defArg3, asm4, state4) = arg3(ResolutionData(state3, re2, re1, reNew)) 
+      val (defArg4, asm5, state5) = arg4(ResolutionData(state4, re2, re1, reNew))
 
-      (asm1 ++ asmF ++ asm2, stateF.copy(reg = state2.reg))
+      val (asmF, stateF) = f(defArg1, defArg2, defArg3, defArg4)(state5)
+
+      (asm1 ++ asm2 ++ asm3 ++ asm4 ++ asm5 ++ asmF ++ asm6, stateF.copy(reg = state6.reg))
     }, List(arg1, arg2, arg3, arg4).filterNot {
       case NO_ARG => true
       case _ => false
     }.mkString(","))
 
-    def instr1Aux[T1 <: AsmArg, T](f: T1 => T => Step)(arg1: ResolutionData => T1)(aux: T)(out: AsmIndefReg *): Step = {
+    def instr1Aux[T1 <: AsmArg, T](f: T1 => T => Step)(arg1: Indef[T1])(aux: T)(out: AsmIndefReg *): Step = {
       instr1[T1](f(_)(aux))(arg1)(out: _*)
     }
 
-    def instr2Aux[T1 <: AsmArg, T2 <: AsmArg, T](f: (T1, T2) => T => Step)(arg1: ResolutionData => T1, arg2: ResolutionData => T2)(aux: T)(out: AsmIndefReg *): Step = {
+    def instr2Aux[T1 <: AsmArg, T2 <: AsmArg, T](f: (T1, T2) => T => Step)(arg1: Indef[T1], arg2: Indef[T2])(aux: T)(out: AsmIndefReg *): Step = {
       instr2[T1, T2](f(_, _)(aux))(arg1, arg2)(out: _*)
     }
 
-    def instr3Aux[T1 <: AsmArg, T2 <: AsmArg, T3 <: AsmArg, T](f: (T1, T2, T3) => T => Step)(arg1: ResolutionData => T1, arg2: ResolutionData => T2, arg3: ResolutionData => T3)(aux: T)(out: AsmIndefReg *): Step = {
+    def instr3Aux[T1 <: AsmArg, T2 <: AsmArg, T3 <: AsmArg, T](f: (T1, T2, T3) => T => Step)(arg1: Indef[T1], arg2: Indef[T2], arg3: Indef[T3])(aux: T)(out: AsmIndefReg *): Step = {
       instr3[T1, T2, T3](f(_, _, _)(aux))(arg1, arg2, arg3)(out: _*)
     }
 
-    def instr4Aux[T1 <: AsmArg, T2 <: AsmArg, T3 <: AsmArg, T4 <: AsmArg, T](f: (T1, T2, T3, T4) => T => Step)(arg1: ResolutionData => T1, arg2: ResolutionData => T2, arg3: ResolutionData => T3, arg4: ResolutionData => T4)(aux: T)(out: AsmIndefReg *): Step = {
+    def instr4Aux[T1 <: AsmArg, T2 <: AsmArg, T3 <: AsmArg, T4 <: AsmArg, T](f: (T1, T2, T3, T4) => T => Step)(arg1: Indef[T1], arg2: Indef[T2], arg3: Indef[T3], arg4: Indef[T4])(aux: T)(out: AsmIndefReg *): Step = {
       val fAux: (T1, T2, T3, T4) => Step = f(_, _, _, _)(aux)
       instr4[T1, T2, T3, T4](f(_, _, _, _)(aux))(arg1, arg2, arg3, arg4)(out: _*)
     }
