@@ -92,6 +92,7 @@ object generator {
           case Some(BoolType()) =>  print_bool()
           case Some(CharType()) =>  print_char()
           case Some(IntType()) => print_int()
+          case Some(ArrayType(CharType()))=> print_string()
           case Some(_) => print_ref()
           case None => ???   // Unreachable case statement
         }
