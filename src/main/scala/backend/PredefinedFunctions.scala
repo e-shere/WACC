@@ -13,7 +13,7 @@ object PredefinedFunctions {
     val label: String
   }
 
-  case object print_ln extends PredefinedFunc {
+  case class print_ln() extends PredefinedFunc {
     val label = "p_print_ln"
     val null_char = "\u0000"
     def toStep: Step = (
@@ -28,7 +28,7 @@ object PredefinedFunctions {
       )
   }
 
-  case object print_int extends PredefinedFunc {
+  case class print_int() extends PredefinedFunc {
     val label = "p_print_int"
     val number_format = "%d\u0000"
     def toStep: Step = (
@@ -43,17 +43,17 @@ object PredefinedFunctions {
       >++> Pop()(pc)
     )
   }
-  case object print_char extends PredefinedFunc {
+  case class print_char() extends PredefinedFunc {
     val label = "p_print_char"
     def toStep: Step = (
-           Label(label)
-      >++> Push()(lr)
-      >++> genBuiltinCall()("putchar", 0, None)
-      >++> Pop()(pc)
-    )
+      Label(label)
+        >++> Push()(lr)
+        >++> genBuiltinCall()("putchar", 0, None)
+        >++> Pop()(pc)
+      )
   }
 
-  case object print_string extends PredefinedFunc {
+  case class print_string() extends PredefinedFunc {
     val label = "p_print_string"
     val string_format = "%.*s\u0000"
     def toStep: Step = (
@@ -70,7 +70,7 @@ object PredefinedFunctions {
     )
   }
 
-  case object print_bool extends PredefinedFunc {
+  case class print_bool() extends PredefinedFunc {
     val label = "p_print_bool"
     val message_true = "true\u0000"
     val message_false = "false\u0000"
@@ -88,7 +88,7 @@ object PredefinedFunctions {
     )
   }
 
-  case object print_ref extends PredefinedFunc {
+  case class print_ref() extends PredefinedFunc {
     val label = "p_print_ref"
     val pointer_format = "%p\u0000"
     def toStep: Step = (
@@ -104,27 +104,27 @@ object PredefinedFunctions {
     )
   }
 
-  case object throw_overflow extends PredefinedFunc {
+  case class throw_overflow() extends PredefinedFunc {
     val label = "p_throw_overflow"
     val message = "OverflowError: the result is too small/large to store in a 4-byte signed-integer.\n\u0000"
     def toStep: Step = (
            Label(label)
       >++> Step.instr2Aux(Ldr())(r0, useData(message))(zero)()
-      >++> genPredefCall()(throw_runtime, 0, None)
+      >++> BranchLink()(throw_runtime().label)
     )
   }
 
-  case object throw_runtime extends PredefinedFunc {
+  case class throw_runtime() extends PredefinedFunc {
     val label = "p_throw_runtime"
     def toStep: Step = (
            Label(label)
-      >++> genPredefCall()(print_string, 0, None)
+      >++> BranchLink()(print_string().label)
       >++> Mov()(r0, AsmInt(-1))
       >++> genBuiltinCall()("exit", 0, None)
       )
   }
 
-  case object check_div_zero extends PredefinedFunc {
+  case class check_div_zero() extends PredefinedFunc {
     val label = "p_check_div_zero"
     val message = "DivideByZeroError: divide or modulo by zero\n\u0000"
     def toStep: Step = (
@@ -132,23 +132,23 @@ object PredefinedFunctions {
       >++> Push()(lr)
       >++> Compare()(r0, zero)()
       >++> Step.instr2Aux(Ldr(EQ))(r0, useData(message))(zero)()
-      >++> genPredefCall(EQ)(throw_runtime, 0, None)
+      >++> Branch(EQ)(throw_runtime().label)
       >++> Pop()(pc)
       )
   }
 
-  case object free extends PredefinedFunc {
+  case class free() extends PredefinedFunc {
     val label = "p_free"
     def toStep: Step = (
              Label(label)
         >++> Push()(lr)
-        >++> check_null_pointer.toStep
+        >++> check_null_pointer().toStep
         >++> genBuiltinCall()("free", 0, None)
         >++> Pop()(pc)
       )
   }
 
-  case object check_null_pointer extends PredefinedFunc {
+  case class check_null_pointer() extends PredefinedFunc {
     val label = "p_check_null_pointer"
     val message = "NullReferenceError: dereference a null reference\n\u0000"
     def toStep: Step = (
@@ -156,12 +156,12 @@ object PredefinedFunctions {
       >++> Push()(lr)
       >++> Compare()(r0, zero)()
       >++> Step.instr2Aux(Ldr(EQ))(r0, useData(message))(zero)()
-      >++> genPredefCall(EQ)(throw_runtime, 0, None)
+      >++> genPredefCall(EQ)(throw_runtime(), 0, None)
       >++> Pop()(pc)
     )
   }
 
-  case object check_array_bound extends PredefinedFunc {
+  case class check_array_bound() extends PredefinedFunc {
     val label = "p_check_array_bound"
     val message_LT = "ArrayIndexOutOfBoundsError: negative index\n\u0000"
     val message_GT = "ArrayIndexOutOfBoundsError: index too large\n\u0000"
@@ -170,16 +170,16 @@ object PredefinedFunctions {
       >++> Push()(lr)
       >++> Compare()(r0, zero)()
       >++> Step.instr2Aux(Ldr(LT))(r0, useData(message_LT))(zero)()
-      >++> genPredefCall(LT)(throw_runtime, 0, None) // Link, Less than
+      >++> genPredefCall(LT)(throw_runtime(), 0, None) // Link, Less than
       >++> Ldr()(r1, r1)()
       >++> Compare()(r0, r1)()
       >++> Step.instr2Aux(Ldr(CS))(r0, useData(message_GT))(zero)()
-      >++> genPredefCall(CS)(throw_runtime, 0, None) // Link, Carry set
+      >++> genPredefCall(CS)(throw_runtime(), 0, None) // Link, Carry set
       >++> Pop()(pc)
     )
   }
 
-  case object read_char extends PredefinedFunc {
+  case class read_char() extends PredefinedFunc {
     val label = "p_read_char"
     val char_format =" %c\u0000"
     def toStep: Step = (
@@ -193,7 +193,7 @@ object PredefinedFunctions {
     )
   }
 
-  case object read_int extends PredefinedFunc {
+  case class read_int() extends PredefinedFunc {
     val label = "p_read_int"
     val number_format = "%d\u0000"
     def toStep: Step = (

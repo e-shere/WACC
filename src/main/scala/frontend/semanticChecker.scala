@@ -79,7 +79,7 @@ object semanticChecker {
       printSymbols: mutable.Map[(Int, Int), Type]
   ): (TypeTable, List[WaccError], mutable.Map[(Int, Int), Type]) = {
     val errors: mutable.ListBuffer[WaccError] = mutable.ListBuffer.empty
-    implicit var localSymbols: TypeTable = TypeTable(Map.empty, parentSymbols, 0)
+    implicit var localSymbols: TypeTable = TypeTable(Map.empty, parentSymbols, if (parentSymbols.isEmpty) 0 else parentSymbols.get.counter + 1)
     for (stat <- stats) {
       // match on different types of statements
       stat match {
