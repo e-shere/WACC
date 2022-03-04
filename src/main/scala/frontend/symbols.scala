@@ -22,7 +22,7 @@ object symbols {
     }
 
     def +(kv: (ArrayIdent, Type)): TypeTable = {
-      this.copy(symbols = this.symbols + (kv._1 -> (kv._2, counter)), counter = this.counter + 4)
+      this.copy(symbols = this.symbols + (kv._1 -> (kv._2, counter)), counter = this.counter + 1)
     }
 
     def getType(ident: ArrayIdent): Option[Type] = {
@@ -34,7 +34,7 @@ object symbols {
 
     def getOffset(ident: ArrayIdent): Option[Int] = {
       symbols get ident match {
-        case None => parent.flatMap(_ getOffset ident)
+        case None => parent.flatMap(_ getOffset ident).map(counter + _)
         case Some(x) => Some(x._2)
       }
     }

@@ -8,6 +8,8 @@ import backend.step.implicits._
 object asm {
   val WORD_BYTES = 4
 
+  def countToOffset(count: Int): Int = count * WORD_BYTES
+
   def escapeToStr(c: Char): String = {
     c match {
       case '\u0000'=> "\\0"
@@ -34,7 +36,7 @@ object asm {
   val lr = AsmReg(14)
   val pc = AsmReg(15)
 
-  case class AsmReg(r: Int) extends AsmArg with ConstIndef[AsmReg] {
+  case class AsmReg(r: Int) extends AsmArg with ((ResolutionData) => AsmReg) {
 
     override def toString: String = r match {
         // Consider factoring out the magic numbers
@@ -46,55 +48,51 @@ object asm {
         case _ => "INVALID REGISTER"
       }
 
-    val constDef = this
+    def apply(data: ResolutionData): AsmReg = this
   }
 
-  case class AsmStateFunc[+T <: AsmArg](func: State => (T, List[Asm], State)) extends Indef[T] {
-    def apply(data: ResolutionData): (T, List[Asm], State) = func(data.state)
-  }
-
-  case class AsmPureFunc[+T <: AsmArg](func: State => T) extends Indef[T] {
-    def apply(data: ResolutionData): (T, List[Asm], State) = (func(data.state), Nil, data.state)
+  case class AsmStateFunc[T <: AsmArg](func: State => T) extends ((ResolutionData) => T) {
+    def apply(data: ResolutionData): T = func(data.state)
   }
 
   val zero = AsmInt(0)
   val word_size = AsmInt(WORD_BYTES)
-  case class AsmInt(i: Int) extends AsmArg with ConstIndef[AsmInt] {
+  case class AsmInt(i: Int) extends AsmArg with ((ResolutionData) => AsmInt) {
     override def toString = s"#$i"
 
     def toLdrString = s"=$i"
-    
-    val constDef = this
+
+    def apply(data: ResolutionData): AsmInt = this
   }
 
-  case class AsmString(s: String) extends AsmArg with ConstIndef[AsmString] {
+  case class AsmString(s: String) extends AsmArg with ((ResolutionData) => AsmString) {
     override def toString = s"$s"
     def toLdrString = s"=$s"
 
-    val constDef = this
+    def apply(data: ResolutionData): AsmString = this
   }
 
-  case class AsmChar(c: Char) extends AsmArg with ConstIndef[AsmChar] {
+  case class AsmChar(c: Char) extends AsmArg with (ResolutionData => AsmChar) {
     override def toString: String = s"#'${escapeToStr(c)}'"
     def toLdrString = s"='${escapeToStr(c)}'"
 
-    val constDef = this
+    def apply(data: ResolutionData): AsmChar = this
   }
 
-  sealed trait AsmIndefReg extends Indef[AsmReg]
+  sealed trait AsmIndefReg extends ((ResolutionData) => AsmReg)
 
   case object Re2 extends AsmIndefReg {
-    def apply(data: ResolutionData): (AsmReg, List[Asm], State) = (data.re2, Nil, data.state)
+    def apply(data: ResolutionData): AsmReg = data.re2
 //    override def toString: String = "Re2"
   }
 
   case object Re1 extends AsmIndefReg {
-    def apply(data: ResolutionData): (AsmReg, List[Asm], State) = (data.re1, Nil, data.state)
+    def apply(data: ResolutionData): AsmReg = data.re1
 //    override def toString: String = "Re1"
   }
 
   case object ReNew extends AsmIndefReg {
-    def apply(data: ResolutionData): (AsmReg, List[Asm], State) = (data.reNew, Nil, data.state)
+    def apply(data: ResolutionData): AsmReg = data.reNew
 //    override def toString: String = "ReNew"
   }
 
@@ -259,6 +257,10 @@ object asm {
         >++> Mov(GT)(target, AsmInt(1))
         >++> Mov(LE)(target, AsmInt(0))
       )
+  }
+
+  object Mul {
+    def apply: Step = ???
   }
 
   object implicits {
