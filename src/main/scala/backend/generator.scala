@@ -63,7 +63,10 @@ object generator {
       case Skip() => Step.identity
       case Declare(_, id, rhs) => genStat(Assign(id, rhs)(stat.pos))
       case Assign(lhs, rhs) => (genRhs(rhs) >++> genLhs(lhs)
-        >++> Step.instr2Aux(str(printTable(lhs.pos)))(Re2, Re1)(zero)())
+        >++> Step.instr2Aux(str(lhs match {
+        case idd@Ident(_) => symbols.getType(idd).get
+        case _ => printTable(lhs.pos)
+      }))(Re2, Re1)(zero)())
       case Read(lhs) =>
         val readFunc: PredefinedFunc = printTable.get(lhs.pos) match {
           case Some(IntType()) => read_int()
