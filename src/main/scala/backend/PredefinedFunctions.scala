@@ -2,7 +2,7 @@ package backend
 
 import backend.asm.ConditionCode._
 import backend.asm._
-import backend.generator.includeData
+import backend.generator._
 import backend.step._
 import backend.step.implicits.implicitStep
 
@@ -19,12 +19,11 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       >++> Push()(lr)
-      >++> includeData(null_char)
-      >++> Step.instr2Aux(Ldr())(r0, AsmPureFunc(_.data(null_char)))(zero)()
+      >++> Step.instr2Aux(Ldr())(r0, useData(null_char))(zero)()
       >++> Adds()(r0, r0, word_size)
-      >++> BranchLink()("puts")
+      >++> genBuiltinCall()("puts", 0, None)
       >++> Mov()(r0, zero)
-      >++> BranchLink()("fflush")
+      >++> genBuiltinCall()("fflush", 0, None)
       >++> Pop()(pc)
       )
   }
@@ -36,12 +35,11 @@ object PredefinedFunctions {
            Label(label)
       >++> Push()(lr)
       >++> Mov()(r1, r0)
-      >++> includeData(number_format)
-      >++> Step.instr2Aux(Ldr())(r0, AsmPureFunc(_.data(number_format)))(zero)()
+      >++> Step.instr2Aux(Ldr())(r0, useData(number_format))(zero)()
       >++> Adds()(r0, r0, word_size)
-      >++> BranchLink()("printf")
+      >++> genBuiltinCall()("printf", 0, None)
       >++> Mov()(r0, zero)
-      >++> BranchLink()("fflush")
+      >++> genBuiltinCall()("fflush", 0, None)
       >++> Pop()(pc)
     )
   }
@@ -50,7 +48,7 @@ object PredefinedFunctions {
     def toStep: Step = (
       Label(label)
         >++> Push()(lr)
-        >++> BranchLink()("putchar")
+        >++> genBuiltinCall()("putchar", 0, None)
         >++> Pop()(pc)
       )
   }
@@ -63,12 +61,11 @@ object PredefinedFunctions {
       >++> Push()(lr)
       >++> Ldr()(r1, r0)()
       >++> Adds()(r2, r0, word_size)
-      >++> includeData(string_format)
-      >++> Step.instr2Aux(Ldr())(r0, AsmPureFunc(_.data(string_format)))(zero)()
+      >++> Step.instr2Aux(Ldr())(r0, useData(string_format))(zero)()
       >++> Adds()(r0, r0, word_size)
-      >++> BranchLink()("printf")
+      >++> genBuiltinCall()("printf", 0, None)
       >++> Mov()(r0, zero)
-      >++> BranchLink()("fflush")
+      >++> genBuiltinCall()("fflush", 0, None)
       >++> Pop()(pc)
     )
   }
@@ -81,14 +78,12 @@ object PredefinedFunctions {
            Label(label)
       >++> Push()(lr)
       >++> Compare()(r0, zero)()
-      >++> includeData(message_true)
-      >++> Step.instr2Aux(Ldr(NE))(r0, AsmPureFunc(_.data(message_true)))(zero)()
-      >++> includeData(message_false)
-      >++> Step.instr2Aux(Ldr(EQ))(r0, AsmPureFunc(_.data(message_false)))(zero)()
+      >++> Step.instr2Aux(Ldr(NE))(r0, useData(message_true))(zero)()
+      >++> Step.instr2Aux(Ldr(EQ))(r0, useData(message_false))(zero)()
       >++> Adds()(r0, r0, word_size)
-      >++> BranchLink()("printf")
+      >++> genBuiltinCall()("printf", 0, None)
       >++> Ldr()(r0, zero)()
-      >++> BranchLink()("fflush")
+      >++> genBuiltinCall()("fflush", 0, None)
       >++> Pop()(pc)
     )
   }
@@ -100,12 +95,11 @@ object PredefinedFunctions {
       Label(label)
       >++> Push()(lr)
       >++> Mov()(r1, r0)
-      >++> includeData(pointer_format)
-      >++> Step.instr2Aux(Ldr())(r0, AsmPureFunc(_.data(pointer_format)))(zero)()
+      >++> Step.instr2Aux(Ldr())(r0, useData(pointer_format))(zero)()
       >++> Adds()(r0, r0, word_size)
-      >++> BranchLink()("printf")
+      >++> genBuiltinCall()("printf", 0, None)
       >++> Mov()(r0, zero)
-      >++> BranchLink()("fflush")
+      >++> genBuiltinCall()("fflush", 0, None)
       >++> Pop()(pc)
     )
   }
@@ -115,8 +109,7 @@ object PredefinedFunctions {
     val message = "OverflowError: the result is too small/large to store in a 4-byte signed-integer.\\n\\0"
     def toStep: Step = (
            Label(label)
-      >++> includeData(message)
-      >++> Step.instr2Aux(Ldr())(r0, AsmPureFunc(_.data(message)))(zero)()
+      >++> Step.instr2Aux(Ldr())(r0, useData(message))(zero)()
       >++> BranchLink()(throw_runtime().label)
     )
   }
@@ -127,7 +120,7 @@ object PredefinedFunctions {
            Label(label)
       >++> BranchLink()(print_string().label)
       >++> Mov()(r0, AsmInt(-1))
-      >++> BranchLink()("exit")
+      >++> genBuiltinCall()("exit", 0, None)
       )
   }
 
@@ -138,8 +131,7 @@ object PredefinedFunctions {
            Label(label)
       >++> Push()(lr)
       >++> Compare()(r0, zero)()
-      >++> includeData(message)
-      >++> Step.instr2Aux(Ldr(EQ))(r0, AsmPureFunc(_.data(message)))(zero)()
+      >++> Step.instr2Aux(Ldr(EQ))(r0, useData(message))(zero)()
       >++> Branch(EQ)(throw_runtime().label)
       >++> Pop()(pc)
       )
@@ -151,7 +143,7 @@ object PredefinedFunctions {
              Label(label)
         >++> Push()(lr)
         >++> check_null_pointer().toStep
-        >++> BranchLink()("free")
+        >++> genBuiltinCall()("free", 0, None)
         >++> Pop()(pc)
       )
   }
@@ -163,9 +155,8 @@ object PredefinedFunctions {
            Label(label)
       >++> Push()(lr)
       >++> Compare()(r0, zero)()
-      >++> includeData(message)
-      >++> Step.instr2Aux(Ldr(EQ))(r0, AsmPureFunc(_.data(message)))(zero)()
-      >++> Branch(EQ)(throw_runtime().label)
+      >++> Step.instr2Aux(Ldr(EQ))(r0, useData(message))(zero)()
+      >++> genPredefCall(EQ)(throw_runtime(), 0, None)
       >++> Pop()(pc)
     )
   }
@@ -178,14 +169,12 @@ object PredefinedFunctions {
            Label(label)
       >++> Push()(lr)
       >++> Compare()(r0, zero)()
-      >++> includeData(message_LT)
-      >++> Step.instr2Aux(Ldr(LT))(r0, AsmPureFunc(_.data(message_LT)))(zero)()
-      >++> BranchLink(LT)(throw_runtime().label) // Link, Less than
+      >++> Step.instr2Aux(Ldr(LT))(r0, useData(message_LT))(zero)()
+      >++> genPredefCall(LT)(throw_runtime(), 0, None) // Link, Less than
       >++> Ldr()(r1, r1)()
       >++> Compare()(r0, r1)()
-      >++> includeData(message_GT)
-      >++> Step.instr2Aux(Ldr(CS))(r0, AsmPureFunc(_.data(message_GT)))(zero)()
-      >++> BranchLink(CS)(throw_runtime().label) // Link, Carry set
+      >++> Step.instr2Aux(Ldr(CS))(r0, useData(message_GT))(zero)()
+      >++> genPredefCall(CS)(throw_runtime(), 0, None) // Link, Carry set
       >++> Pop()(pc)
     )
   }
@@ -197,10 +186,9 @@ object PredefinedFunctions {
            Label(label)
       >++> Push()(lr)
       >++> Mov()(r1, r0)
-      >++> includeData(char_format)
-      >++> Step.instr2Aux(Ldr())(r0, AsmPureFunc(_.data(char_format)))(zero)()
+      >++> Step.instr2Aux(Ldr())(r0, useData(char_format))(zero)()
       >++> Adds()(r0, r0, word_size)
-      >++> BranchLink()("scanf")
+      >++> genBuiltinCall()("scanf", 0, None)
       >++> Pop()(pc)
     )
   }
@@ -212,10 +200,9 @@ object PredefinedFunctions {
       Label(label)
         >++> Push()(lr)
         >++> Mov()(r1, r0)
-        >++> includeData(number_format)
-        >++> Step.instr2Aux(Ldr())(r0, AsmPureFunc(_.data(number_format)))(zero)()
+        >++> Step.instr2Aux(Ldr())(r0, useData(number_format))(zero)()
         >++> Adds()(r0, r0, word_size)
-        >++> BranchLink()("scanf")
+        >++> genBuiltinCall()("scanf", 0, None)
         >++> Pop()(pc)
       )
   }
