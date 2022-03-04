@@ -149,7 +149,7 @@ object PredefinedFunctions {
     def toStep: Step = (
              Label(label)
         >++> Push()(lr)
-        >++> check_null_pointer().toStep
+        >++> BranchLink()(check_null_pointer().label)
         >++> BranchLink()("free")
         >++> Pop()(pc)
       )
