@@ -182,7 +182,10 @@ object generator {
       case ast.StrLiter(x) =>
         includeData(x) >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(_.data(x)))(zero)()
       case ast.ArrayLiter(x) => {
-        val size = printTable(expr.pos).size
+        val size:Int = printTable(expr.pos) match {
+          case ArrayType(b) => b.size
+          case _ => ??? // unreachable
+        }
         (Step.instr2(asm.Mov())(ReNew, AsmInt(x.length))()
           >++> Step.instr2(asm.Mov())(ReNew, AsmInt((x.length * size) + WORD_BYTES))()
           >++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array

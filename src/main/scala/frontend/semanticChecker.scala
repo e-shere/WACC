@@ -488,14 +488,15 @@ object semanticChecker {
       case strExpr: StrLiter   => (Some(StringType()(strExpr.pos)), Nil)
       case boolExpr: BoolLiter => (Some(BoolType()(boolExpr.pos)), Nil)
       case charExpr: CharLiter => (Some(CharType()(charExpr.pos)), Nil)
-      case arrayExpr @ ArrayLiter(Nil) =>
-        (Some(ArrayType(ANY_TYPE)(arrayExpr.pos)), Nil)
+      case arrayExpr @ ArrayLiter(Nil) => {
+        printSymbols += (arrayExpr.pos -> ArrayType(ANY_TYPE)(arrayExpr.pos))
+        (Some(ArrayType(ANY_TYPE)(arrayExpr.pos)), Nil)}
       case arrayExpr @ ArrayLiter(expr :: exprs) => {
         val (maybeTypes, errors) =
           typeOfExpr2(expr, ArrayLiter(exprs)(arrayExpr.pos))
         maybeTypes match {
           case Some((a, ArrayType(b))) => {
-            printSymbols += (expr.pos -> maybeTypes.get._2)
+            printSymbols += (arrayExpr.pos -> maybeTypes.get._2)
             if (b coercesTo a) (Some(ArrayType(a)(arrayExpr.pos)), errors)
             else if (a coercesTo b) (Some(ArrayType(b)(arrayExpr.pos)), errors)
             else
