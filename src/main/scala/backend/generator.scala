@@ -252,6 +252,7 @@ object generator {
     >++> Step.instr2Aux(Compare())(Re1, Re2)("ASR #31")(Re2)
     >++> BranchLink(NE)(throw_overflow().label)
     >++> addPredefFunc(throw_overflow())
+    >++> addPredefFunc(throw_runtime())
   )
 
   def genDiv: Step = (
