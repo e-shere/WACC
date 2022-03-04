@@ -48,7 +48,7 @@ object semanticChecker {
         for (f @ Func(ty, _, args, body) <- funcs) {
           val argsTable: TypeTable = TypeTable(
             args.zipWithIndex.map { case (Param(ty, id), index) =>
-              id -> (ty, index)
+              id -> (ty, index + 1) // To account for lr being pushed when entering function scope
             }.toMap,
             None,
             args.length
