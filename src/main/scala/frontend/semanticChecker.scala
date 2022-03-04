@@ -33,6 +33,7 @@ object semanticChecker {
       case WaccProgram(funcs, stats) => {
         // generate function table
         val funcTableMut: mutable.Map[Ident, FuncType] = mutable.Map.empty
+        val localPrintSymbols = mutable.Map.empty[(Int, Int), Type]
         for (Func(ty, id, args, _) <- funcs) {
           if (funcTableMut contains id)
             errors += RedefinedFunctionError.mkError(id)
@@ -52,13 +53,15 @@ object semanticChecker {
             None,
             args.length
           )
-          val (typeTable, newErrors, _) = validateBlock(Some(argsTable), body, Some(ty))
+          val (typeTable, newErrors, funcsPrintSymbols) = validateBlock(Some(argsTable), body, Some(ty))
+          localPrintSymbols ++= funcsPrintSymbols
           f.symbols = Some(typeTable)
           errors ++= newErrors
         }
-        val (typeTable, newErrors, finalPrintSymbols) = validateBlock(None, stats, None)
+        val (typeTable, newErrors, blockPrintSymbols) = validateBlock(None, stats, None)
+        localPrintSymbols ++= blockPrintSymbols
         program.mainSymbols = Some(typeTable)
-        program.printSymbols = finalPrintSymbols
+        program.printSymbols = localPrintSymbols.toMap
         errors ++= newErrors
       }
     }
