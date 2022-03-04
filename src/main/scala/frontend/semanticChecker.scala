@@ -261,7 +261,8 @@ object semanticChecker {
   )(implicit
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String]
+      fileLines: Array[String],
+      printSymbols: mutable.Map[(Int, Int), Type]
   ): (Option[Type], List[WaccError]) = {
     val (maybeTypes, errors) = typeOfExpr2(x, y)
     maybeTypes match {
@@ -308,7 +309,8 @@ object semanticChecker {
   )(implicit
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String]
+      fileLines: Array[String],
+      printSymbols: mutable.Map[(Int, Int), Type]
   ): (Option[Type], List[WaccError]) = {
     val (maybeXType, xErrors) = typeOfExpr(x)
     maybeXType match {
@@ -327,7 +329,8 @@ object semanticChecker {
   def typeOfExpr(expr: Expr)(implicit
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String]
+      fileLines: Array[String],
+      printSymbols: mutable.Map[(Int, Int), Type]
   ): (Option[Type], List[WaccError]) = {
     expr match {
       case orExpr @ Or(x, y) =>
@@ -485,13 +488,15 @@ object semanticChecker {
       case strExpr: StrLiter   => (Some(StringType()(strExpr.pos)), Nil)
       case boolExpr: BoolLiter => (Some(BoolType()(boolExpr.pos)), Nil)
       case charExpr: CharLiter => (Some(CharType()(charExpr.pos)), Nil)
-      case arrayExpr @ ArrayLiter(Nil) =>
-        (Some(ArrayType(ANY_TYPE)(arrayExpr.pos)), Nil)
+      case arrayExpr @ ArrayLiter(Nil) => {
+        printSymbols += (arrayExpr.pos -> ArrayType(ANY_TYPE)(arrayExpr.pos))
+        (Some(ArrayType(ANY_TYPE)(arrayExpr.pos)), Nil)}
       case arrayExpr @ ArrayLiter(expr :: exprs) => {
         val (maybeTypes, errors) =
           typeOfExpr2(expr, ArrayLiter(exprs)(arrayExpr.pos))
         maybeTypes match {
           case Some((a, ArrayType(b))) => {
+            printSymbols += (arrayExpr.pos -> maybeTypes.get._2)
             if (b coercesTo a) (Some(ArrayType(a)(arrayExpr.pos)), errors)
             else if (a coercesTo b) (Some(ArrayType(b)(arrayExpr.pos)), errors)
             else
@@ -511,6 +516,7 @@ object semanticChecker {
             val errors = indexErrors ++ arrayErrors
             maybeArrayType match {
               case Some(ArrayType(innerType)) =>
+                printSymbols += arrayElem.pos -> innerType
                 (Some(innerType.withPos(arrayElem.pos)), errors)
               case Some(ty) =>
                 (
@@ -542,7 +548,8 @@ object semanticChecker {
   def typeOfExpr2(x: Expr, y: Expr)(implicit
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String]
+      fileLines: Array[String],
+      printSymbols: mutable.Map[(Int, Int), Type]
   ): (Option[(Type, Type)], List[WaccError]) = {
     val (maybeXType, xErrors) = typeOfExpr(x)
     val (maybeYType, yErrors) = typeOfExpr(y)
@@ -560,13 +567,15 @@ object semanticChecker {
       funcTable: Map[Ident, FuncType],
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String]
+      fileLines: Array[String],
+      printSymbols: mutable.Map[(Int, Int), Type]
   ): (Option[Type], List[WaccError]) = {
     rhs match {
       case rhs @ NewPair(fst, snd) => {
         val (maybeTypes, errors) = typeOfExpr2(fst, snd)
         maybeTypes match {
           case Some((fstType, sndType)) =>
+            printSymbols += rhs.pos -> PairType(fstType.toPairElemType, sndType.toPairElemType)(rhs.pos)
             (
               Some(
                 PairType(fstType.toPairElemType, sndType.toPairElemType)(
@@ -587,7 +596,8 @@ object semanticChecker {
         else {
           val (maybeExprType, exprErrors) = typeOfExpr(expr)
           maybeExprType match {
-            case Some(PairType(fstType, _)) =>
+            case Some(pt@PairType(fstType, _)) =>
+              printSymbols += expr.pos -> pt
               (Some(fstType.toType), exprErrors)
             case Some(ty) =>
               (
@@ -611,7 +621,8 @@ object semanticChecker {
         else {
           val (maybeExprType, exprErrors) = typeOfExpr(expr)
           maybeExprType match {
-            case Some(PairType(_, sndType)) =>
+            case Some(pt@PairType(_, sndType)) =>
+              printSymbols += expr.pos -> pt
               (Some(sndType.toType), exprErrors)
             case Some(ty) =>
               (
@@ -686,7 +697,8 @@ object semanticChecker {
       funcTable: Map[Ident, FuncType],
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String]
+      fileLines: Array[String],
+      printSymbols: mutable.Map[(Int, Int), Type]
   ): (Option[Type], List[WaccError]) = {
     // Every subtype of AssignLhs is also a subtype of AssignRhs. This method
     // exists anyway for easier extensibility if this were to change

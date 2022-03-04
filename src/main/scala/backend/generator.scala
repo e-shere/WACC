@@ -63,7 +63,7 @@ object generator {
       case Skip() => Step.identity
       case Declare(_, id, rhs) => genStat(Assign(id, rhs)(stat.pos))
       case Assign(lhs, rhs) => (genRhs(rhs) >++> genLhs(lhs)
-        >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)())
+        >++> Step.instr2Aux(str(printTable(lhs.pos)))(Re2, Re1)(zero)())
       case Read(lhs) =>
         val readFunc: PredefinedFunc = printTable.get(lhs.pos) match {
           case Some(IntType()) => read_int()
@@ -133,17 +133,17 @@ object generator {
     }
   }
 
-  def genBinOp(x: Expr, y: Expr, step: Step)(implicit symbols: TypeTable): Step = (
+  def genBinOp(x: Expr, y: Expr, step: Step)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
            genExpr(x)
       >++> genExpr(y)
       >++> step
     )
 
-  def genUnOp(x: Expr, step: Step)(implicit symbols: TypeTable): Step = {
+  def genUnOp(x: Expr, step: Step)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = {
     genExpr(x) >++> step
   }
 
-  def genExpr(expr: Expr)(implicit symbols: TypeTable): Step = {
+  def genExpr(expr: Expr)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = {
     expr match {
       case ast.Or(x, y)  => genBinOp(x, y, Step.instr3(asm.Or())(Re2, Re2, Re1)(Re2))
       case ast.And(x, y) => genBinOp(x, y, Step.instr3(asm.And())(Re2, Re2, Re1)(Re2))
@@ -176,57 +176,68 @@ object generator {
       case ast.Ord(x)    => genUnOp(x, Step.identity)
       case ast.Chr(x)    => genUnOp(x, Step.identity)
       case ast.IntLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x))(zero)()
-      case ast.BoolLiter(x) => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(x.compare(false)))(zero)()
-      case ast.CharLiter(x) => Step.instr2(asm.Mov())(ReNew, AsmChar(x))()
+      case ast.BoolLiter(x) => Step.instr2Aux(asm.Ldrb())(ReNew, AsmInt(x.compare(false)))(zero)()
+      case ast.CharLiter(x) => Step.instr2Aux(asm.Ldrb())(ReNew, AsmChar(x))(zero)()
       // TODO: There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
       case ast.StrLiter(x) =>
         includeData(x) >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(_.data(x)))(zero)()
-      case ast.ArrayLiter(x) => (
-        Step.instr2(asm.Mov())(ReNew, AsmInt(x.length))()
-          >++> Step.instr2(asm.Mov())(ReNew, AsmInt((x.length + 1) * WORD_BYTES))()
+      case ast.ArrayLiter(x) => {
+        val size:Int = printTable(expr.pos) match {
+          case ArrayType(b) => b.size
+          case _ => ??? // unreachable
+        }
+        (Step.instr2(asm.Mov())(ReNew, AsmInt(x.length))()
+          >++> Step.instr2(asm.Mov())(ReNew, AsmInt((x.length * size) + WORD_BYTES))()
           >++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
           >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)(Re2, Re1)
           >++> Step.instr2(asm.Mov())(Re2, Re1)(Re2)
           >++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
           prev
             >++> genExpr(v._1) // put value in a register
-            >++> Step.instr2Aux(asm.Str())(Re1, Re2)(AsmInt((v._2 + 1) * WORD_BYTES))(Re2)
+            >++> Step.instr2Aux(if (size == 1) asm.Strb() else asm.Str())(Re1, Re2)(AsmInt(WORD_BYTES + (v._2 * size)))(Re2)
           ))
-      )
+      )}
       case s@ArrayElem(id, index) => genLhs(s)
-      case idd@Ident(_) => genLhs(idd) >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(zero)(Re1)
+      case idd@Ident(_) => genLhs(idd) >++> Step.instr2Aux(ldr(symbols.getType(idd).get))(Re1, Re1)(zero)(Re1)
       case Null() => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(0))(zero)()
       case Paren(expr) => genExpr(expr)
     }
   }
 
-  def genRhs(rhs: AssignRhs)(implicit symbols: TypeTable): Step = {
+  def genRhs(rhs: AssignRhs)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = {
     rhs match {
       case arr@ArrayLiter(_) => genExpr(arr)
       case NewPair(fst, snd) => (
         Step.instr2(asm.Mov())(ReNew, AsmInt(4 * 2))()
         >++> genCallWithRegs("malloc", 1, Some(r0))
         >++> genExpr(fst)
-        >++> Step.instr2Aux(asm.Str())(Re1, Re2)(zero)(Re2)
+        >++> Step.instr2Aux(str(printTable(fst.pos)))(Re1, Re2)(zero)(Re2)
         >++> genExpr(snd)
-        >++> Step.instr2Aux(asm.Str())(Re1, Re2)(word_size)(Re2)
+        >++> Step.instr2Aux(str(printTable(snd.pos)))(Re1, Re2)(AsmInt(printTable(fst.pos).size))(Re2)
       )
-      case Fst(expr) => (
-             genExpr(expr)
+      case Fst(expr) =>
+        val fstType = printTable(expr.pos) match {
+          case PairType(ty, _) => ty.toType
+          case _ => ??? // This is unreachable
+        }
+      (genExpr(expr)
         >++> genCallWithRegs(check_null_pointer().label, 1, Some(r0))
-        >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(zero)(Re1)
+        >++> Step.instr2Aux(ldr(fstType))(Re1, Re1)(zero)(Re1)
         >++> addPredefFunc(check_null_pointer())
         >++> addPredefFunc(throw_runtime())
-        >++> addPredefFunc(throw_overflow())
         >++> addPredefFunc(print_string())
       )
-      case Snd(expr) => (
+      case Snd(expr) =>
+        val (fstType, sndType) = printTable(expr.pos) match {
+          case PairType(tyf, tys) => (tyf.toType, tys.toType)
+          case _ => ??? // This is unreachable
+        }
+        (
              genExpr(expr)
         >++> genCallWithRegs(check_null_pointer().label, 1, Some(r0))
-        >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(word_size)(Re1)
+        >++> Step.instr2Aux(ldr(sndType))(Re1, Re1)(AsmInt(fstType.size))(Re1)
         >++> addPredefFunc(check_null_pointer())
         >++> addPredefFunc(throw_runtime())
-        >++> addPredefFunc(throw_overflow())
         >++> addPredefFunc(print_string())
       )
       case ast.Call(id, args) => (
@@ -243,24 +254,30 @@ object generator {
 
 
   // puts the memory location of the object in question in a register
-  def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {
+  def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = lhs match {
     case id@Ident(_) =>
       // This stores the actual location in a new register
       (Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(s => AsmInt(countToOffset(symbols.getOffset(id).get + s.getStackOffset))))(zero)()
         >++> Step.instr3(asm.Adds())(ReNew, STACK_POINTER, Re1)())
-    case ArrayElem(id, index) => (genExpr(id)
-      >++> genExpr(index)
-      >++> genExpr(id)
-      >++> genExpr(index)
-      >++> genCallWithRegs(check_array_bound().label, 2, None)
-      >++> Step.instr3(asm.Adds())(Re1, Re1, AsmInt(1))(Re1)
-      >++> Step.instr2(asm.Mov())(ReNew, AsmInt(4))()
-      >++> genMul()
-      >++> Step.instr3(asm.Adds())(Re2, Re2, Re1)(Re2)
-      >++> addPredefFunc(check_array_bound())
-      >++> addPredefFunc(throw_runtime())
-      >++> addPredefFunc(print_string())
-      )
+    case ArrayElem(id, index) => {
+      val ty: Type = id match {
+        case ArrayElem(_, _) => ArrayType(AnyType()(NO_POS))(NO_POS)
+        case idd@Ident(_) => symbols.getType(idd).get
+      }
+      (genExpr(id)
+        >++> genExpr(index)
+        >++> genExpr(id)
+        >++> genExpr(index)
+        >++> genCallWithRegs(check_array_bound().label, 2, None)
+        >++> Step.instr2(asm.Mov())(ReNew, AsmInt(ty.size))()
+        >++> genMul()
+        >++> Step.instr3(asm.Adds())(Re1, Re1, word_size)(Re1)
+        >++> Step.instr3(asm.Adds())(Re2, Re2, Re1)(Re2)
+        >++> addPredefFunc(check_array_bound())
+        >++> addPredefFunc(throw_runtime())
+        >++> addPredefFunc(print_string())
+        )
+    }
     case Fst(expr) => genExpr(expr)
     case Snd(expr) => (
       genExpr(expr)
@@ -314,6 +331,10 @@ object generator {
     Step((s: State) => s.fState.foldLeft(Step.identity)(
       (prev, f) => prev >++> f.toStep)(s), "genPredefFuncs")
   }
+
+  def ldr(ty: Type): (AsmReg, AsmArg) => AsmInt => Step = if (ty.size == 1) asm.Ldrb() else asm.Ldr()
+
+  def str(ty: Type): (AsmReg, AsmArg) => AsmInt => Step = if (ty.size == 1) asm.Strb() else asm.Str()
 
   def addPredefFunc(f: PredefinedFunc): Step = {
     Step((s: State) => (Nil, s.copy(fState = s.fState + f)), s"addPredefFunc(${f.label})")

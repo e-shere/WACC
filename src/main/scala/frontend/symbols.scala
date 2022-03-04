@@ -22,7 +22,7 @@ object symbols {
     }
 
     def +(kv: (ArrayIdent, Type)): TypeTable = {
-      this.copy(symbols = this.symbols + (kv._1 -> (kv._2, counter)), counter = this.counter + 1)
+      this.copy(symbols = this.symbols + (kv._1 -> (kv._2, counter)), counter = this.counter + kv._2.size)
     }
 
     def getType(ident: ArrayIdent): Option[Type] = {
