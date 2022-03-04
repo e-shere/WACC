@@ -22,7 +22,7 @@ object symbols {
     }
 
     def +(kv: (ArrayIdent, Type)): TypeTable = {
-      this.copy(symbols = this.symbols + (kv._1 -> (kv._2, counter)), counter = this.counter + 1)
+      this.copy(symbols = this.symbols + (kv._1 -> (kv._2, counter)), counter = this.counter + kv._2.size)
     }
 
     def getType(ident: ArrayIdent): Option[Type] = {
@@ -33,12 +33,16 @@ object symbols {
     }
 
     def getOffset(ident: ArrayIdent): Option[Int] = {
-      symbols get ident match {
-        case None => parent.flatMap(_ getOffset ident)
-        case Some(x) => Some(x._2)
+      val declaredIdent = symbols.keys.find(_ == ident)
+//      println(s"$declaredIdent")
+      declaredIdent match {
+        case Some(x) if leqPos(declaredIdent.get.pos, ident.pos) => Some(symbols(x)._2)
+        case _ => parent.flatMap(_ getOffset ident).map(counter + _)
       }
     }
 
-  }
+    def leqPos(p1: (Int, Int), p2: (Int, Int)): Boolean =
+      p1._1 < p2._1 || (p1._1 == p1._1 && p1._2 <= p2._2)
 
+  }
 }

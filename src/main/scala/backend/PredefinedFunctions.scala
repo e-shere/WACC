@@ -137,7 +137,7 @@ object PredefinedFunctions {
     def toStep: Step = (
            Label(label)
       >++> Push()(lr)
-      >++> Compare()(r0, zero)()
+      >++> Compare()(r1, zero)()
       >++> includeData(message)
       >++> Step.instr2Aux(Ldr(EQ))(r0, AsmStateFunc(_.data(message)))(zero)()
       >++> Branch(EQ)(throw_runtime().label)

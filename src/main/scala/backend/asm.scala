@@ -8,8 +8,6 @@ import backend.step.implicits._
 object asm {
   val WORD_BYTES = 4
 
-  def countToOffset(count: Int): Int = count * WORD_BYTES
-
   def escapeToStr(c: Char): String = {
     c match {
       case '\u0000'=> "\\0"
@@ -192,13 +190,40 @@ object asm {
       source match {
         case i@AsmInt(_) => s"$target, ${i.toLdrString}"
         case s@AsmString(_) => s"$target, ${s.toLdrString}"
-        case _ => s"$target, [$source, $offset]"
+        case _ => offset match {
+            case AsmInt(0) => s"$target, [$source]"
+            case _ => s"$target, [$source, $offset]"
+          }
       }
     }
   }
 
   case class Str(cond: ConditionCode.Value = AL)(source: AsmReg, target: AsmArg)(offset: AsmInt = zero) extends AsmInstr {
     override val opcode: String = "STR"
+    override def argsToString: String = {
+      offset match {
+        case AsmInt(0) => s"$source, [$target]"
+        case _ => s"$source, [$target, $offset]"
+      }
+    }
+  }
+
+  case class Ldrb(cond: ConditionCode.Value = AL)(target: AsmReg, source: AsmArg)(offset: AsmInt = zero) extends AsmInstr {
+    override val opcode: String = "LDRB"
+    override def argsToString: String = {
+      source match {
+        case i@AsmInt(_) => s"$target, ${i.toLdrString}"
+        case s@AsmString(_) => s"$target, ${s.toLdrString}"
+        case _ => offset match {
+            case AsmInt(0) => s"$target, [$source]"
+            case _ => s"$target, [$source, $offset]"
+          }
+      }
+    }
+  }
+
+  case class Strb(cond: ConditionCode.Value = AL)(source: AsmReg, target: AsmArg)(offset: AsmInt = zero) extends AsmInstr {
+    override val opcode: String = "STRB"
     override def argsToString: String = {
       offset match {
         case AsmInt(0) => s"$source, [$target]"
