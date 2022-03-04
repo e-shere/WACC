@@ -52,11 +52,11 @@ object generator {
   )
 
   def genBlock(stats: List[Stat])(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type], funcSymbols: Map[Ident, FuncType]): Step = (
-    Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(symbols.counter))(zero)()
-    >++> Step.instr3(Subs())(STACK_POINTER, STACK_POINTER, Re1)()
-    >++> stats.foldLeft(Step.identity)(_ >++> genStat(_) >++> Step.discardAll)
-    >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(symbols.counter))(zero)()
+    genImmValue(symbols.counter)
     >++> Step.instr3(Adds())(STACK_POINTER, STACK_POINTER, Re1)()
+    >++> stats.foldLeft(Step.identity)(_ >++> genStat(_) >++> Step.discardAll)
+    >++> genImmValue(symbols.counter)
+    >++> Step.instr3(Subs())(STACK_POINTER, STACK_POINTER, Re1)()
     )
 
   def genStat(stat: Stat)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type], funcSymbols: Map[Ident, FuncType]): Step = {
@@ -238,8 +238,8 @@ object generator {
         // We reverse the arguments to match the order in which they are put on the stack
         args.reverse.foldLeft(Step.identity)(_ >++> genExpr(_) >++> Step.instr1(Push())(Re1)())
           >++> BranchLink()(id.id)
-          >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(funcSymbols(id).paramTypes.foldLeft(0)(_ + _.size)))(zero)()
-          >++> Step.instr3(asm.Adds())(STACK_POINTER, STACK_POINTER, Re1)()
+          >++> genImmValue(funcSymbols(id).paramTypes.foldLeft(0)(_ + _.size))
+          >++> Step.instr3(Adds())(STACK_POINTER, STACK_POINTER, Re1)()
           >++> Step.instr2(Mov())(ReNew, r0)()
         )
       case expr: Expr => genExpr(expr)
@@ -249,10 +249,10 @@ object generator {
 
   // puts the memory location of the object in question in a register
   def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = lhs match {
-    case id@Ident(_) =>
-      // This stores the actual location in a new register
-      (Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(s => AsmInt(symbols.getOffset(id).get + s.getStackOffset)))(zero)()
-        >++> Step.instr3(asm.Adds())(ReNew, STACK_POINTER, Re1)())
+    case id@Ident(_) => (Step((s: State) => {
+        genImmValue(symbols.getOffset(id).get + s.getStackOffset)(s)
+      }, "genImmValue")
+      >++> Step.instr3(asm.Adds())(ReNew, STACK_POINTER, Re1)())
     case ArrayElem(id, index) => {
       val ty: Type = id match {
         case ArrayElem(_, _) => ArrayType(AnyType()(NO_POS))(NO_POS)
@@ -273,10 +273,6 @@ object generator {
         )
     }
     case Fst(expr) =>
-      val fstType = printTable(expr.pos) match {
-        case PairType(ty, _) => ty.toType
-        case _ => ??? // This is unreachable
-      }
       (genExpr(expr)
         >++> genCallWithRegs(check_null_pointer().label, 1, Some(r0))
         >++> addPredefFunc(check_null_pointer())
@@ -284,10 +280,6 @@ object generator {
         >++> addPredefFunc(print_string())
         )
     case Snd(expr) =>
-      val (fstType, sndType) = printTable(expr.pos) match {
-        case PairType(tyf, tys) => (tyf.toType, tys.toType)
-        case _ => ??? // This is unreachable
-      }
       (
         genExpr(expr)
           >++> genCallWithRegs(check_null_pointer().label, 1, Some(r0))
@@ -368,5 +360,12 @@ object generator {
       if (s.data.contains(msg)) s.data
       else s.data + (msg -> AsmString(s"msg_$getUniqueName")))), s"includeData($msg)")
   }
+
+  def genImmValue(immValue: Int): Step = (
+    Step.instr2(Mov())(ReNew, zero)()
+    >++> (1 to immValue/1024).foldLeft(Step.identity)((s, _) => s >++> Step.instr3(Adds())(Re1, Re1, AsmInt(1024))(Re1))
+    >++> Step.instr3(Adds())(Re1, Re1, AsmInt(immValue % 1024))(Re1)
+  )
+
 }
 
