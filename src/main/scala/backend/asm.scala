@@ -96,13 +96,6 @@ object asm {
 //    override def toString: String = "ReNew"
   }
 
-  // Handling Chars separately would produce nicer assembly but requires ugly code
-  // to convert an escape character back to the escaped form
-  // Maybe do this later
-  // case class AsmChar(c: Char) {
-  //   override def toString = s"#'$c'"
-  // }
-
   sealed trait Asm
 
   sealed trait AsmInstr extends Asm {

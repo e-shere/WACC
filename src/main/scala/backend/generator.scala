@@ -28,7 +28,6 @@ object generator {
     )
   }
 
-  // TODO: set sp
   def genMain(argc: Int, stats: List[Stat])
              (implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
          Label("main")
@@ -40,7 +39,6 @@ object generator {
     >++> Step.discardAll
   )
 
-  // TODO: set sp
   // Note that each ASM node here is implicitly converted to a step
   def genFunc(name: String, argc: Int, stats: List[Stat])
              (implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
@@ -182,8 +180,7 @@ object generator {
       case ast.CharLiter(x) => Step.instr2(asm.Mov())(ReNew, AsmChar(x))()
       // TODO: There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
       case ast.StrLiter(x) =>
-        val msg = x.flatMap(escapeToStr)
-        includeData(msg) >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(_.data(msg)))(zero)()
+        includeData(x) >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(_.data(x)))(zero)()
       case ast.ArrayLiter(x) => (
         Step.instr2(asm.Mov())(ReNew, AsmInt(x.length))()
           >++> Step.instr2(asm.Mov())(ReNew, AsmInt((x.length + 1) * WORD_BYTES))()
@@ -271,7 +268,6 @@ object generator {
     )
   }
 
-  // TODO
   def genMul(): Step = (
     Step.instr4(SMull())(Re2, Re1, Re2, Re1)(Re2, Re1)
     >++> Step.instr2Aux(Compare())(Re1, Re2)("ASR #31")(Re2)
@@ -330,7 +326,7 @@ object generator {
       (prevStep, entry) => prevStep
         >++> Label(entry._2.toString)
         >++> Directive(s"word ${entry._1.length}")
-        >++> Directive(s"ascii \"${entry._1}\"")
+        >++> Directive(s"ascii \"${entry._1.flatMap(escapeToStr)}\"")
     ))(s), s"genData")
   )
 
