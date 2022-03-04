@@ -28,7 +28,6 @@ object generator {
     )
   }
 
-  // TODO: set sp
   def genMain(argc: Int, stats: List[Stat])
              (implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
          Label("main")
@@ -40,7 +39,6 @@ object generator {
     >++> Step.discardAll
   )
 
-  // TODO: set sp
   // Note that each ASM node here is implicitly converted to a step
   def genFunc(name: String, argc: Int, stats: List[Stat])
              (implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
@@ -73,9 +71,8 @@ object generator {
           case Some(_) => ???
           case None => ??? // Should be unreachable
         }
-        (genCallWithRegs(readFunc.label, 0, Some(r0))
-        >++> genLhs(lhs)
-        >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)()
+        (genLhs(lhs)
+        >++> genCallWithRegs(readFunc.label, 1, None)
         >++> addPredefFunc(readFunc)
         )
       case Free(expr) => (genExpr(expr)
@@ -93,6 +90,7 @@ object generator {
           case Some(BoolType()) =>  print_bool()
           case Some(CharType()) =>  print_char()
           case Some(IntType()) => print_int()
+          case Some(ArrayType(CharType()))=> print_string()
           case Some(_) => print_ref()
           case None => ???   // Unreachable case statement
         }
@@ -155,8 +153,20 @@ object generator {
       case ast.Lt(x, y)  => genBinOp(x, y, Step.instr3(asm.Lt())(Re2, Re2, Re1)(Re2))
       case ast.Geq(x, y) => genBinOp(x, y, Step.instr3(asm.Geq())(Re2, Re2, Re1)(Re2))
       case ast.Gt(x, y)  => genBinOp(x, y, Step.instr3(asm.Gt())(Re2, Re2, Re1)(Re2))
-      case ast.Add(x, y) => genBinOp(x, y, Step.instr3(asm.Adds())(Re2, Re2, Re1)(Re2))
-      case ast.Sub(x, y) => genBinOp(x, y, Step.instr3(asm.Subs())(Re2, Re2, Re1)(Re2))
+      case ast.Add(x, y) => (
+        genBinOp(x, y, Step.instr3(asm.Adds())(Re2, Re2, Re1)(Re2))
+        >++> BranchLink(VS)(throw_overflow().label)
+        >++> addPredefFunc(throw_runtime())
+        >++> addPredefFunc(throw_overflow())
+        >++> addPredefFunc(print_string())
+        )
+      case ast.Sub(x, y) => (
+        genBinOp(x, y, Step.instr3(asm.Subs())(Re2, Re2, Re1)(Re2))
+        >++> BranchLink(VS)(throw_overflow().label)
+        >++> addPredefFunc(throw_runtime())
+        >++> addPredefFunc(throw_overflow())
+        >++> addPredefFunc(print_string())
+        )
       case ast.Mul(x, y) => genBinOp(x, y, genMul())
       case ast.Div(x, y) => genBinOp(x, y, genDiv)
       case ast.Mod(x, y) => genBinOp(x, y, genMod)
@@ -170,8 +180,7 @@ object generator {
       case ast.CharLiter(x) => Step.instr2(asm.Mov())(ReNew, AsmChar(x))()
       // TODO: There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
       case ast.StrLiter(x) =>
-        val msg = x.flatMap(escapeToStr)
-        includeData(msg) >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(_.data(msg)))(zero)()
+        includeData(x) >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(_.data(x)))(zero)()
       case ast.ArrayLiter(x) => (
         Step.instr2(asm.Mov())(ReNew, AsmInt(x.length))()
           >++> Step.instr2(asm.Mov())(ReNew, AsmInt((x.length + 1) * WORD_BYTES))()
@@ -206,6 +215,7 @@ object generator {
              genExpr(expr)
         >++> genCallWithRegs(check_null_pointer().label, 1, Some(r0))
         >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(zero)(Re1)
+        >++> addPredefFunc(check_null_pointer())
         >++> addPredefFunc(throw_runtime())
         >++> addPredefFunc(throw_overflow())
         >++> addPredefFunc(print_string())
@@ -214,6 +224,7 @@ object generator {
              genExpr(expr)
         >++> genCallWithRegs(check_null_pointer().label, 1, Some(r0))
         >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(word_size)(Re1)
+        >++> addPredefFunc(check_null_pointer())
         >++> addPredefFunc(throw_runtime())
         >++> addPredefFunc(throw_overflow())
         >++> addPredefFunc(print_string())
@@ -257,7 +268,6 @@ object generator {
     )
   }
 
-  // TODO
   def genMul(): Step = (
     Step.instr4(SMull())(Re2, Re1, Re2, Re1)(Re2, Re1)
     >++> Step.instr2Aux(Compare())(Re1, Re2)("ASR #31")(Re2)
@@ -316,7 +326,7 @@ object generator {
       (prevStep, entry) => prevStep
         >++> Label(entry._2.toString)
         >++> Directive(s"word ${entry._1.length}")
-        >++> Directive(s"ascii \"${entry._1}\"")
+        >++> Directive(s"ascii \"${entry._1.flatMap(escapeToStr)}\"")
     ))(s), s"genData")
   )
 

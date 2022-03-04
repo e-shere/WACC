@@ -1,6 +1,6 @@
 package backend
 
-import backend.asm.ConditionCode.{AL, EQ, GE, GT, LE, LT, NE}
+import backend.asm.ConditionCode.{AL, EQ, GE, GT, LE, LT, NE, VS}
 import backend.state.State
 import backend.step._
 import backend.step.implicits._
@@ -96,13 +96,6 @@ object asm {
 //    override def toString: String = "ReNew"
   }
 
-  // Handling Chars separately would produce nicer assembly but requires ugly code
-  // to convert an escape character back to the escaped form
-  // Maybe do this later
-  // case class AsmChar(c: Char) {
-  //   override def toString = s"#'$c'"
-  // }
-
   sealed trait Asm
 
   sealed trait AsmInstr extends Asm {
@@ -114,7 +107,7 @@ object asm {
 
   object ConditionCode extends Enumeration {
     type Cond = Value
-    val EQ, NE, LT, LE, GT, GE, CS = Value
+    val EQ, NE, LT, LE, GT, GE, CS, VS = Value
     val AL: ConditionCode.Value = Value("")
   }
 
