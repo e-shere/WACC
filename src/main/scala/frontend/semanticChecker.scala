@@ -516,6 +516,7 @@ object semanticChecker {
             val errors = indexErrors ++ arrayErrors
             maybeArrayType match {
               case Some(ArrayType(innerType)) =>
+                printSymbols += arrayElem.pos -> innerType
                 (Some(innerType.withPos(arrayElem.pos)), errors)
               case Some(ty) =>
                 (
@@ -574,6 +575,7 @@ object semanticChecker {
         val (maybeTypes, errors) = typeOfExpr2(fst, snd)
         maybeTypes match {
           case Some((fstType, sndType)) =>
+            printSymbols += rhs.pos -> PairType(fstType.toPairElemType, sndType.toPairElemType)(rhs.pos)
             (
               Some(
                 PairType(fstType.toPairElemType, sndType.toPairElemType)(
@@ -594,7 +596,8 @@ object semanticChecker {
         else {
           val (maybeExprType, exprErrors) = typeOfExpr(expr)
           maybeExprType match {
-            case Some(PairType(fstType, _)) =>
+            case Some(pt@PairType(fstType, _)) =>
+              printSymbols += expr.pos -> pt
               (Some(fstType.toType), exprErrors)
             case Some(ty) =>
               (
@@ -618,7 +621,8 @@ object semanticChecker {
         else {
           val (maybeExprType, exprErrors) = typeOfExpr(expr)
           maybeExprType match {
-            case Some(PairType(_, sndType)) =>
+            case Some(pt@PairType(_, sndType)) =>
+              printSymbols += expr.pos -> pt
               (Some(sndType.toType), exprErrors)
             case Some(ty) =>
               (
