@@ -37,7 +37,7 @@ object state {
 
     def next: State = State(AsmReg(reg.r + 1), this.fState, this.data)
 
-    def getStackOffset: Int = if (reg.r - NUM_BASE_REG > 0) reg.r - NUM_BASE_REG else 0
+    def getStackOffset: Int = if (reg.r - NUM_BASE_REG > 0) ((reg.r - NUM_BASE_REG) * WORD_BYTES) else 0
 
     def read: (AsmReg, List[Asm], State) = {
       assert(reg.r > 4)

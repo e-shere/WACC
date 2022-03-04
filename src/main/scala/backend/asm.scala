@@ -8,8 +8,6 @@ import backend.step.implicits._
 object asm {
   val WORD_BYTES = 4
 
-  def countToOffset(count: Int): Int = count * WORD_BYTES
-
   def escapeToStr(c: Char): String = {
     c match {
       case '\u0000'=> "\\0"
