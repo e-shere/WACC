@@ -79,9 +79,6 @@ object generator {
         )
       case Free(expr) => (genExpr(expr)
         >++> genPredefCall()(free(), 1, None)
-        >++> addPredefFunc(check_null_pointer())
-        >++> addPredefFunc(throw_runtime())
-        >++> addPredefFunc(print_string())
         )
       case Return(expr) => genExpr(expr) >++> Step.instr2(Mov())(r0, Re1)()
       case Exit(expr) => genExpr(expr) >++> genBuiltinCall()("exit", 1, None)
@@ -200,17 +197,11 @@ object generator {
              genExpr(expr)
         >++> genPredefCall()(check_null_pointer(), 1, Some(r0))
         >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(zero)(Re1)
-        >++> addPredefFunc(throw_runtime())
-        >++> addPredefFunc(throw_overflow())
-        >++> addPredefFunc(print_string())
       )
       case Snd(expr) => (
              genExpr(expr)
         >++> genPredefCall()(check_null_pointer(), 1, Some(r0))
         >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(word_size)(Re1)
-        >++> addPredefFunc(throw_runtime())
-        >++> addPredefFunc(throw_overflow())
-        >++> addPredefFunc(print_string())
       )
       case ast.Call(id, args) => (
         // We reverse the arguments to match the order in which they are put on the stack
@@ -240,8 +231,6 @@ object generator {
       >++> Step.instr2(asm.Mov())(ReNew, AsmInt(4))()
       >++> genMul()
       >++> Step.instr3(asm.Adds())(Re2, Re2, Re1)(Re2)
-      >++> addPredefFunc(throw_runtime())
-      >++> addPredefFunc(print_string())
       )
     case Fst(expr) => genExpr(expr)
     case Snd(expr) => (
@@ -255,22 +244,16 @@ object generator {
     Step.instr4(SMull())(Re2, Re1, Re2, Re1)(Re2, Re1)
     >++> Step.instr2Aux(Compare())(Re1, Re2)("ASR #31")(Re2)
     >++> genPredefCall(NE)(throw_overflow(), 0, None)
-    >++> addPredefFunc(throw_runtime())
-    >++> addPredefFunc(print_string())
   )
 
   def genDiv: Step = (
     genPredefCall()(check_div_zero(), 2, None)
     >++> genBuiltinCall()("__aeabi_idiv", 0, Some(r0))
-    >++> addPredefFunc(throw_runtime())
-    >++> addPredefFunc(print_string())
     )
 
   def genMod: Step = (
     genPredefCall()(check_div_zero(), 2, None)
     >++> genBuiltinCall()("__aeabi_idivmod", 0, Some(r1))
-    >++> addPredefFunc(throw_runtime())
-    >++> addPredefFunc(print_string())
     )
 
   def genPredefCall(cond: ConditionCode.Value = AL)(f: PredefinedFunc, argc: Int, resultReg: Option[AsmReg]): Step = 
@@ -294,8 +277,12 @@ object generator {
   }
 
   def genPredefFuncs: Step = {
-    Step((s: State) => s.fState.foldLeft(Step.identity)(
-      (prev, f) => prev >++> f.toStep)(s), "genPredefFuncs")
+    Step((s: State) => {
+      val step = s.fState.foldLeft(Step.identity)((prev, f) => prev >++> f.toStep)
+      val result = step(s)
+      if (result._2.fState == s.fState) result
+      else (step >++> genPredefFuncs)(s)
+    }, "genPredefFuncs")
   }
 
   def addPredefFunc(f: PredefinedFunc): Step = {
