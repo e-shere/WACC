@@ -192,7 +192,10 @@ object asm {
       source match {
         case i@AsmInt(_) => s"$target, ${i.toLdrString}"
         case s@AsmString(_) => s"$target, ${s.toLdrString}"
-        case _ => s"$target, [$source, $offset]"
+        case _ => offset match {
+            case AsmInt(0) => s"$target, [$source]"
+            case _ => s"$target, [$source, $offset]"
+          }
       }
     }
   }
@@ -213,7 +216,10 @@ object asm {
       source match {
         case i@AsmInt(_) => s"$target, ${i.toLdrString}"
         case s@AsmString(_) => s"$target, ${s.toLdrString}"
-        case _ => s"$target, [$source, $offset]"
+        case _ => offset match {
+            case AsmInt(0) => s"$target, [$source]"
+            case _ => s"$target, [$source, $offset]"
+          }
       }
     }
   }

@@ -575,7 +575,8 @@ object semanticChecker {
         val (maybeTypes, errors) = typeOfExpr2(fst, snd)
         maybeTypes match {
           case Some((fstType, sndType)) =>
-            printSymbols += rhs.pos -> PairType(fstType.toPairElemType, sndType.toPairElemType)(rhs.pos)
+            printSymbols += fst.pos -> fstType
+            printSymbols += snd.pos -> sndType
             (
               Some(
                 PairType(fstType.toPairElemType, sndType.toPairElemType)(
