@@ -50,10 +50,10 @@ object generator {
   )
 
   def genBlock(stats: List[Stat])(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
-    Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(countToOffset(symbols.symbols.size)))(zero)()
+    Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(symbols.counter))(zero)()
     >++> Step.instr3(Subs())(STACK_POINTER, STACK_POINTER, Re1)()
     >++> stats.foldLeft(Step.identity)(_ >++> genStat(_) >++> Step.discardAll)
-    >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(countToOffset(symbols.symbols.size)))(zero)()
+    >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(symbols.counter))(zero)()
     >++> Step.instr3(Adds())(STACK_POINTER, STACK_POINTER, Re1)()
     )
 
@@ -216,7 +216,8 @@ object generator {
         // We reverse the arguments to match the order in which they are put on the stack
         args.reverse.foldLeft(Step.identity)(_ >++> genExpr(_) >++> Step.instr1(Push())(Re1)())
           >++> BranchLink()(id.id)
-          >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(countToOffset(args.length)))(zero)()
+        // TODO: later- args.length will no longer be usable as some args vary in size
+          >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(args.length * WORD_BYTES))(zero)()
           >++> Step.instr3(asm.Adds())(STACK_POINTER, STACK_POINTER, Re1)()
           >++> Step.instr2(Mov())(ReNew, r0)()
         )
@@ -229,7 +230,7 @@ object generator {
   def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {
     case id@Ident(_) =>
       // This stores the actual location in a new register
-      (Step.instr2Aux(asm.Ldr())(ReNew, AsmPureFunc(s => AsmInt(countToOffset(symbols.getOffset(id).get + s.getStackOffset))))(zero)()
+      (Step.instr2Aux(asm.Ldr())(ReNew, AsmPureFunc(s => AsmInt(symbols.getOffset(id).get + s.getStackOffset)))(zero)()
         >++> Step.instr3(asm.Adds())(ReNew, STACK_POINTER, Re1)())
     case ArrayElem(id, index) => (genExpr(id)
       >++> genExpr(index)
