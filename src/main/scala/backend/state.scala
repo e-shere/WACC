@@ -14,7 +14,7 @@ object state {
   val PLACEHOLDER_1 = AsmReg(10)
   val PLACEHOLDER_2 = AsmReg(11)
   val STACK_POINTER = AsmReg(13)
-  val NEW_REG: State = State(REG_START, Set(), Map.empty)
+  val NEW_REG: State = State(REG_START, Map.empty, Map.empty)
 
   /*
   Reg documents the highest register of 4-9 which is not in use
@@ -23,7 +23,7 @@ object state {
   // TODO: ROB PLEASE DO SOME OFF BY ONE CHECKS HERE
   // TODO: unit test this
 
-  type FuncState = Set[PredefinedFunc]
+  type FuncState = Map[PredefinedFunc, Boolean]
   // Maps from the string value we want to insert to
   type StringData = Map[String, AsmString]
 

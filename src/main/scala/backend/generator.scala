@@ -65,8 +65,8 @@ object generator {
         >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)())
       case Read(lhs) =>
         val readFunc: PredefinedFunc = printTable.get(lhs.pos) match {
-          case Some(IntType()) => read_int()
-          case Some(CharType()) => read_char()
+          case Some(IntType()) => read_int
+          case Some(CharType()) => read_char
           case Some(_) => ???
           case None => ??? // Should be unreachable
         }
@@ -74,25 +74,25 @@ object generator {
         >++> genPredefCall()(readFunc, 1, None)
         )
       case Free(expr) => (genExpr(expr)
-        >++> genPredefCall()(free(), 1, None)
+        >++> genPredefCall()(free, 1, None)
         )
       case Return(expr) => genExpr(expr) >++> Step.instr2(Mov())(r0, Re1)()
       case Exit(expr) => genExpr(expr) >++> genBuiltinCall()("exit", 1, None)
       case Print(expr) =>
         val printFunc: PredefinedFunc = printTable.get(expr.pos) match {
-          case Some(StringType()) => print_string()
-          case Some(BoolType()) =>  print_bool()
-          case Some(CharType()) =>  print_char()
-          case Some(IntType()) => print_int()
-          case Some(ArrayType(CharType()))=> print_string()
-          case Some(_) => print_ref()
+          case Some(StringType()) => print_string
+          case Some(BoolType()) =>  print_bool
+          case Some(CharType()) =>  print_char
+          case Some(IntType()) => print_int
+          case Some(ArrayType(CharType()))=> print_string
+          case Some(_) => print_ref
           case None => ???   // Unreachable case statement
         }
         (genExpr(expr)
         >++> genPredefCall()(printFunc, 1, None)
         )
       case Println(expr) => (genStat(Print(expr)(NO_POS))
-        >++> genPredefCall()(print_ln(), 0, None)
+        >++> genPredefCall()(print_ln, 0, None)
         )
       case s@If(expr, thenStats, elseStats) => {
         val l = getUniqueName
@@ -147,17 +147,17 @@ object generator {
       case ast.Gt(x, y)  => genBinOp(x, y, Step.instr3(asm.Gt())(Re2, Re2, Re1)(Re2))
       case ast.Add(x, y) => (
         genBinOp(x, y, Step.instr3(asm.Adds())(Re2, Re2, Re1)(Re2))
-        >++> BranchLink(VS)(throw_overflow().label)
-        >++> addPredefFunc(throw_runtime())
-        >++> addPredefFunc(throw_overflow())
-        >++> addPredefFunc(print_string())
+        >++> BranchLink(VS)(throw_overflow.label)
+        >++> addPredefFunc(throw_runtime)
+        >++> addPredefFunc(throw_overflow)
+        >++> addPredefFunc(print_string)
         )
       case ast.Sub(x, y) => (
         genBinOp(x, y, Step.instr3(asm.Subs())(Re2, Re2, Re1)(Re2))
-        >++> BranchLink(VS)(throw_overflow().label)
-        >++> addPredefFunc(throw_runtime())
-        >++> addPredefFunc(throw_overflow())
-        >++> addPredefFunc(print_string())
+        >++> BranchLink(VS)(throw_overflow.label)
+        >++> addPredefFunc(throw_runtime)
+        >++> addPredefFunc(throw_overflow)
+        >++> addPredefFunc(print_string)
         )
       case ast.Mul(x, y) => genBinOp(x, y, genMul())
       case ast.Div(x, y) => genBinOp(x, y, genDiv)
@@ -204,12 +204,12 @@ object generator {
       )
       case Fst(expr) => (
              genExpr(expr)
-        >++> genPredefCall()(check_null_pointer(), 1, Some(r0))
+        >++> genPredefCall()(check_null_pointer, 1, Some(r0))
         >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(zero)(Re1)
       )
       case Snd(expr) => (
              genExpr(expr)
-        >++> genPredefCall()(check_null_pointer(), 1, Some(r0))
+        >++> genPredefCall()(check_null_pointer, 1, Some(r0))
         >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(word_size)(Re1)
       )
       case ast.Call(id, args) => (
@@ -235,7 +235,7 @@ object generator {
       >++> genExpr(index)
       >++> genExpr(id)
       >++> genExpr(index)
-      >++> genPredefCall()(check_array_bound(), 2, None)
+      >++> genPredefCall()(check_array_bound, 2, None)
       >++> Step.instr3(asm.Adds())(Re1, Re1, AsmInt(1))(Re1)
       >++> Step.instr2(asm.Mov())(ReNew, AsmInt(4))()
       >++> genMul()
@@ -251,16 +251,16 @@ object generator {
   def genMul(): Step = (
     Step.instr4(SMull())(Re2, Re1, Re2, Re1)(Re2, Re1)
     >++> Step.instr2Aux(Compare())(Re1, Re2)("ASR #31")(Re2)
-    >++> genPredefCall(NE)(throw_overflow(), 0, None)
+    >++> genPredefCall(NE)(throw_overflow, 0, None)
   )
 
   def genDiv: Step = (
-    genPredefCall()(check_div_zero(), 2, None)
+    genPredefCall()(check_div_zero, 2, None)
     >++> genBuiltinCall()("__aeabi_idiv", 0, Some(r0))
     )
 
   def genMod: Step = (
-    genPredefCall()(check_div_zero(), 2, None)
+    genPredefCall()(check_div_zero, 2, None)
     >++> genBuiltinCall()("__aeabi_idivmod", 0, Some(r1))
     )
 
@@ -286,15 +286,17 @@ object generator {
 
   def genPredefFuncs: Step = {
     Step((s: State) => {
-      val step = s.fState.foldLeft(Step.identity)((prev, f) => prev >++> f.toStep)
-      val result = step(s)
-      if (result._2.fState == s.fState) result
-      else (step >++> genPredefFuncs)(s)
+      val (alreadyGenerated, notGenerated) = s.fState.partition { case (_, b) => b }
+      if (notGenerated.isEmpty) Step.identity(s)
+      else {
+        val step = notGenerated.foldLeft(Step.identity)((prev, v) => prev >++> v._1.toStep)
+        (step >++> genPredefFuncs)(s.copy(fState = notGenerated.map { case (f, _) => (f, true) } ++ alreadyGenerated))
+      }
     }, "genPredefFuncs")
   }
 
   def addPredefFunc(f: PredefinedFunc): Step = {
-    Step((s: State) => (Nil, s.copy(fState = s.fState + f)), s"addPredefFunc(${f.label})")
+    Step((s: State) => (Nil, s.copy(fState = if (s.fState contains f) s.fState else s.fState + (f -> false))), s"addPredefFunc(${f.label})")
   }
 
   def genData: Step = (
