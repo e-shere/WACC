@@ -74,7 +74,7 @@ object generator {
           case None => ??? // Should be unreachable
         }
         (genLhs(lhs)
-        >++> genCallWithRegs(readFunc.label, 0, Some(r0))
+        >++> genCallWithRegs(readFunc.label, 1, None)
         >++> addPredefFunc(readFunc)
         )
       case Free(expr) => (genExpr(expr)
