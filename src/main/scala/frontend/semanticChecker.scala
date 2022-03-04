@@ -261,7 +261,8 @@ object semanticChecker {
   )(implicit
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String]
+      fileLines: Array[String],
+      printSymbols: mutable.Map[(Int, Int), Type]
   ): (Option[Type], List[WaccError]) = {
     val (maybeTypes, errors) = typeOfExpr2(x, y)
     maybeTypes match {
@@ -308,7 +309,8 @@ object semanticChecker {
   )(implicit
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String]
+      fileLines: Array[String],
+      printSymbols: mutable.Map[(Int, Int), Type]
   ): (Option[Type], List[WaccError]) = {
     val (maybeXType, xErrors) = typeOfExpr(x)
     maybeXType match {
@@ -327,7 +329,8 @@ object semanticChecker {
   def typeOfExpr(expr: Expr)(implicit
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String]
+      fileLines: Array[String],
+      printSymbols: mutable.Map[(Int, Int), Type]
   ): (Option[Type], List[WaccError]) = {
     expr match {
       case orExpr @ Or(x, y) =>
@@ -492,6 +495,7 @@ object semanticChecker {
           typeOfExpr2(expr, ArrayLiter(exprs)(arrayExpr.pos))
         maybeTypes match {
           case Some((a, ArrayType(b))) => {
+            printSymbols += (expr.pos -> maybeTypes.get._2)
             if (b coercesTo a) (Some(ArrayType(a)(arrayExpr.pos)), errors)
             else if (a coercesTo b) (Some(ArrayType(b)(arrayExpr.pos)), errors)
             else
@@ -542,7 +546,8 @@ object semanticChecker {
   def typeOfExpr2(x: Expr, y: Expr)(implicit
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String]
+      fileLines: Array[String],
+      printSymbols: mutable.Map[(Int, Int), Type]
   ): (Option[(Type, Type)], List[WaccError]) = {
     val (maybeXType, xErrors) = typeOfExpr(x)
     val (maybeYType, yErrors) = typeOfExpr(y)
@@ -560,7 +565,8 @@ object semanticChecker {
       funcTable: Map[Ident, FuncType],
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String]
+      fileLines: Array[String],
+      printSymbols: mutable.Map[(Int, Int), Type]
   ): (Option[Type], List[WaccError]) = {
     rhs match {
       case rhs @ NewPair(fst, snd) => {
@@ -686,7 +692,8 @@ object semanticChecker {
       funcTable: Map[Ident, FuncType],
       typeTable: TypeTable,
       file: String,
-      fileLines: Array[String]
+      fileLines: Array[String],
+      printSymbols: mutable.Map[(Int, Int), Type]
   ): (Option[Type], List[WaccError]) = {
     // Every subtype of AssignLhs is also a subtype of AssignRhs. This method
     // exists anyway for easier extensibility if this were to change

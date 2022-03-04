@@ -133,17 +133,17 @@ object generator {
     }
   }
 
-  def genBinOp(x: Expr, y: Expr, step: Step)(implicit symbols: TypeTable): Step = (
+  def genBinOp(x: Expr, y: Expr, step: Step)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = (
            genExpr(x)
       >++> genExpr(y)
       >++> step
     )
 
-  def genUnOp(x: Expr, step: Step)(implicit symbols: TypeTable): Step = {
+  def genUnOp(x: Expr, step: Step)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = {
     genExpr(x) >++> step
   }
 
-  def genExpr(expr: Expr)(implicit symbols: TypeTable): Step = {
+  def genExpr(expr: Expr)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = {
     expr match {
       case ast.Or(x, y)  => genBinOp(x, y, Step.instr3(asm.Or())(Re2, Re2, Re1)(Re2))
       case ast.And(x, y) => genBinOp(x, y, Step.instr3(asm.And())(Re2, Re2, Re1)(Re2))
@@ -181,18 +181,19 @@ object generator {
       // TODO: There is some code repetition between StrLiter and ArrLiter - we might want to refactor this
       case ast.StrLiter(x) =>
         includeData(x) >++> Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(_.data(x)))(zero)()
-      case ast.ArrayLiter(x) => (
-        Step.instr2(asm.Mov())(ReNew, AsmInt(x.length))()
-          >++> Step.instr2(asm.Mov())(ReNew, AsmInt((x.length + 1) * WORD_BYTES))()
+      case ast.ArrayLiter(x) => {
+        val size = printTable(expr.pos).size
+        (Step.instr2(asm.Mov())(ReNew, AsmInt(x.length))()
+          >++> Step.instr2(asm.Mov())(ReNew, AsmInt((x.length * size) + WORD_BYTES))()
           >++> genCallWithRegs("malloc", 1, Some(r0)) // replace sizeInBytes with a pointer to the array
           >++> Step.instr2Aux(asm.Str())(Re2, Re1)(zero)(Re2, Re1)
           >++> Step.instr2(asm.Mov())(Re2, Re1)(Re2)
           >++> x.zipWithIndex.foldLeft(Step.identity)((prev, v) => (
           prev
             >++> genExpr(v._1) // put value in a register
-            >++> Step.instr2Aux(asm.Str())(Re1, Re2)(AsmInt((v._2 + 1) * WORD_BYTES))(Re2)
+            >++> Step.instr2Aux(asm.Str())(Re1, Re2)(AsmInt(WORD_BYTES + (v._2 * size)))(Re2)
           ))
-      )
+      )}
       case s@ArrayElem(id, index) => genLhs(s)
       case idd@Ident(_) => genLhs(idd) >++> Step.instr2Aux(asm.Ldr())(Re1, Re1)(zero)(Re1)
       case Null() => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(0))(zero)()
@@ -200,7 +201,7 @@ object generator {
     }
   }
 
-  def genRhs(rhs: AssignRhs)(implicit symbols: TypeTable): Step = {
+  def genRhs(rhs: AssignRhs)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = {
     rhs match {
       case arr@ArrayLiter(_) => genExpr(arr)
       case NewPair(fst, snd) => (
@@ -244,24 +245,30 @@ object generator {
 
 
   // puts the memory location of the object in question in a register
-  def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable): Step = lhs match {
+  def genLhs(lhs: AssignLhs)(implicit symbols: TypeTable, printTable: Map[(Int, Int), Type]): Step = lhs match {
     case id@Ident(_) =>
       // This stores the actual location in a new register
       (Step.instr2Aux(asm.Ldr())(ReNew, AsmStateFunc(s => AsmInt(symbols.getOffset(id).get + s.getStackOffset)))(zero)()
         >++> Step.instr3(asm.Adds())(ReNew, STACK_POINTER, Re1)())
-    case ArrayElem(id, index) => (genExpr(id)
-      >++> genExpr(index)
-      >++> genExpr(id)
-      >++> genExpr(index)
-      >++> genCallWithRegs(check_array_bound().label, 2, None)
-      >++> Step.instr3(asm.Adds())(Re1, Re1, AsmInt(1))(Re1)
-      >++> Step.instr2(asm.Mov())(ReNew, AsmInt(4))()
-      >++> genMul()
-      >++> Step.instr3(asm.Adds())(Re2, Re2, Re1)(Re2)
-      >++> addPredefFunc(check_array_bound())
-      >++> addPredefFunc(throw_runtime())
-      >++> addPredefFunc(print_string())
-      )
+    case ArrayElem(id, index) => {
+      val ty: Type = id match {
+        case ArrayElem(_, _) => ArrayType(AnyType()(NO_POS))(NO_POS)
+        case idd@Ident(_) => symbols.getType(idd).get
+      }
+      (genExpr(id)
+        >++> genExpr(index)
+        >++> genExpr(id)
+        >++> genExpr(index)
+        >++> genCallWithRegs(check_array_bound().label, 2, None)
+        >++> Step.instr2(asm.Mov())(ReNew, AsmInt(ty.size))()
+        >++> genMul()
+        >++> Step.instr3(asm.Adds())(Re1, Re1, word_size)(Re1)
+        >++> Step.instr3(asm.Adds())(Re2, Re2, Re1)(Re2)
+        >++> addPredefFunc(check_array_bound())
+        >++> addPredefFunc(throw_runtime())
+        >++> addPredefFunc(print_string())
+        )
+    }
     case Fst(expr) => genExpr(expr)
     case Snd(expr) => (
       genExpr(expr)
