@@ -33,11 +33,16 @@ object symbols {
     }
 
     def getOffset(ident: ArrayIdent): Option[Int] = {
-      symbols get ident match {
-        case None => parent.flatMap(_ getOffset ident).map(counter + _)
-        case Some(x) => Some(x._2)
+      val declaredIdent = symbols.keys.find(_ == ident)
+//      println(s"$declaredIdent")
+      declaredIdent match {
+        case Some(x) if leqPos(declaredIdent.get.pos, ident.pos) => Some(symbols(x)._2)
+        case _ => parent.flatMap(_ getOffset ident).map(counter + _)
       }
     }
+
+    def leqPos(p1: (Int, Int), p2: (Int, Int)): Boolean =
+      p1._1 < p2._1 || (p1._1 == p1._1 && p1._2 <= p2._2)
 
   }
 }

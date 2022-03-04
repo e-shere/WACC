@@ -201,7 +201,7 @@ object generator {
             >++> Step.instr2Aux(if (size == 1) asm.Strb() else asm.Str())(Re1, Re2)(AsmInt(WORD_BYTES + (v._2 * size)))(Re2)
           ))
       )}
-      case s@ArrayElem(id, index) => genLhs(s)
+      case s@ArrayElem(id, _) => genLhs(s) >++> Step.instr2Aux(ldr(symbols.getType(id).get))(Re1, Re1)(zero)(Re1)
       case idd@Ident(_) => genLhs(idd) >++> Step.instr2Aux(ldr(symbols.getType(idd).get))(Re1, Re1)(zero)(Re1)
       case Null() => Step.instr2Aux(asm.Ldr())(ReNew, AsmInt(0))(zero)()
       case Paren(expr) => genExpr(expr)
@@ -222,31 +222,18 @@ object generator {
         >++> genExpr(snd)
         >++> Step.instr2Aux(str(sndType))(Re1, Re2)(AsmInt(fstType.size))(Re2)
       )
-      case Fst(expr) =>
+      case fst@Fst(expr) =>
         val fstType = printTable(expr.pos) match {
           case PairType(ty, _) => ty.toType
           case _ => ??? // This is unreachable
         }
-      (genExpr(expr)
-        >++> genCallWithRegs(check_null_pointer().label, 1, Some(r0))
-        >++> Step.instr2Aux(ldr(fstType))(Re1, Re1)(zero)(Re1)
-        >++> addPredefFunc(check_null_pointer())
-        >++> addPredefFunc(throw_runtime())
-        >++> addPredefFunc(print_string())
-      )
-      case Snd(expr) =>
+        genLhs(fst) >++> Step.instr2Aux(ldr(fstType))(Re1, Re1)(zero)(Re1)
+      case snd@Snd(expr) =>
         val (fstType, sndType) = printTable(expr.pos) match {
           case PairType(tyf, tys) => (tyf.toType, tys.toType)
           case _ => ??? // This is unreachable
         }
-        (
-             genExpr(expr)
-        >++> genCallWithRegs(check_null_pointer().label, 1, Some(r0))
-        >++> Step.instr2Aux(ldr(sndType))(Re1, Re1)(AsmInt(fstType.size))(Re1)
-        >++> addPredefFunc(check_null_pointer())
-        >++> addPredefFunc(throw_runtime())
-        >++> addPredefFunc(print_string())
-      )
+        genLhs(snd) >++> Step.instr2Aux(ldr(sndType))(Re1, Re1)(AsmInt(fstType.size))(Re1)
       case ast.Call(id, args) => (
         // We reverse the arguments to match the order in which they are put on the stack
         args.reverse.foldLeft(Step.identity)(_ >++> genExpr(_) >++> Step.instr1(Push())(Re1)())
@@ -273,8 +260,8 @@ object generator {
       }
       (genExpr(id)
         >++> genExpr(index)
-        >++> genExpr(id)
         >++> genExpr(index)
+        >++> genExpr(id)
         >++> genCallWithRegs(check_array_bound().label, 2, None)
         >++> Step.instr2(asm.Mov())(ReNew, AsmInt(ty.size))()
         >++> genMul()
@@ -285,11 +272,29 @@ object generator {
         >++> addPredefFunc(print_string())
         )
     }
-    case Fst(expr) => genExpr(expr)
-    case Snd(expr) => (
-      genExpr(expr)
-      >++> Step.instr3(asm.Adds())(Re1, Re1, word_size)(Re1)
-    )
+    case Fst(expr) =>
+      val fstType = printTable(expr.pos) match {
+        case PairType(ty, _) => ty.toType
+        case _ => ??? // This is unreachable
+      }
+      (genExpr(expr)
+        >++> genCallWithRegs(check_null_pointer().label, 1, Some(r0))
+        >++> addPredefFunc(check_null_pointer())
+        >++> addPredefFunc(throw_runtime())
+        >++> addPredefFunc(print_string())
+        )
+    case Snd(expr) =>
+      val (fstType, sndType) = printTable(expr.pos) match {
+        case PairType(tyf, tys) => (tyf.toType, tys.toType)
+        case _ => ??? // This is unreachable
+      }
+      (
+        genExpr(expr)
+          >++> genCallWithRegs(check_null_pointer().label, 1, Some(r0))
+          >++> addPredefFunc(check_null_pointer())
+          >++> addPredefFunc(throw_runtime())
+          >++> addPredefFunc(print_string())
+        )
   }
 
   def genMul(): Step = (
