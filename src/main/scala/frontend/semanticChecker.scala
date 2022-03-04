@@ -748,8 +748,18 @@ object semanticChecker {
   ): (Option[Type], List[WaccError], Map[(Int, Int), Type]) = {
     // Every subtype of AssignLhs is also a subtype of AssignRhs. This method
     // exists anyway for easier extensibility if this were to change
+    val localPrintSymbols = mutable.Map.empty[(Int, Int), Type]
     lhs match {
-      case rhs: AssignRhs => typeOfRhs(rhs)
+      case rhs: AssignRhs => {
+        val (maybeType, errors, printSymbols) = typeOfRhs(rhs)
+        maybeType match {
+          case Some(ty) => {
+            localPrintSymbols += lhs.pos -> ty
+            (maybeType, errors, localPrintSymbols.toMap ++ printSymbols)
+          }
+          case _ => (maybeType, errors, printSymbols)
+        }
+      }
     }
   }
 
